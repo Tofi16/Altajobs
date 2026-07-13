@@ -274,6 +274,7 @@ TRANSLATIONS = {
         "description_label": "መግለጫ",
         "mention_label": "የጠቀሱት (@username)",
         "mention_placeholder": "@username @username2",
+        "profile_analysis": "የፖስት መረጃ",
     },
     "en": {
         "app_name": "AltaJobs",
@@ -283,6 +284,7 @@ TRANSLATIONS = {
         "register": "Sign Up",
         "logout": "Logout",
         "feed": "News Feed",
+        "profile_analysis": "Post Analysis",
         "post_placeholder": "What's on your mind? Share a job or your experience...",
         "post_button": "Post",
         "add_photo": "Add Photo",

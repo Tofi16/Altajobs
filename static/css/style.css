@@ -656,6 +656,9 @@ label { font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 4px;
 .profile-type { color: var(--accent); font-weight: 600; }
 .profile-section { margin-top: 14px; }
 .profile-section h3 { font-size: 0.95rem; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.03em; }
+.profile-settings-list { display: flex; flex-direction: column; gap: 8px; }
+.profile-settings-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); color: var(--text); text-decoration: none; }
+.profile-settings-item:hover { background: var(--surface); }
 .stars { color: var(--gold); font-size: 1.1rem; }
 .withdraw-container {
   background: var(--surface);
