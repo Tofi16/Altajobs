@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+
+<a href="{{ url_for('feed') }}" class="btn btn-outline btn-small">← {{ t.back }}</a>
+
+<h2 style="margin-top:14px">🔖 {{ t.saved_jobs }}</h2>
+
+{% if not posts_data %}
+  <p style="text-align:center;color:var(--muted)">{{ t.no_saved_jobs }}</p>
+{% endif %}
+
+{% for item in posts_data %}
+  {% set post = item.post %}
+  <div class="card">
+    <div class="post-header">
+      <a href="{{ url_for('profile', user_id=post['user_id']) }}" class="avatar">
+        {% if post['avatar'] %}
+          <img src="{{ photo_url(post['avatar']) }}">
+        {% else %}
+          {{ post['full_name'][0] if post['full_name'] else post['username'][0] }}
+        {% endif %}
+      </a>
+      <div>
+        <a href="{{ url_for('profile', user_id=post['user_id']) }}" class="post-author">
+          {{ post['full_name'] or post['username'] }}
+        </a>
+        {% if is_verified_now(post) %}
+          <span class="verified-badge" title="{{ t.verified_badge }}">
+            <svg class="verified-icon" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false"><path fill="#1DA1F2" d="M12 2l2.2 3.6L18 6l-2.4 1.8L16 12l-4-2-4 2 .4-4.2L6 6l3.8-.4L12 2z"/><path fill="#fff" d="M10.6 12.3l1.8 1.5 3-4-1.2-1-2.3 2.9-1.3-1z"/></svg>
+          </span>
+        {% endif %}
+        {% if is_vip_now(post) %}<span class="badge-icon-vip">👑</span>{% endif %}
+        <div class="post-meta">{{ post['created_at'][:16].replace('T',' ') }}</div>
+      </div>
+    </div>
+
+    {% if post['content'] %}<p class="post-content">{{ post['content'] }}</p>{% endif %}
+    {% if post['photo'] %}
+      <img class="post-photo" src="{{ photo_url(post['photo']) }}">
+    {% endif %}
+
+    <div class="post-actions">
+      <a href="{{ url_for('post_detail', post_id=post['id']) }}" class="action-btn" style="flex:1">
+        💬 {{ t.comment }} ({{ item.comment_count }})
+      </a>
+      <form method="POST" action="{{ url_for('save_post', post_id=post['id']) }}" style="flex:1">
+        <button type="submit" class="action-btn liked">🔖 {{ t.saved }}</button>
+      </form>
+    </div>
+  </div>
+{% endfor %}
+
+{% endblock %}

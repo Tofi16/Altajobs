@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card" style="display:flex;align-items:center;justify-content:space-between">
+  <h2 style="margin:0"><i class='bx bxs-group'></i> {{ t.channels_groups }}</h2>
+  <a href="{{ url_for('new_channel') }}" class="btn btn-small btn-gold"><i class='bx bx-plus'></i> {{ t.create }}</a>
+</div>
+
+{% if not channels %}
+  <p style="text-align:center;color:var(--muted)">{{ t.no_channels_yet }}</p>
+{% endif %}
+
+{% for c in channels %}
+  <a href="{{ url_for('channel_view', channel_id=c['id']) }}" class="card" style="display:flex;gap:12px;align-items:center;text-decoration:none">
+    <div class="avatar">
+      {% if c['avatar'] %}<img src="{{ photo_url(c['avatar']) }}">{% else %}{{ c['name'][0] }}{% endif %}
+    </div>
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:700;color:var(--text)">
+        {{ c['name'] }}
+        {% if channel_is_verified(c) %}
+          <span class="verified-badge" title="{{ t.verified_badge }}">
+            <svg class="verified-icon" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false"><path fill="#1DA1F2" d="M12 2l2.2 3.6L18 6l-2.4 1.8L16 12l-4-2-4 2 .4-4.2L6 6l3.8-.4L12 2z"/><path fill="#fff" d="M10.6 12.3l1.8 1.5 3-4-1.2-1-2.3 2.9-1.3-1z"/></svg>
+          </span>
+        {% endif %}
+        <span class="badge badge-general">{{ t.group_type if c['channel_type'] == 'group' else t.channel_type }}</span>
+      </div>
+      <div class="post-meta">{{ c['member_count'] }} {{ t.members }} · @{{ c['creator_username'] }}</div>
+    </div>
+    {% if c['id'] in my_channel_ids %}
+      <span class="badge badge-job">{{ t.joined }}</span>
+    {% endif %}
+  </a>
+{% endfor %}
+
+{% endblock %}

@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="token-hero">
+  <div class="token-hero-icon">🪙</div>
+  <div class="token-hero-label">{{ t.alta_tokens }}</div>
+  <div class="token-hero-balance" id="tokenBalance">{{ current_user['alta_tokens'] }}</div>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <h3 style="margin:0"><i class='bx bx-calendar-check'></i> {{ t.daily_checkin }}</h3>
+    <span class="post-meta">{{ t.streak_label }}: <b id="streakCount">{{ current_user['current_streak'] }}</b>/7</span>
+  </div>
+
+  <div class="checkin-row" id="checkinRow">
+    {% for day in range(1, 8) %}
+      {% set is_done = day <= current_user['current_streak'] and current_user['current_streak'] > 0 %}
+      <div class="day-circle {{ 'completed' if is_done }} {{ 'current' if day == (current_user['current_streak'] + 1) or (current_user['current_streak'] == 0 and day == 1) }}" data-day="{{ day }}">
+        <span class="day-num">{{ '✓' if is_done else day }}</span>
+        <span class="day-reward">{{ checkin_rewards[day] }}</span>
+      </div>
+    {% endfor %}
+  </div>
+
+  <button type="button" id="checkinBtn" class="btn btn-full btn-gold" style="margin-top:14px;min-height:48px"
+          {{ 'disabled' if not checkin_status.can_checkin }}
+          data-can-checkin="{{ 'true' if checkin_status.can_checkin else 'false' }}">
+    {% if checkin_status.can_checkin %}
+      <i class='bx bx-gift'></i> {{ t.claim_checkin }}
+    {% else %}
+      <i class='bx bx-time'></i> {{ t.checkin_cooldown }} ({{ checkin_status.hours_remaining }}h)
+    {% endif %}
+  </button>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+    <h3 style="margin:0"><i class='bx bx-task'></i> {{ t.tasks_title }}</h3>
+  </div>
+  <p class="post-meta" style="margin-bottom:10px">
+    {{ t.daily_task_progress }}: <b id="taskProgressText">{{ task_tokens_today }}</b> / {{ daily_task_cap }}
+  </p>
+  <div class="token-cap-bar">
+    <div class="token-cap-fill" id="taskProgressFill" style="width:{{ (task_tokens_today / daily_task_cap * 100) if daily_task_cap else 0 }}%"></div>
+  </div>
+
+  {% for task in tasks %}
+  <div class="task-card" id="task-{{ task.key }}">
+    <div class="task-card-info">
+      <div class="task-card-title">
+        {% if task.key == 'profile_completion' %}<i class='bx bx-id-card'></i> {{ t.task_profile_completion }}
+        {% elif task.key == 'share_job' %}<i class='bx bx-share-alt'></i> {{ t.task_share_job }}
+        {% else %}<i class='bx bx-video'></i> {{ t.task_watch_video }}{% endif %}
+      </div>
+      <div class="task-card-reward">🪙 +{{ task.reward }}</div>
+      {% if task.automatic %}<div class="post-meta" style="font-size:0.72rem">{{ t.once_per_video_note }}</div>{% endif %}
+    </div>
+    {% if task.key == 'profile_completion' and task.done %}
+      <button class="task-claim-btn claimed" disabled><i class='bx bx-check'></i> {{ t.claimed }}</button>
+    {% elif task.key == 'profile_completion' and not task.eligible %}
+      <a href="{{ url_for('edit_profile') }}" class="task-claim-btn incomplete">{{ t.complete_profile_first }}</a>
+    {% elif task.key == 'profile_completion' %}
+      <button class="task-claim-btn js-claim-task" data-task="{{ task.key }}" data-reward="{{ task.reward }}">
+        {{ t.claim }}
+      </button>
+    {% else %}
+      <span class="task-claim-btn incomplete" style="cursor:default"><i class='bx bx-check-double'></i> {{ t.automatic_task }}</span>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+(function () {
+  const balanceEl = document.getElementById("tokenBalance");
+
+  function animateCount(el, from, to) {
+    const duration = 500;
+    const start = performance.now();
+    function step(now) {
+      const progress = Math.min((now - start) / duration, 1);
+      el.textContent = Math.round(from + (to - from) * progress);
+      if (progress < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+    el.classList.add("token-pop");
+    setTimeout(() => el.classList.remove("token-pop"), 350);
+  }
+
+  const checkinBtn = document.getElementById("checkinBtn");
+  if (checkinBtn) {
+    checkinBtn.addEventListener("click", async function () {
+      if (checkinBtn.dataset.canCheckin !== "true") return;
+      checkinBtn.disabled = true;
+      try {
+        const res = await fetch("/api/daily-checkin", { method: "POST" });
+        const data = await res.json();
+        if (data.success) {
+          const currentBalance = parseInt(balanceEl.textContent, 10);
+          animateCount(balanceEl, currentBalance, data.new_balance);
+          document.getElementById("streakCount").textContent = data.new_streak;
+
+          document.querySelectorAll(".day-circle").forEach((el) => {
+            const day = parseInt(el.dataset.day, 10);
+            el.classList.remove("current");
+            if (day <= data.new_streak) {
+              el.classList.add("completed");
+              el.querySelector(".day-num").textContent = "✓";
+            }
+            if (day === (data.new_streak >= 7 ? 8 : data.new_streak + 1)) {
+              el.classList.add("current");
+            }
+          });
+
+          checkinBtn.innerHTML = "<i class='bx bx-check-circle'></i> +" + data.reward + " {{ t.claimed }}";
+          checkinBtn.classList.add("btn-success-pop");
+          checkinBtn.dataset.canCheckin = "false";
+          setTimeout(() => {
+            checkinBtn.disabled = true;
+            checkinBtn.innerHTML = "<i class='bx bx-time'></i> {{ t.checkin_cooldown }} (24h)";
+          }, 1600);
+        } else {
+          checkinBtn.disabled = false;
+          checkinBtn.innerHTML = "<i class='bx bx-time'></i> {{ t.checkin_cooldown }} (" + data.hours_remaining + "h)";
+        }
+      } catch (e) {
+        checkinBtn.disabled = false;
+        console.error(e);
+      }
+    });
+  }
+
+  document.addEventListener("click", async function (e) {
+    const btn = e.target.closest(".js-claim-task");
+    if (!btn) return;
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    try {
+      const res = await fetch("/api/complete-task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task_type: btn.dataset.task }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const currentBalance = parseInt(balanceEl.textContent, 10);
+        animateCount(balanceEl, currentBalance, data.new_balance);
+
+        btn.innerHTML = "<i class='bx bx-check'></i> ✓ {{ t.claimed }}";
+        btn.classList.add("claimed", "btn-success-pop");
+
+        const progressText = document.getElementById("taskProgressText");
+        const progressFill = document.getElementById("taskProgressFill");
+        if (progressText) progressText.textContent = data.earned_today;
+        if (progressFill) progressFill.style.width = Math.min((data.earned_today / data.cap) * 100, 100) + "%";
+
+        if (btn.dataset.task !== "share_job" && btn.dataset.task !== "watch_employer_video") {
+          btn.disabled = true;
+        } else {
+          setTimeout(() => { btn.disabled = false; btn.classList.remove("claimed"); btn.textContent = originalText; }, 1200);
+        }
+      } else if (data.error === "daily_cap_reached") {
+        btn.textContent = "{{ t.daily_cap_reached }}";
+        btn.classList.add("cap-reached");
+        setTimeout(() => { btn.disabled = false; btn.textContent = originalText; btn.classList.remove("cap-reached"); }, 1800);
+      } else {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+      console.error(err);
+    }
+  });
+})();
+</script>
+
+{% endblock %}

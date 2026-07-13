@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 style="margin-bottom:14px"><i class='bx bxs-cog'></i> {{ t.tab_settings }}</h2>
+
+<div class="card" style="padding:0">
+  <div class="settings-section-title">{{ t.profile }}</div>
+  <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="settings-row">
+    <span><i class='bx bx-user'></i> {{ t.profile }}</span>
+    <span class="chevron">›</span>
+  </a>
+  <a href="{{ url_for('edit_profile') }}" class="settings-row">
+    <span><i class='bx bx-edit'></i> {{ t.edit_profile }}</span>
+    <span class="chevron">›</span>
+  </a>
+  <a href="{{ url_for('wallet') }}" class="settings-row">
+    <span><i class='bx bx-wallet'></i> {{ t.wallet }}</span>
+    <span class="chevron">›</span>
+  </a>
+</div>
+
+<a href="{{ url_for('wallet') }}" class="card" style="display:block;text-decoration:none;padding:0;overflow:hidden">
+  <div style="background:var(--gold-gradient);padding:16px;color:#362a04">
+    <div style="font-weight:800;font-size:1.05rem">✨ {{ t.upgrade_to_premium }}</div>
+    {% if not current_user['paid_until'] %}
+      <div style="font-size:0.85rem;margin-top:4px;opacity:0.85">🎁 {{ t.days_left }}: {{ trial_days_left }}</div>
+    {% endif %}
+  </div>
+</a>
+
+<div class="card" style="padding:0">
+  <div class="settings-section-title">{{ t.tab_settings }}</div>
+  <a href="#" class="settings-row" onclick="document.getElementById('langModal').classList.add('open');return false;">
+    <span><i class='bx bx-globe'></i> {{ t.language }}</span>
+    <span class="chevron">{{ {'am':'አማርኛ','en':'English','om':'Afaan Oromoo','ti':'ትግርኛ','ar':'العربية'}[current_lang] }} ›</span>
+  </a>
+  <a href="{{ url_for('privacy_policy') }}" class="settings-row">
+    <span><i class='bx bx-shield-quarter'></i> {{ t.privacy_policy }}</span>
+    <span class="chevron">›</span>
+  </a>
+</div>
+
+{% if current_user['is_admin'] %}
+<div class="card" style="padding:0">
+  <div class="settings-section-title">{{ t.admin_panel }}</div>
+  <a href="{{ url_for('admin_dashboard') }}" class="settings-row">
+    <span><i class='bx bx-money'></i> {{ t.admin_panel }} — {{ t.pending_payments }}</span>
+    <span class="chevron">›</span>
+  </a>
+  <a href="{{ url_for('admin_panel') }}" class="settings-row">
+    <span><i class='bx bx-clipboard'></i> {{ t.admin_panel }} — {{ t.reports_list }}</span>
+    <span class="chevron">›</span>
+  </a>
+  <a href="{{ url_for('admin_challenges') }}" class="settings-row">
+    <span><i class='bx bx-trophy'></i> {{ t.monthly_challenge_title }}</span>
+    <span class="chevron">›</span>
+  </a>
+</div>
+{% endif %}
+
+<div class="card" style="padding:0">
+  <a href="{{ url_for('logout') }}" class="settings-row" style="color:var(--danger)">
+    <span><i class='bx bx-log-out'></i> {{ t.logout }}</span>
+  </a>
+</div>
+
+<p class="footer">{{ t.app_name }} — {{ t.tagline }}</p>
+
+<!-- Language selection modal -->
+<div class="modal-overlay" id="langModal">
+  <div class="modal-box">
+    <h3 style="margin:0">🌐 {{ t.language }}</h3>
+    <div class="modal-lang-grid">
+      <a href="{{ url_for('set_language_route', lang='am') }}" class="{{ 'active' if current_lang=='am' }}">አማርኛ</a>
+      <a href="{{ url_for('set_language_route', lang='en') }}" class="{{ 'active' if current_lang=='en' }}">English</a>
+      <a href="{{ url_for('set_language_route', lang='om') }}" class="{{ 'active' if current_lang=='om' }}">Afaan Oromoo</a>
+      <a href="{{ url_for('set_language_route', lang='ti') }}" class="{{ 'active' if current_lang=='ti' }}">ትግርኛ</a>
+      <a href="{{ url_for('set_language_route', lang='ar') }}" class="{{ 'active' if current_lang=='ar' }}" style="grid-column:span 2">العربية</a>
+    </div>
+    <button class="btn btn-outline btn-full" style="margin-top:14px" onclick="document.getElementById('langModal').classList.remove('open')">{{ t.back }}</button>
+  </div>
+</div>
+
+{% endblock %}

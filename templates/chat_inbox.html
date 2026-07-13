@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 style="margin-bottom:14px">💬 {{ t.messages }}</h2>
+
+{% if requests_in %}
+<div class="card" style="padding:0">
+  <div class="settings-section-title">{{ t.message_requests }} ({{ requests_in|length }})</div>
+  {% for item in requests_in %}
+    {% set c = item.convo %}
+    <a href="{{ url_for('chat_thread', conversation_id=c['id']) }}" class="chat-list-item">
+      <div class="avatar">
+        {% if c['avatar'] %}<img src="{{ photo_url(c['avatar']) }}">{% else %}{{ (c['full_name'] or c['username'])[0] }}{% endif %}
+      </div>
+      <div class="chat-preview">
+        <b>{{ c['full_name'] or c['username'] }}</b>
+        <p>{{ item.last_msg['content'] if item.last_msg else '' }}</p>
+      </div>
+      <span class="badge badge-job">{{ t.pending }}</span>
+    </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="card" style="padding:0">
+  <div class="settings-section-title">{{ t.messages }}</div>
+  {% if not active %}
+    <p class="post-meta" style="padding:16px">{{ t.no_conversations }}</p>
+  {% endif %}
+  {% for item in active %}
+    {% set c = item.convo %}
+    <a href="{{ url_for('chat_thread', conversation_id=c['id']) }}" class="chat-list-item">
+      <div class="avatar">
+        {% if c['avatar'] %}<img src="{{ photo_url(c['avatar']) }}">{% else %}{{ (c['full_name'] or c['username'])[0] }}{% endif %}
+      </div>
+      <div class="chat-preview">
+        <b>{{ c['full_name'] or c['username'] }}</b>
+        <p>{{ item.last_msg['content'] if item.last_msg else '' }}</p>
+      </div>
+      {% if item.unread > 0 %}<span class="chat-unread-dot"></span>{% endif %}
+    </a>
+  {% endfor %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+
+<a href="{{ url_for('feed') }}" class="btn btn-outline btn-small">← {{ t.back }}</a>
+
+<div class="card" style="text-align:center;margin-top:14px;padding:40px 16px">
+  <div style="font-size:3rem">
+    {% if feature == 'groups' %}👥
+    {% elif feature == 'events' %}📅
+    {% elif feature == 'reels' %}🎬
+    {% else %}✨{% endif %}
+  </div>
+  <h2>
+    {% if feature == 'groups' %}{{ t.groups }}
+    {% elif feature == 'events' %}{{ t.events }}
+    {% elif feature == 'reels' %}{{ t.reels }}
+    {% else %}{{ t.coming_soon }}{% endif %}
+  </h2>
+  <p style="color:var(--muted)">{{ t.coming_soon_message }}</p>
+</div>
+
+{% endblock %}

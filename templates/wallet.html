@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card" style="text-align:center">
+  <h2 style="margin:0">Wallet Hub</h2>
+  <div class="price-tag">{{ current_user['wallet_balance'] }} ETB</div>
+  <div style="margin:10px 0;font-size:0.95rem">🪙 {{ current_user['alta_tokens'] }} {{ t.alta_tokens }}</div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:12px">
+    <a href="#deposit-form" class="btn btn-small">⬇️ Deposit Money</a>
+    <a href="#withdraw-form" class="btn btn-outline btn-small">⬆️ Request Withdrawal</a>
+    <a href="{{ url_for('challenges') }}" class="btn btn-outline btn-small">🏆 Monthly Challenge</a>
+  </div>
+</div>
+
+<div class="card" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px">
+  <div class="card" style="padding:16px;margin:0">
+    <h3>✔️ {{ t.get_verified }}</h3>
+    {% if verified_now %}
+      <p><span class="verified-badge" title="{{ t.verified_badge }}">
+           <svg class="verified-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path fill="#1DA1F2" d="M12 2l2.2 3.6L18 6l-2.4 1.8L16 12l-4-2-4 2 .4-4.2L6 6l3.8-.4L12 2z"/><path fill="#fff" d="M10.6 12.3l1.8 1.5 3-4-1.2-1-2.3 2.9-1.3-1z"/></svg>
+         </span>
+         — {{ t.verified_until_label }} {{ current_user['verified_until'][:10] }}</p>
+    {% else %}
+      <p class="post-meta">{{ t.verification_price }}: {{ verification_price }} ETB / month</p>
+      <form method="POST" action="{{ url_for('buy_verification') }}">
+        <button type="submit" class="btn btn-gold">{{ t.buy_verification }} ({{ verification_price }} ETB)</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <div class="card" style="padding:16px;margin:0">
+    <h3>👑 {{ t.get_vip }}</h3>
+    {% if vip_now %}
+      <p><span class="verified-badge vip-badge">👑 {{ t.vip }}</span>
+         — {{ t.verified_until_label }} {{ current_user['vip_until'][:10] }}</p>
+    {% else %}
+      <p class="post-meta">{{ t.vip }}: {{ vip_price }} ETB / month</p>
+      <form method="POST" action="{{ url_for('buy_vip') }}">
+        <button type="submit" class="btn btn-gold">{{ t.get_vip }} ({{ vip_price }} ETB)</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <div class="card" style="padding:16px;margin:0">
+    <h3>🏅 Monthly Business Challenge</h3>
+    {% if challenge_status %}
+      <p class="post-meta">Tier: {{ challenge_status['tier_amount'] }} ETB</p>
+      <p class="post-meta">Pool status: {{ challenge_status['pool_status'] }}</p>
+      <p class="post-meta">Entry status: {{ challenge_status['status'] }}</p>
+      <p class="post-meta">Prize pool: {{ challenge_status['prize_pool'] }} ETB</p>
+    {% else %}
+      <p class="post-meta">You have not joined this month’s challenge yet.</p>
+      <a href="{{ url_for('challenges') }}" class="btn btn-outline btn-small">Join Challenge</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <h3>Transaction Tickets</h3>
+  {% if not history %}
+    <p class="post-meta">No deposit or withdrawal tickets yet.</p>
+  {% else %}
+    <table style="width:100%;border-collapse:collapse;margin-top:10px">
+      <thead>
+        <tr>
+          <th style="padding:10px;text-align:left">Type</th>
+          <th style="padding:10px;text-align:left">Amount</th>
+          <th style="padding:10px;text-align:left">Bank</th>
+          <th style="padding:10px;text-align:left">Status</th>
+          <th style="padding:10px;text-align:left">Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in history %}
+        <tr>
+          <td style="padding:10px">{{ t.deposit if h['tx_type']=='deposit' else t.withdraw }}</td>
+          <td style="padding:10px">{{ h['amount'] }} ETB</td>
+          <td style="padding:10px">{{ h['bank'] or '—' }}</td>
+          <td style="padding:10px">
+            <span class="badge badge-{{ 'general' if h['status']=='approved' else ('job' if h['status']=='rejected' else 'skill') }}">
+              {{ t.pending if h['status']=='pending' else (t.approved if h['status']=='approved' else t.rejected) }}
+            </span>
+          </td>
+          <td style="padding:10px">{{ h['created_at'][:16].replace('T',' ') }}</td>
+        </tr>
+        {% if h['note'] or h['receipt_photo'] %}
+        <tr>
+          <td colspan="5" class="post-meta" style="padding:10px 10px 10px 30px">
+            {% if h['note'] %}Note: {{ h['note'] }}{% endif %}
+            {% if h['receipt_photo'] %}<br><a href="{{ url_for('uploaded_file', filename=h['receipt_photo']) }}" target="_blank">View receipt</a>{% endif %}
+          </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>
+
+<div class="card" id="deposit-form" style="margin-top:16px">
+  <h3>Deposit Money</h3>
+  <form method="POST" action="{{ url_for('wallet_deposit') }}" enctype="multipart/form-data">
+    <label>Bank / Payment Method</label>
+    <select name="bank" required>
+      <option value="">Select bank</option>
+      <option value="Commercial Bank of Ethiopia (CBE)">Commercial Bank of Ethiopia (CBE)</option>
+      <option value="Telebirr">Telebirr</option>
+      <option value="Awash Bank">Awash Bank</option>
+      <option value="Dashen Bank">Dashen Bank</option>
+    </select>
+    <label>{{ t.amount }}</label>
+    <input type="number" name="amount" min="1" required>
+    <label>{{ t.transaction_ref }}</label>
+    <input type="text" name="transaction_ref" required>
+    <label>Receipt Screenshot</label>
+    <input type="file" name="receipt_photo" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
+    <label>Note</label>
+    <textarea name="note" rows="3" placeholder="Enter transaction reference or note"></textarea>
+    <button type="submit" class="btn btn-full">Submit Deposit Ticket</button>
+  </form>
+</div>
+
+<div class="card" id="withdraw-form" style="margin-top:16px">
+  <div class="withdraw-container">
+    <h3>Withdraw Funds</h3>
+    <form id="withdrawForm" method="POST" action="{{ url_for('withdraw_request') }}">
+      <div class="form-group">
+        <label>Bank Name</label>
+        <select name="bankName" required>
+          <option value="">-- Choose a bank --</option>
+          <option value="CBE">Commercial Bank of Ethiopia (CBE)</option>
+          <option value="Abyssinia">Abyssinia Bank</option>
+          <option value="Awash">Awash Bank</option>
+          <option value="Dashen">Dashen Bank</option>
+          <option value="Telebirr">Telebirr</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Account Number</label>
+        <input type="number" name="accountNumber" placeholder="Enter your account number" required>
+      </div>
+      <div class="form-group">
+        <label>Bank Account Holder Name</label>
+        <input type="text" name="accountName" placeholder="Enter the full account holder name" required>
+      </div>
+      <div class="form-group">
+        <label>Amount (ETB)</label>
+        <input type="number" name="amount" min="10" max="{{ current_user['wallet_balance'] }}" placeholder="Enter the amount to withdraw" required>
+      </div>
+      <button type="submit" class="submit-withdraw-btn">Submit Withdrawal Request</button>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="profile-header">
+  <span class="user-title">የግል መረጃ</span>
+  <button class="menu-icon-btn"><i class="fa fa-ellipsis-v">⋮</i></button>
+</div>
+<div class="profile-tabs">
+  <button class="tab-link active" onclick="openTab('posts')">ዜና ማስተንፈሻ</button>
+  <button class="tab-link" onclick="openTab('analysis')">የፖስቶች መረጃ (Analysis)</button>
+</div>
+
+<div id="posts" class="tab-content">
+<div class="card profile-summary">
+  <div class="avatar">
+    {% if profile_user['avatar'] %}
+      <img src="{{ photo_url(profile_user['avatar']) }}">
+    {% else %}
+      {{ (profile_user['full_name'] or profile_user['username'])[0] }}
+    {% endif %}
+  </div>
+  <div class="profile-name">
+    {{ profile_user['full_name'] or profile_user['username'] }}
+    {% if is_verified_now(profile_user) %}
+      <span class="verified-badge" title="{{ t.verified_badge }}">
+        <svg class="verified-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path fill="#1DA1F2" d="M12 2l2.2 3.6L18 6l-2.4 1.8L16 12l-4-2-4 2 .4-4.2L6 6l3.8-.4L12 2z"/><path fill="#fff" d="M10.6 12.3l1.8 1.5 3-4-1.2-1-2.3 2.9-1.3-1z"/></svg>
+      </span>
+    {% endif %}
+    {% if is_vip_now(profile_user) %}<span class="verified-badge vip-badge">👑 {{ t.vip }}</span>{% endif %}
+  </div>
+  <div class="profile-type">{{ t.worker if profile_user['user_type']=='worker' else t.employer }}</div>
+  <div class="post-meta">{{ followers_count }} {{ t.followers }} • {{ following_count }} {{ t.follow|lower }} • {{ posts_count }} {{ t.feed|lower }}</div>
+  {% if profile_user['phone'] %}<div class="post-meta">📞 {{ profile_user['phone'] }}</div>{% endif %}
+
+  {% if current_user and current_user['id'] != profile_user['id'] %}
+    <div style="margin-top:8px;display:flex;gap:8px;justify-content:center">
+      <button type="button" class="follow-btn js-follow-btn {{ 'following' if is_following }}"
+              data-user-id="{{ profile_user['id'] }}"
+              data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
+        {{ t.unfollow if is_following else t.follow }}
+      </button>
+      <a href="{{ url_for('chat_start', user_id=profile_user['id']) }}" class="btn btn-outline btn-small">💬 {{ t.messages }}</a>
+    </div>
+  {% endif %}
+
+  {# Wallet balance removed from profile view — use Wallet Hub only #}
+
+  {% if profile_user['user_type'] == 'worker' %}
+    <div style="margin-top:10px">
+      {% if avg_stars %}
+        <span class="stars">{{ '★' * (avg_stars|round|int) }}{{ '☆' * (5 - avg_stars|round|int) }}</span>
+        <span class="post-meta">({{ rating_count }} {{ t.rating|lower }})</span>
+      {% else %}
+        <span class="post-meta">{{ t.average_rating }}: —</span>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if current_user and current_user['id'] == profile_user['id'] %}
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
+      <a href="{{ url_for('edit_profile') }}" class="btn btn-outline btn-small"><i class='bx bx-edit'></i> {{ t.edit_profile }}</a>
+      <details class="profile-more-menu">
+        <summary class="btn btn-small"><i class='bx bx-dots-horizontal-rounded'></i> {{ t.more }}</summary>
+        <div class="profile-more-dropdown">
+          <a href="{{ url_for('saved_jobs') }}"><i class='bx bx-bookmark'></i> {{ t.saved_jobs }}</a>
+          <a href="{{ url_for('settings_page') }}"><i class='bx bx-cog'></i> {{ t.tab_settings }}</a>
+          {% if not is_verified_now(current_user) and not is_vip_now(current_user) %}
+            <a href="{{ url_for('wallet') }}" style="color:var(--gold)"><i class='bx bx-crown'></i> {{ t.upgrade_to_premium }}</a>
+          {% endif %}
+        </div>
+      </details>
+    </div>
+  {% endif %}
+
+  {% if current_user and current_user['is_admin'] and current_user['id'] != profile_user['id'] and not profile_user['is_admin'] %}
+    <div style="margin-top:12px">
+      {% if profile_user['is_banned'] %}
+        <form method="POST" action="{{ url_for('unban_user', user_id=profile_user['id']) }}">
+          <button type="submit" class="btn btn-small">{{ t.unban_user }}</button>
+        </form>
+      {% else %}
+        <form method="POST" action="{{ url_for('ban_user', user_id=profile_user['id']) }}">
+          <button type="submit" class="btn btn-small btn-danger" style="color:white">{{ t.ban_user }}</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+{% if current_user and current_user['id'] != profile_user['id'] %}
+<div class="card">
+  <b>🎁 {{ t.send_gift }}</b>
+  <div class="gift-grid">
+    {% for key, g in gift_catalog.items() %}
+    <form method="POST" action="{{ url_for('send_gift') }}">
+      <input type="hidden" name="receiver_id" value="{{ profile_user['id'] }}">
+      <input type="hidden" name="gift_key" value="{{ key }}">
+      <button type="submit" class="gift-option" style="width:100%">
+        <span class="{{ g.anim }}">{{ g.emoji }}</span>
+        <span class="gift-price">{{ g.price }} ETB</span>
+      </button>
+    </form>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if profile_user['bio'] %}
+<div class="card profile-section">
+  <h3>{{ t.bio }}</h3>
+  <p>{{ profile_user['bio'] }}</p>
+</div>
+{% endif %}
+
+{# Wallet Hub shortcuts removed from profile — use dedicated Wallet Hub page only #}
+
+{% if profile_user['user_type'] == 'worker' %}
+<div class="card profile-section">
+  {% if profile_user['skills'] %}<h3>{{ t.skills }}</h3><p>{{ profile_user['skills'] }}</p>{% endif %}
+  {% if profile_user['experience'] %}<h3>{{ t.experience }}</h3><p>{{ profile_user['experience'] }}</p>{% endif %}
+</div>
+
+{% if current_user and current_user['user_type'] == 'employer' and current_user['id'] != profile_user['id'] %}
+<div class="card profile-section">
+  <h3>{{ t.rate_worker }}</h3>
+  <form method="POST" action="{{ url_for('rate_worker', worker_id=profile_user['id']) }}">
+    <label>{{ t.rating }}</label>
+    <select name="stars">
+      <option value="5">★★★★★</option>
+      <option value="4">★★★★☆</option>
+      <option value="3">★★★☆☆</option>
+      <option value="2">★★☆☆☆</option>
+      <option value="1">★☆☆☆☆</option>
+    </select>
+    <textarea name="comment" placeholder="{{ t.write_comment }}"></textarea>
+    <button type="submit" class="btn btn-small">{{ t.submit_rating }}</button>
+  </form>
+</div>
+{% endif %}
+
+{% if ratings %}
+<div class="card profile-section">
+  <h3>{{ t.reports_list if false else t.rating }}</h3>
+  {% for r in ratings %}
+    <div class="comment">
+      <div class="comment-author">{{ r['employer_username'] }} — <span class="stars">{{ '★' * r['stars'] }}</span></div>
+      {% if r['comment'] %}<div class="comment-content">{{ r['comment'] }}</div>{% endif %}
+    </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endif %}
+
+{% if current_user and current_user['id'] != profile_user['id'] %}
+<div class="card">
+  <details>
+    <summary>🚩 {{ t.report }} {{ t.profile|lower }}</summary>
+    <form method="POST" action="{{ url_for('submit_report') }}">
+      <input type="hidden" name="target_type" value="user">
+      <input type="hidden" name="target_id" value="{{ profile_user['id'] }}">
+      <textarea name="reason" placeholder="{{ t.report_reason }}" required></textarea>
+      <button type="submit" class="btn btn-small btn-outline">{{ t.submit_report }}</button>
+    </form>
+  </details>
+</div>
+{% endif %}
+
+<h3 style="margin-top:20px">{{ t.feed }}</h3>
+{% for p in posts %}
+  <div class="card">
+    {% if p['content'] %}<p class="post-content">{{ p['content'] }}</p>{% endif %}
+    {% if p['photo'] %}
+      <img class="post-photo" src="{{ photo_url(p['photo']) }}">
+    {% endif %}
+    <a href="{{ url_for('post_detail', post_id=p['id']) }}" class="post-meta">{{ t.comments }} → &nbsp; 👁️ {{ p['view_count'] }}</a>
+  </div>
+{% endfor %}
+</div>
+
+<div id="analysis" class="tab-content" style="display:none;">
+  <div class="card">
+    <h3>Analysis</h3>
+    <p class="post-meta">Followers: {{ followers_count }} • Following: {{ following_count }} • Posts: {{ posts_count }}</p>
+    {% if profile_user['bio'] %}<p>{{ profile_user['bio'] }}</p>{% endif %}
+    {% if profile_user['skills'] %}<p><strong>{{ t.skills }}</strong>: {{ profile_user['skills'] }}</p>{% endif %}
+    {% if profile_user['experience'] %}<p><strong>{{ t.experience }}</strong>: {{ profile_user['experience'] }}</p>{% endif %}
+  </div>
+</div>
+
+{% endblock %}

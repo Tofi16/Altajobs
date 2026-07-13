@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+
+<a href="{{ url_for('challenges') }}" class="btn btn-outline btn-small">← {{ t.back }}</a>
+
+<div class="card" style="text-align:center;margin-top:14px">
+  <h2>🏆 {{ t.congratulations }}</h2>
+  <p class="post-meta">{{ pool['tier_amount'] }} ETB {{ t.pool }} — {{ pool['month'] }}</p>
+</div>
+
+{% if not trust['confirmed_at'] %}
+  <div class="card">
+    <h3>⏳ {{ t.confirm_step_title }}</h3>
+    <p class="post-meta">{{ t.confirm_deadline_label }}: {{ trust['confirm_deadline'][:16].replace('T',' ') }}</p>
+    <form method="POST" action="{{ url_for('winner_confirm', entry_id=entry['id']) }}" enctype="multipart/form-data">
+      <label>{{ t.guarantor_name }}</label>
+      <input type="text" name="guarantor_name" required>
+      <label>{{ t.guarantor_id_number }}</label>
+      <input type="text" name="guarantor_id_number" required>
+      <label>{{ t.guarantor_photo }}</label>
+      <input type="file" name="guarantor_photo" accept="image/*" required>
+      <button type="submit" class="btn btn-full btn-gold">{{ t.submit_guarantor }}</button>
+    </form>
+  </div>
+{% else %}
+  <div class="card">
+    <h3>✔️ {{ t.guarantor_submitted }}</h3>
+    <p class="post-meta">{{ t.guarantor_name }}: {{ trust['guarantor_name'] }}</p>
+    <p class="post-meta">{{ t.disbursement_status }}: {{ t.get(trust['disbursement_status'], trust['disbursement_status']) }}</p>
+  </div>
+
+  {% if trust['milestone1_released'] %}
+    <div class="card">
+      <p>✅ {{ t.milestone1_released_msg }} ({{ trust['milestone1_amount'] }} ETB, {{ milestone1_percent }}%)</p>
+    </div>
+
+    {% if not trust['milestone2_released'] %}
+      {% if not trust['proof_photo'] %}
+        <div class="card">
+          <h3>📸 {{ t.submit_proof_title }}</h3>
+          <p class="post-meta">{{ t.submit_proof_desc }}</p>
+          <form method="POST" action="{{ url_for('winner_submit_proof', entry_id=entry['id']) }}" enctype="multipart/form-data">
+            <input type="file" name="proof_photo" accept="image/*" required>
+            <button type="submit" class="btn btn-full">{{ t.submit_proof }}</button>
+          </form>
+        </div>
+      {% else %}
+        <div class="card">
+          <p>📸 {{ t.proof_submitted_msg }}</p>
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="card">
+        <p>🎉 {{ t.milestone2_released_msg }} ({{ trust['milestone2_amount'] }} ETB)</p>
+      </div>
+    {% endif %}
+  {% endif %}
+{% endif %}
+
+{% endblock %}

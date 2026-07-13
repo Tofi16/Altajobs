@@ -1,0 +1,7 @@
+Flask>=3.0
+gunicorn>=21.2
+
+# NOTE: this only lists what app.py itself imports (Flask/Werkzeug + gunicorn
+# for production serving). If your project already has a requirements.txt
+# with other packages (e.g. for translations.py or other modules), merge
+# these two lines into it rather than overwriting the file.

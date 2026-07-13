@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card auth-card">
+  <h1>{{ t.app_name }}</h1>
+  <p style="text-align:center;color:var(--gray)">{{ t.tagline }}</p>
+
+  <form method="POST">
+    <label>{{ t.username }}</label>
+    <input type="text" name="username" required>
+
+    <label>{{ t.password }}</label>
+    <input type="password" name="password" required>
+
+    <button type="submit" class="btn btn-full">{{ t.login }}</button>
+  </form>
+
+  <p class="switch-link">
+    {{ t.no_account }} <a href="{{ url_for('register') }}"><b>{{ t.register }}</b></a>
+  </p>
+</div>
+{% endblock %}

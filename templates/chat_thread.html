@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+
+<a href="{{ url_for('chat_inbox') }}" class="btn btn-outline btn-small">← {{ t.back }}</a>
+
+<div class="card" style="margin-top:14px;display:flex;align-items:center;gap:10px">
+  <a href="{{ url_for('profile', user_id=other['id']) }}" class="avatar">
+    {% if other['avatar'] %}<img src="{{ photo_url(other['avatar']) }}">{% else %}{{ (other['full_name'] or other['username'])[0] }}{% endif %}
+  </a>
+  <a href="{{ url_for('profile', user_id=other['id']) }}" class="post-author">{{ other['full_name'] or other['username'] }}</a>
+</div>
+
+{% if is_pending_recipient %}
+<div class="request-banner">
+  <p>{{ t.message_request_notice }}</p>
+  <div class="actions">
+    <form method="POST" action="{{ url_for('chat_accept', conversation_id=convo['id']) }}">
+      <button type="submit" class="btn btn-full">✅ {{ t.accept }}</button>
+    </form>
+    <form method="POST" action="{{ url_for('chat_decline', conversation_id=convo['id']) }}">
+      <button type="submit" class="btn btn-outline btn-full">✕ {{ t.decline }}</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div class="message-thread">
+  {% if not messages %}
+    <p class="post-meta" style="text-align:center">{{ t.no_messages_yet }}</p>
+  {% endif %}
+  {% for m in messages %}
+    <div class="msg-bubble {{ 'mine' if m['sender_id'] == current_user['id'] else 'theirs' }}">
+      {{ m['content'] }}
+    </div>
+  {% endfor %}
+</div>
+
+{% if can_reply %}
+<form method="POST" action="{{ url_for('chat_send', conversation_id=convo['id']) }}" class="message-compose">
+  <input type="text" name="content" placeholder="{{ t.message_placeholder }}" required autocomplete="off">
+  <button type="submit" class="btn btn-small">{{ t.send }}</button>
+</form>
+{% endif %}
+
+{% endblock %}

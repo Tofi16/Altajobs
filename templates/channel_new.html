@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+
+<a href="{{ url_for('channels_directory') }}" class="btn btn-outline btn-small">← {{ t.back }}</a>
+
+<div class="card" style="margin-top:14px">
+  <h2><i class='bx bx-plus-circle'></i> {{ t.create_group_or_channel }}</h2>
+  <form method="POST" enctype="multipart/form-data">
+    <label>{{ t.channel_type_label }}</label>
+    <select name="channel_type">
+      <option value="group">{{ t.group_type }}</option>
+      <option value="channel">{{ t.channel_type }}</option>
+    </select>
+
+    <label>{{ t.channel_name }}</label>
+    <input type="text" name="name" required maxlength="60">
+
+    <label>{{ t.bio }}</label>
+    <textarea name="description" placeholder="{{ t.channel_description_placeholder }}"></textarea>
+
+    <label>{{ t.add_photo }}</label>
+    <input type="file" name="avatar" accept="image/*">
+
+    <button type="submit" class="btn btn-full btn-gold">{{ t.create }}</button>
+  </form>
+</div>
+
+{% endblock %}

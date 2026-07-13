@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+
+<a href="{{ url_for('challenges') }}" class="btn btn-outline btn-small">← {{ t.back }}</a>
+
+<div class="card" style="margin-top:14px">
+  <h2>{{ tier }} ETB {{ t.pool }}</h2>
+  <p class="post-meta">{{ t.entry_fee_notice }}</p>
+
+  <form method="POST">
+    <label>{{ t.pitch_label }}</label>
+    <textarea name="pitch_text" rows="8" placeholder="{{ t.pitch_placeholder }}" required></textarea>
+    <button type="submit" class="btn btn-full btn-gold">{{ t.pay_and_submit }} ({{ tier }} ETB)</button>
+  </form>
+</div>
+
+{% endblock %}

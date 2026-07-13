@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block content %}
+
+<a href="{{ url_for('feed') }}" class="btn btn-outline btn-small">← {{ t.back }}</a>
+
+<div class="card post-card" style="margin-top:12px">
+  <div class="post-header">
+    <a href="{{ url_for('profile', user_id=post['user_id']) }}" class="avatar">
+      {% if post['avatar'] %}
+        <img src="{{ photo_url(post['avatar']) }}">
+      {% else %}
+        {{ post['full_name'][0] if post['full_name'] else post['username'][0] }}
+      {% endif %}
+    </a>
+    <div>
+      <div class="post-header-meta">
+        <a href="{{ url_for('profile', user_id=post['user_id']) }}" class="post-author">
+          {{ post['full_name'] or post['username'] }}
+        </a>
+        {% if is_verified_now(post) %}
+          <span class="verified-badge" title="{{ t.verified_badge }}">
+            <svg class="verified-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path fill="#1DA1F2" d="M12 2l2.2 3.6L18 6l-2.4 1.8L16 12l-4-2-4 2 .4-4.2L6 6l3.8-.4L12 2z"/><path fill="#fff" d="M10.6 12.3l1.8 1.5 3-4-1.2-1-2.3 2.9-1.3-1z"/></svg>
+          </span>
+        {% endif %}
+        {% if is_vip_now(post) %}<span class="badge-icon-vip">👑</span>{% endif %}
+        {% if post['user_id'] != current_user['id'] %}
+          <button type="button" class="follow-btn js-follow-btn {{ 'following' if is_following }}"
+                  data-user-id="{{ post['user_id'] }}"
+                  data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
+            {{ t.unfollow if is_following else t.follow }}
+          </button>
+        {% endif %}
+      </div>
+      <div class="post-meta">{{ post['created_at'][:16].replace('T',' ') }} · 👁️ {{ post['view_count'] }} {{ t.views }}</div>
+    </div>
+  </div>
+
+  {% if post['content'] %}<p class="post-content">{{ post['content'] }}</p>{% endif %}
+  {% if post['photo'] %}
+    <img class="post-photo" src="{{ photo_url(post['photo']) }}">
+  {% endif %}
+
+  {% if post['post_type'] == 'job' %}
+    <div class="job-actions">
+      {% if post['user_id'] == current_user['id'] %}
+        <a href="{{ url_for('view_applicants', post_id=post['id']) }}" class="btn-apply" style="text-decoration:none;display:block">👥 {{ t.applicants }}</a>
+      {% elif applied %}
+        <button class="btn-apply" disabled style="opacity:0.6">✅ {{ t.applied }}</button>
+      {% else %}
+        <form method="POST" action="{{ url_for('apply_to_job', post_id=post['id']) }}" style="flex:1.4">
+          <textarea name="message" placeholder="{{ t.apply_message_placeholder }}" style="margin-bottom:8px"></textarea>
+          <button type="submit" class="btn-apply" style="width:100%">{{ t.apply_now }}</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="post-actions">
+    <button type="button" class="action-btn js-like-btn {{ 'liked' if liked }}"
+            data-post-id="{{ post['id'] }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}">
+      <i class='bx {{ "bxs-heart" if liked else "bx-heart" }}'></i>
+      <span class="like-count">{{ like_count }}</span>
+    </button>
+    <form method="POST" action="{{ url_for('share_post', post_id=post['id']) }}">
+      <button type="submit" class="action-btn"><i class='bx bx-share-alt'></i><span class="action-count">{{ post['share_count'] }}</span></button>
+    </form>
+  </div>
+
+  {% if current_user and current_user['id'] != post['user_id'] %}
+  <div class="report-box" id="gift">
+    <b>🎁 {{ t.send_gift }}</b>
+    <div class="gift-grid">
+      {% for key, g in gift_catalog.items() %}
+      <form method="POST" action="{{ url_for('send_gift') }}">
+        <input type="hidden" name="receiver_id" value="{{ post['user_id'] }}">
+        <input type="hidden" name="post_id" value="{{ post['id'] }}">
+        <input type="hidden" name="gift_key" value="{{ key }}">
+        <button type="submit" class="gift-option" style="width:100%">
+          <span class="{{ g.anim }}">{{ g.emoji }}</span>
+          <span class="gift-price">{{ g.price }} ETB</span>
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="report-box">
+    <details>
+      <summary>🚩 {{ t.report }}</summary>
+      <form method="POST" action="{{ url_for('submit_report') }}">
+        <input type="hidden" name="target_type" value="post">
+        <input type="hidden" name="target_id" value="{{ post['id'] }}">
+        <textarea name="reason" placeholder="{{ t.report_reason }}" required></textarea>
+        <button type="submit" class="btn btn-small btn-outline">{{ t.submit_report }}</button>
+      </form>
+    </details>
+  </div>
+</div>
+
+<div class="card">
+  <h3>{{ t.comments }} ({{ comments|length }})</h3>
+
+  {% for c in comments %}
+    <div class="comment">
+      <div class="comment-author">{{ c['full_name'] or c['username'] }}</div>
+      <div class="comment-content">{{ c['content'] }}</div>
+    </div>
+  {% endfor %}
+
+  <form method="POST" action="{{ url_for('comment_post', post_id=post['id']) }}" class="comment-form">
+    <input type="text" name="content" placeholder="{{ t.write_comment }}" required>
+    <button type="submit" class="btn btn-small">{{ t.send }}</button>
+  </form>
+</div>
+
+{% endblock %}

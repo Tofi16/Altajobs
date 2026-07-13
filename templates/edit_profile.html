@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>{{ t.edit_profile }}</h2>
+  <form method="POST" enctype="multipart/form-data">
+    <label>{{ t.username }}</label>
+    <input type="text" name="username" value="{{ user['username'] or '' }}" required>
+
+    <label>{{ t.full_name }}</label>
+    <input type="text" name="full_name" value="{{ user['full_name'] or '' }}">
+
+    <label>{{ t.phone }}</label>
+    <input type="text" name="phone" value="{{ user['phone'] or '' }}">
+
+    {% if user['user_type'] == 'worker' %}
+      <label>{{ t.skills }}</label>
+      <textarea name="skills">{{ user['skills'] or '' }}</textarea>
+
+      <label>{{ t.experience }}</label>
+      <textarea name="experience">{{ user['experience'] or '' }}</textarea>
+    {% endif %}
+
+    <label>{{ t.bio }}</label>
+    <textarea name="bio">{{ user['bio'] or '' }}</textarea>
+
+    <label>{{ t.add_photo }} ({{ t.profile }})</label>
+    <input type="file" name="avatar" accept="image/*">
+
+    <button type="submit" class="btn btn-full">{{ t.edit_profile }}</button>
+  </form>
+</div>
+{% endblock %}

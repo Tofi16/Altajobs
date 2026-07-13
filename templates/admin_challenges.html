@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block content %}
+
+<a href="{{ url_for('admin_panel') }}" class="btn btn-outline btn-small">← {{ t.admin_panel }}</a>
+
+<h2 style="margin-top:14px">🏆 {{ t.monthly_challenge_title }}</h2>
+
+<div class="card">
+  <h3>{{ t.pending_winner_actions }}</h3>
+  {% if not winners %}
+    <p class="post-meta">{{ t.no_posts }}</p>
+  {% endif %}
+  {% for w in winners %}
+    <div style="border-bottom:1px solid var(--border);padding:10px 0">
+      <b>{{ w['username'] }}</b> — {{ w['amount_paid'] }} ETB {{ t.pool }}
+      <br><span class="post-meta">{{ t.disbursement_status }}: {{ t.get(w['disbursement_status'], w['disbursement_status']) }}</span>
+      {% if w['guarantor_name'] %}
+        <br><span class="post-meta">{{ t.guarantor_name }}: {{ w['guarantor_name'] }} — {{ w['guarantor_id_number'] }}</span>
+      {% endif %}
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+        {% if w['disbursement_status'] == 'pending_admin_review' %}
+          <form method="POST" action="{{ url_for('approve_guarantor', entry_id=w['entry_id']) }}">
+            <button type="submit" class="btn btn-small">✅ {{ t.approve }} {{ t.guarantor_name }} ({{ milestone1_percent }}%)</button>
+          </form>
+        {% endif %}
+        {% if w['disbursement_status'] == 'pending_proof_review' %}
+          <form method="POST" action="{{ url_for('approve_proof', entry_id=w['entry_id']) }}">
+            <button type="submit" class="btn btn-small">✅ {{ t.approve }} {{ t.submit_proof }}</button>
+          </form>
+        {% endif %}
+        {% if w['disbursement_status'] == 'pending_confirmation' %}
+          <form method="POST" action="{{ url_for('forfeit_winner', entry_id=w['entry_id']) }}">
+            <button type="submit" class="btn btn-small btn-danger" style="color:white">⏱ {{ t.forfeit }} ({{ pitch_window_hours }}h)</button>
+          </form>
+        {% endif %}
+        <a href="{{ url_for('winner_page', entry_id=w['entry_id']) }}" class="btn btn-small btn-outline">{{ t.view_details }}</a>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+{% for item in pools_data %}
+  {% set pool = item.pool %}
+  <div class="card">
+    <h3>{{ pool['tier_amount'] }} ETB — {{ pool['month'] }}
+      <span class="badge badge-general">{{ pool['status'] }}</span>
+    </h3>
+    <p class="post-meta">{{ t.prize_pool }}: {{ pool['prize_pool'] }} ETB &nbsp;•&nbsp; {{ t.entries }}: {{ item.entries|length }}</p>
+
+    {% for e in item.entries %}
+      <div style="border-top:1px solid var(--border);padding:10px 0">
+        <b>{{ e['username'] }}</b>
+        <span class="post-meta">
+          AI: {{ e['ai_score'] }}
+          {% if e['admin_score'] is not none %} | Admin: {{ e['admin_score'] }} | Final: {{ e['final_score'] }}{% endif %}
+          {% if e['status'] == 'winner' %} 🏆{% elif e['status'] == 'not_selected' %} ❌{% endif %}
+        </span>
+        <p class="post-content" style="font-size:0.85rem">{{ e['pitch_text'][:250] }}{{ '…' if e['pitch_text']|length > 250 }}</p>
+        {% if pool['status'] == 'open' and e['admin_score'] is none %}
+        <form method="POST" action="{{ url_for('score_entry', entry_id=e['id']) }}" style="display:flex;gap:6px;align-items:center">
+          <input type="number" name="admin_score" min="0" max="100" step="0.5" placeholder="0-100" style="margin:0;width:100px">
+          <button type="submit" class="btn btn-small">{{ t.submit_score }}</button>
+        </form>
+        {% endif %}
+      </div>
+    {% endfor %}
+
+    {% if pool['status'] == 'open' and item.entries %}
+      <form method="POST" action="{{ url_for('select_winner', pool_id=pool['id']) }}" style="margin-top:10px">
+        <button type="submit" class="btn btn-gold btn-full">🏆 {{ t.select_winner }}</button>
+      </form>
+    {% endif %}
+  </div>
+{% endfor %}
+
+{% endblock %}

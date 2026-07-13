@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+
+<a href="{{ url_for('settings_page') }}" class="btn btn-outline btn-small">← {{ t.back }}</a>
+
+<div class="card" style="margin-top:14px">
+  <h2><i class='bx bx-shield-quarter'></i> {{ t.privacy_policy }}</h2>
+  <p class="post-content">{{ t.privacy_intro }}</p>
+</div>
+
+<div class="card">
+  <h3>{{ t.username }} / {{ t.email }} / {{ t.phone }}</h3>
+  <p class="post-content" style="color:var(--muted)">
+    We collect the account details you provide at registration (username, email, phone,
+    full name) to operate your account, process job applications, and enable messaging
+    between employers and workers.
+  </p>
+</div>
+
+<div class="card">
+  <h3>{{ t.wallet }}</h3>
+  <p class="post-content" style="color:var(--muted)">
+    Wallet transactions (deposits, withdrawals, gifts, subscription payments) are recorded
+    to maintain accurate balances and are reviewed by administrators before funds are
+    released, as described elsewhere in the app.
+  </p>
+</div>
+
+<div class="card">
+  <h3>{{ t.messages }}</h3>
+  <p class="post-content" style="color:var(--muted)">
+    Direct messages are visible only to the two participants in a conversation and to
+    platform administrators when investigating a report.
+  </p>
+</div>
+
+<div class="card">
+  <h3>{{ t.report }}</h3>
+  <p class="post-content" style="color:var(--muted)">
+    Reports you submit about posts or users are reviewed by administrators to keep the
+    platform safe. We do not share your identity as a reporter with the reported user.
+  </p>
+</div>
+
+<div class="card">
+  <p class="post-meta">
+    This is a template privacy policy for the AltaJobs platform. Replace this text with
+    your own legally reviewed policy before launching publicly.
+  </p>
+</div>
+
+{% endblock %}

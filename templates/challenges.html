@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card" style="text-align:center">
+  <h2>🏆 {{ t.monthly_challenge_title }}</h2>
+  <p class="post-meta">{{ t.monthly_challenge_desc }}</p>
+</div>
+
+{% if not gate.unlocked %}
+<div class="card" style="border-color:var(--gold)">
+  <p>🔒 {{ t.viral_gate_locked_msg }}</p>
+  <p class="post-meta">{{ t.follows }}: {{ gate.follows }}/{{ gate.follows_needed }} &nbsp;•&nbsp;
+     {{ t.shares if false else t.share_step }}: {{ gate.shares }}/{{ gate.shares_needed }}</p>
+  <a href="{{ url_for('challenge_invite') }}" class="btn btn-gold btn-small">{{ t.unlock_gate }}</a>
+</div>
+{% endif %}
+
+{% for item in pools %}
+  <div class="card">
+    <h3>{{ item.tier }} ETB {{ t.pool }}</h3>
+    <p class="post-meta">{{ t.prize_pool }}: <b>{{ item.prize_pool }} ETB</b> &nbsp;•&nbsp;
+       {{ t.entries }}: {{ item.entry_count }}</p>
+
+    {% if item.my_entry %}
+      {% if item.my_entry['status'] == 'winner' %}
+        <p style="color:var(--gold);font-weight:700">🏆 {{ t.you_won }}</p>
+        <a href="{{ url_for('winner_page', entry_id=item.my_entry['id']) }}" class="btn btn-gold btn-small">{{ t.view_details }}</a>
+      {% elif item.my_entry['status'] == 'not_selected' %}
+        <p class="post-meta">{{ t.not_selected_msg }}</p>
+      {% else %}
+        <p class="post-meta">✅ {{ t.entry_submitted }} — {{ t.your_score }}: {{ item.my_entry['ai_score'] }}/100</p>
+      {% endif %}
+    {% else %}
+      {% if gate.unlocked %}
+        <a href="{{ url_for('join_challenge', tier=item.tier) }}" class="btn btn-small">{{ t.join_now }}</a>
+      {% else %}
+        <button class="btn btn-small" disabled style="opacity:0.5">🔒 {{ t.join_now }}</button>
+      {% endif %}
+    {% endif %}
+  </div>
+{% endfor %}
+
+{% endblock %}

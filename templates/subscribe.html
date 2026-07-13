@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if not active %}
+<div class="card" style="text-align:center;border:2px solid var(--gold)">
+  <h2>{{ t.subscription_required_title }}</h2>
+  <p>{{ t.subscription_required_body }}</p>
+</div>
+{% else %}
+<div class="card" style="text-align:center;background:var(--green-light)">
+  <p>🎁 {{ t.days_left }}: <b>{{ days_left }}</b></p>
+</div>
+{% endif %}
+
+<div class="pricing-grid">
+  <div class="price-card">
+    <h3>{{ t.monthly_plan }}</h3>
+    <div class="price-tag">{{ t.monthly_price }}</div>
+    <button class="btn" onclick="document.getElementById('form-monthly').style.display='block'">{{ t.choose_plan }}</button>
+    <form id="form-monthly" method="POST" action="{{ url_for('submit_payment') }}" style="display:none;margin-top:12px;text-align:start">
+      <input type="hidden" name="plan" value="monthly">
+      <label>{{ t.transaction_ref }}</label>
+      <input type="text" name="transaction_ref" required>
+      <button type="submit" class="btn btn-full">{{ t.submit_payment }}</button>
+    </form>
+  </div>
+
+  <div class="price-card highlight">
+    <span class="trial-tag">{{ t.free_trial_badge }}</span>
+    <h3>{{ t.yearly_plan }}</h3>
+    <div class="price-tag">{{ t.yearly_price }}</div>
+    <button class="btn btn-gold" onclick="document.getElementById('form-yearly').style.display='block'">{{ t.choose_plan }}</button>
+    <form id="form-yearly" method="POST" action="{{ url_for('submit_payment') }}" style="display:none;margin-top:12px;text-align:start">
+      <input type="hidden" name="plan" value="yearly">
+      <label>{{ t.transaction_ref }}</label>
+      <input type="text" name="transaction_ref" required>
+      <button type="submit" class="btn btn-full">{{ t.submit_payment }}</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h3>{{ t.payment_instructions }}</h3>
+  <p>{{ t.payment_methods }}</p>
+  <ul>
+    <li>Telebirr: 0960602675 (AltaJobs)</li>
+    <li>CBE Birr: 1000xxxxxxxx</li>
+    <li>Awash Bank: 013xxxxxxxxxx</li>
+  </ul>
+  <p style="color:var(--gray);font-size:0.85rem">
+    ክፍያውን ከፈጸሙ በኋላ የግብይት ቁጥሩን (transaction reference) ከላይ ባለው ቅጽ ውስጥ ያስገቡ።
+  </p>
+</div>
+
+{% endblock %}

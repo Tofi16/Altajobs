@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+
+<a href="{{ url_for('challenges') }}" class="btn btn-outline btn-small">← {{ t.back }}</a>
+
+<div class="card" style="margin-top:14px">
+  <h2>🚪 {{ t.viral_gate_title }}</h2>
+  <p class="post-meta">{{ t.viral_gate_desc }}</p>
+</div>
+
+<div class="card">
+  <h3>1️⃣ {{ t.follow_step }}</h3>
+  <p>{{ gate.follows }} / {{ gate.follows_needed }} {{ t.followed }}</p>
+  <a href="{{ url_for('follow_suggestions') }}" class="btn btn-small">{{ t.follow_suggestions_title }}</a>
+</div>
+
+<div class="card">
+  <h3>2️⃣ {{ t.share_step }}</h3>
+  <p>{{ gate.shares }} / {{ gate.shares_needed }} {{ t.shared }}</p>
+  <p class="post-meta" style="word-break:break-all">{{ referral_link }}</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+    <form method="POST" action="{{ url_for('log_share') }}">
+      <input type="hidden" name="platform" value="whatsapp">
+      <a href="https://wa.me/?text={{ referral_link | urlencode }}" target="_blank"
+         onclick="this.closest('form').requestSubmit()" class="btn btn-small btn-outline">WhatsApp</a>
+    </form>
+    <form method="POST" action="{{ url_for('log_share') }}">
+      <input type="hidden" name="platform" value="telegram">
+      <a href="https://t.me/share/url?url={{ referral_link | urlencode }}" target="_blank"
+         onclick="this.closest('form').requestSubmit()" class="btn btn-small btn-outline">Telegram</a>
+    </form>
+    <form method="POST" action="{{ url_for('log_share') }}">
+      <input type="hidden" name="platform" value="copy">
+      <button type="submit" class="btn btn-small btn-outline">📋 {{ t.copy_link }}</button>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="text-align:center">
+  {% if gate.unlocked %}
+    <p style="color:var(--accent);font-weight:700">✅ {{ t.gate_unlocked }}</p>
+    <a href="{{ url_for('challenges') }}" class="btn btn-gold">{{ t.go_to_challenges }}</a>
+  {% else %}
+    <p class="post-meta">{{ t.gate_locked_note }}</p>
+  {% endif %}
+</div>
+
+{% endblock %}

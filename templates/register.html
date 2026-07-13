@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card auth-card">
+  <h1>{{ t.app_name }}</h1>
+  <p style="text-align:center;color:var(--gray)">{{ t.create_account }}</p>
+
+  <form method="POST">
+    <input type="hidden" name="ref_code" value="{{ ref_code }}">
+    <label>{{ t.full_name }}</label>
+    <input type="text" name="full_name" required>
+
+    <label>{{ t.username }}</label>
+    <input type="text" name="username" required>
+
+    <label>{{ t.email }}</label>
+    <input type="email" name="email">
+
+    <label>{{ t.password }}</label>
+    <input type="password" name="password" required>
+
+    <label>{{ t.phone }}</label>
+    <input type="tel" name="phone" placeholder="09xxxxxxxx">
+
+    <label>{{ t.user_type }}</label>
+    <select name="user_type">
+      <option value="worker">{{ t.worker }}</option>
+      <option value="employer">{{ t.employer }}</option>
+    </select>
+
+    <button type="submit" class="btn btn-full">{{ t.create_account }}</button>
+  </form>
+
+  <p class="switch-link">
+    {{ t.already_have_account }} <a href="{{ url_for('login') }}"><b>{{ t.login }}</b></a>
+  </p>
+</div>
+{% endblock %}

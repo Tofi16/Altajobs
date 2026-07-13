@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+
+<a href="{{ url_for('challenge_invite') }}" class="btn btn-outline btn-small">← {{ t.back }}</a>
+
+<div class="card" style="margin-top:14px">
+  <h3>👥 {{ t.follow_suggestions_title }}</h3>
+  <p class="post-meta">{{ t.follows }}: {{ gate.follows }}/{{ gate.follows_needed }}</p>
+</div>
+
+{% for u in suggestions %}
+  <div class="card" style="display:flex;align-items:center;gap:12px">
+    <a href="{{ url_for('profile', user_id=u['id']) }}" class="avatar">
+      {% if u['avatar'] %}
+        <img src="{{ photo_url(u['avatar']) }}">
+      {% else %}
+        {{ (u['full_name'] or u['username'])[0] }}
+      {% endif %}
+    </a>
+    <div style="flex:1">
+      <a href="{{ url_for('profile', user_id=u['id']) }}" class="post-author">
+        {{ u['full_name'] or u['username'] }}
+      </a>
+      {% if is_verified_now(u) %}
+        <span class="verified-badge" title="{{ t.verified_badge }}">
+          <svg class="verified-icon" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false"><path fill="#1DA1F2" d="M12 2l2.2 3.6L18 6l-2.4 1.8L16 12l-4-2-4 2 .4-4.2L6 6l3.8-.4L12 2z"/><path fill="#fff" d="M10.6 12.3l1.8 1.5 3-4-1.2-1-2.3 2.9-1.3-1z"/></svg>
+        </span>
+      {% endif %}
+      {% if is_vip_now(u) %}<span class="badge-icon-vip">👑</span>{% endif %}
+      <div class="post-meta">{{ t.worker if u['user_type']=='worker' else t.employer }}</div>
+    </div>
+    <form method="POST" action="{{ url_for('toggle_follow', user_id=u['id']) }}">
+      <button type="submit" class="btn btn-small">{{ t.follow }}</button>
+    </form>
+  </div>
+{% endfor %}
+
+{% endblock %}

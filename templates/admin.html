@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ t.admin_panel }}</h2>
+
+<a href="{{ url_for('admin_challenges') }}" class="btn btn-gold btn-small">🏆 {{ t.monthly_challenge_title }}</a>
+
+<div class="card">
+  <h3>💰 {{ t.total_revenue }}</h3>
+  <div class="price-tag">{{ total_revenue }} ETB</div>
+  <p class="post-meta">{{ t.subscription_revenue }}: {{ subscription_revenue }} ETB</p>
+  <p class="post-meta">{{ t.gift_earnings }} ({{ '30%' if true else '' }}): {{ gift_earnings }} ETB</p>
+  <p class="post-meta">✔️ {{ t.verified_users_count }}: {{ verified_users_count }} &nbsp; | &nbsp; 👑 {{ t.vip_users_count }}: {{ vip_users_count }}</p>
+</div>
+
+<div class="card">
+  <h3>{{ t.wallet_admin_title }}</h3>
+  {% if not pending_wallet_tx %}
+    <p class="post-meta">{{ t.no_posts }}</p>
+  {% endif %}
+  <table>
+    {% for tx in pending_wallet_tx %}
+    <tr>
+      <td>
+        {{ tx['username'] }}<br>
+        <span class="badge badge-{{ 'general' if tx['tx_type']=='deposit' else 'job' }}">
+          {{ t.deposit if tx['tx_type']=='deposit' else t.withdraw }}
+        </span>
+        {{ tx['amount'] }} ETB
+        {% if tx['transaction_ref'] %}<br><span class="post-meta">{{ t.transaction_ref }}: {{ tx['transaction_ref'] }}</span>{% endif %}
+        {% if tx['tx_type'] == 'withdrawal' %}<br><span class="post-meta">📞 {{ t.your_payout_number }}: {{ tx['phone'] or '—' }}</span>{% endif %}
+      </td>
+      <td style="white-space:nowrap">
+        <form method="POST" action="{{ url_for('approve_wallet_tx', tx_id=tx['id']) }}" style="display:inline">
+          <button type="submit" class="btn btn-small">{{ t.approve }}</button>
+        </form>
+        <form method="POST" action="{{ url_for('reject_wallet_tx', tx_id=tx['id']) }}" style="display:inline">
+          <button type="submit" class="btn btn-small btn-outline">{{ t.reject }}</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h3>{{ t.pending_payments }}</h3>
+  <table>
+    <tr><th>{{ t.username }}</th><th>{{ t.subscribe }}</th><th></th></tr>
+    {% for p in pending_payments %}
+    <tr>
+      <td>{{ p['username'] }}</td>
+      <td>{{ p['plan'] }} — {{ p['amount'] }} ETB — {{ p['transaction_ref'] }}</td>
+      <td>
+        <form method="POST" action="{{ url_for('approve_payment', payment_id=p['id']) }}">
+          <button type="submit" class="btn btn-small">{{ t.approve }}</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<div class="card">
+  <h3>{{ t.reports_list }}</h3>
+  {% if not reports %}
+    <p class="post-meta">{{ t.no_posts }}</p>
+  {% endif %}
+  <table>
+    <tr><th>{{ t.username }}</th><th>{{ t.report }}</th><th>{{ t.report_reason }}</th><th></th></tr>
+    {% for r in reports %}
+    <tr>
+      <td>{{ r['reporter'] }}</td>
+      <td>
+        {% if r['target_type'] == 'post' %}
+          <a href="{{ url_for('post_detail', post_id=r['target_id']) }}">{{ t.report }} → post #{{ r['target_id'] }}</a>
+        {% else %}
+          <a href="{{ url_for('profile', user_id=r['target_id']) }}">{{ t.report }} → profile #{{ r['target_id'] }}</a>
+        {% endif %}
+      </td>
+      <td>{{ r['reason'] }}</td>
+      <td>
+        <form method="POST" action="{{ url_for('resolve_report', report_id=r['id']) }}">
+          <button type="submit" class="btn btn-small btn-outline">✓</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 style="margin-bottom:14px"><i class='bx bx-plus-circle'></i> {{ t.create_new }}</h2>
+
+<a href="{{ url_for('feed') }}#compose" class="card" style="display:flex;align-items:center;gap:14px;text-decoration:none">
+  <i class='bx bx-edit-alt' style="font-size:2rem;color:var(--accent)"></i>
+  <div>
+    <div style="font-weight:700;color:var(--text)">{{ t.create_post_option }}</div>
+    <div class="post-meta">{{ t.post_placeholder }}</div>
+  </div>
+</a>
+
+<a href="{{ url_for('new_reel') }}" class="card" style="display:flex;align-items:center;gap:14px;text-decoration:none">
+  <i class='bx bxs-video-plus' style="font-size:2rem;color:var(--accent)"></i>
+  <div>
+    <div style="font-weight:700;color:var(--text)">{{ t.create_reel_option }}</div>
+    <div class="post-meta">{{ t.reel_caption_placeholder }}</div>
+  </div>
+</a>
+
+{% endblock %}

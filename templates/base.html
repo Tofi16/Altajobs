@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ t.app_name }} - {{ t.tagline }}</title>
+{% if current_lang == 'ar' %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+{% endif %}
+<link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+{% if current_user %}
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="{{ url_for('feed') }}" class="brand">AltaJobs<span class="brand-dot">.</span></a>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <a href="{{ url_for('tokens_page') }}" class="wallet-pill" style="color:var(--gold)">🪙 {{ current_user['alta_tokens'] }} Tokens</a>
+      <a href="{{ url_for('wallet') }}" class="wallet-pill">💰 {{ current_user['wallet_balance'] }} ETB</a>
+    </div>
+  </div>
+</header>
+{% endif %}
+
+<div class="app-shell">
+
+{% if current_user %}
+<aside class="left-sidebar">
+  <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="sidebar-card" style="display:block;text-decoration:none">
+    <div class="avatar" style="width:48px;height:48px;margin-bottom:8px">
+      {% if current_user['avatar'] %}<img src="{{ photo_url(current_user['avatar']) }}">{% else %}{{ (current_user['full_name'] or current_user['username'])[0] }}{% endif %}
+    </div>
+    <div style="font-weight:800;color:var(--text)">{{ current_user['full_name'] or current_user['username'] }}</div>
+    <div class="post-meta">@{{ current_user['username'] }}</div>
+  </a>
+
+  <div class="sidebar-card">
+    <a href="{{ url_for('wallet') }}" class="sidebar-link"><i class='bx bx-wallet'></i> {{ t.wallet }}</a>
+    <a href="{{ url_for('tokens_page') }}" class="sidebar-link"><i class='bx bx-coin-stack'></i> {{ t.alta_tokens }}</a>
+    <a href="{{ url_for('challenges') }}" class="sidebar-link"><i class='bx bx-trophy'></i> {{ t.monthly_challenge_title }}</a>
+    <a href="{{ url_for('settings_page') }}" class="sidebar-link"><i class='bx bx-cog'></i> {{ t.tab_settings }}</a>
+  </div>
+
+  <div class="sidebar-card">
+    <h4>{{ t.channels_groups }}</h4>
+    <a href="{{ url_for('channels_directory') }}" class="sidebar-link"><i class='bx bxs-group'></i> {{ t.channels_groups }}</a>
+    <a href="{{ url_for('new_channel') }}" class="sidebar-link"><i class='bx bx-plus-circle'></i> {{ t.create_group_or_channel }}</a>
+  </div>
+</aside>
+{% endif %}
+
+<main class="container">
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="flash-box">
+        {% for m in messages %}
+          <p>{{ t.get(m, m) }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+{% if current_user %}
+<aside class="right-sidebar">
+  <div class="sidebar-card">
+    <h4>{{ t.channels_groups }}</h4>
+    {% if not suggested_channels %}
+      <p class="post-meta">{{ t.no_channels_yet }}</p>
+    {% endif %}
+    {% for c in suggested_channels %}
+      <a href="{{ url_for('channel_view', channel_id=c['id']) }}" class="sidebar-channel-item">
+        <div class="avatar">{% if c['avatar'] %}<img src="{{ photo_url(c['avatar']) }}">{% else %}{{ c['name'][0] }}{% endif %}</div>
+        <div style="min-width:0">
+          <div style="font-weight:700;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            {{ c['name'] }} {% if channel_is_verified(c) %}
+              <span class="verified-badge" title="{{ t.verified_badge }}">
+                <svg class="verified-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path fill="#1DA1F2" d="M12 2l2.2 3.6L18 6l-2.4 1.8L16 12l-4-2-4 2 .4-4.2L6 6l3.8-.4L12 2z"/><path fill="#fff" d="M10.6 12.3l1.8 1.5 3-4-1.2-1-2.3 2.9-1.3-1z"/></svg>
+              </span>
+            {% endif %}
+          </div>
+          <div class="post-meta">{{ c['member_count'] }} {{ t.members }}</div>
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+
+  {% if not is_verified_now(current_user) and not is_vip_now(current_user) %}
+  <a href="{{ url_for('wallet') }}" class="sidebar-card" style="display:block;text-decoration:none;background:var(--gold-gradient);color:#362a04">
+    <div style="font-weight:800">✨ {{ t.upgrade_to_premium }}</div>
+    <div style="font-size:0.8rem;margin-top:4px">🎁 {{ t.days_left }}: {{ trial_days_left }}</div>
+  </a>
+  {% endif %}
+</aside>
+{% endif %}
+
+</div>
+
+{% if current_user %}
+<nav class="app-nav">
+  <a href="{{ url_for('feed') }}" class="nav-tab {{ 'active' if request.path == '/' or request.path.startswith('/post/') or request.path.startswith('/saved') }}">
+    <i class='bx {{ "bxs-home" if request.path == "/" else "bx-home" }}'></i>
+    <span>{{ t.tab_home }}</span>
+  </a>
+  <a href="{{ url_for('reels_feed') }}" class="nav-tab {{ 'active' if request.path.startswith('/reels') or request.path.startswith('/follow') }}">
+    <i class='bx {{ "bxs-video" if request.path.startswith("/reels") else "bx-video" }}'></i>
+    <span>{{ t.tab_reels }}</span>
+  </a>
+  <a href="{{ url_for('create_menu') }}" class="nav-tab nav-create">
+    <span class="nav-create-btn"><i class='bx bx-plus'></i></span>
+  </a>
+  <a href="{{ url_for('chat_inbox') }}" class="nav-tab {{ 'active' if request.path.startswith('/chat') }}" style="position:relative">
+    <i class='bx {{ "bxs-message-rounded-dots" if request.path.startswith("/chat") else "bx-message-rounded-dots" }}'></i>
+    <span>{{ t.tab_inbox }}</span>
+    {% if unread_message_count and unread_message_count > 0 %}
+      <span class="nav-badge">{{ unread_message_count if unread_message_count < 10 else '9+' }}</span>
+    {% endif %}
+  </a>
+  <a href="{{ url_for('wallet') }}" class="nav-tab {{ 'active' if request.path.startswith('/wallet') }}">
+    <i class='bx {{ "bxs-wallet" if request.path.startswith("/wallet") else "bx-wallet" }}'></i>
+    <span>{{ t.wallet }}</span>
+  </a>
+  <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="nav-tab {{ 'active' if request.path.startswith('/profile/' + current_user['id']|string) or request.path.startswith('/settings') or request.path.startswith('/admin') or request.path.startswith('/challenge') }}">
+    <span class="nav-profile-avatar">
+      {% if current_user['avatar'] %}
+        <img src="{{ photo_url(current_user['avatar']) }}">
+      {% else %}
+        {{ (current_user['full_name'] or current_user['username'])[0] }}
+      {% endif %}
+    </span>
+    <span>{{ t.tab_profile }}</span>
+  </a>
+</nav>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+</body>
+</html>

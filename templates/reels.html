@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if not reels_data %}
+  <div class="card" style="text-align:center;margin-top:20px">
+    <p>{{ t.no_reels_yet }}</p>
+    <a href="{{ url_for('new_reel') }}" class="btn btn-gold">🎬 {{ t.post_a_reel }}</a>
+  </div>
+{% else %}
+<div class="reels-container">
+  {% for item in reels_data %}
+    {% set post = item.post %}
+    <section class="reel-slide">
+            <video data-post-id="{{ post['id'] }}" src="{{ photo_url(post['video']) }}"
+              muted loop playsinline preload="auto"></video>
+      <div class="reel-gradient"></div>
+
+        <div class="reel-caption">
+        <div class="reel-author">
+          @{{ post['username'] }}
+          {% if is_verified_now(post) %}
+            <span class="verified-badge" title="{{ t.verified_badge }}">
+              <svg class="verified-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path fill="#1DA1F2" d="M12 2l2.2 3.6L18 6l-2.4 1.8L16 12l-4-2-4 2 .4-4.2L6 6l3.8-.4L12 2z"/><path fill="#fff" d="M10.6 12.3l1.8 1.5 3-4-1.2-1-2.3 2.9-1.3-1z"/></svg>
+            </span>
+          {% endif %}{% if is_vip_now(post) %}👑{% endif %}
+        </div>
+        {% if post['content'] %}<div class="reel-text">{{ post['content'] }}</div>{% endif %}
+        {% if post['mentions'] %}<div class="reel-text" style="color:var(--accent);font-weight:700">{{ post['mentions'] }}</div>{% endif %}
+      </div>
+
+      <div class="reel-side-icons">
+        <a href="{{ url_for('profile', user_id=post['user_id']) }}" class="reel-profile-circle">
+          {% if post['avatar'] %}<img src="{{ photo_url(post['avatar']) }}">{% else %}{{ (post['full_name'] or post['username'])[0] }}{% endif %}
+          {% if post['user_id'] != current_user['id'] and not item.following %}
+          <span class="reel-follow-plus js-follow-btn" data-user-id="{{ post['user_id'] }}"
+                data-follow-label="+" data-following-label="✓">+</span>
+          {% endif %}
+        </a>
+
+        <button type="button" class="js-like-btn {{ 'liked' if item.liked }}" style="background:none;border:none;color:#fff;display:flex;flex-direction:column;align-items:center"
+                data-post-id="{{ post['id'] }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}">
+          <i class='bx {{ "bxs-heart" if item.liked else "bx-heart" }}' style="font-size:1.9rem"></i>
+          <span class="icon-label like-count">{{ item.like_count }}</span>
+        </button>
+
+        <a href="{{ url_for('post_detail', post_id=post['id']) }}" style="color:#fff;text-align:center">
+          <i class='bx bx-comment-detail' style="font-size:1.9rem"></i>
+          <span class="icon-label">{{ item.comment_count }}</span>
+        </a>
+
+        <div style="text-align:center">
+          <i class='bx bx-show' style="font-size:1.9rem"></i>
+          <span class="icon-label">{{ post['view_count'] }}</span>
+        </div>
+      </div>
+
+    </section>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# FAB removed from Reels — use bottom center '+' in nav instead #}
+
+{% endblock %}
