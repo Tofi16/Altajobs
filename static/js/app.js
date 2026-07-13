@@ -131,6 +131,25 @@ document.addEventListener("DOMContentLoaded", function () {
   const reelVideos = document.querySelectorAll(".reel-slide video[data-post-id]");
   if (!reelVideos.length) return;
 
+  const loadVideoIfNeeded = (video) => {
+    const src = video.dataset.src;
+    if (!src || video.getAttribute('src') === src) return;
+    video.src = src;
+    video.load();
+  };
+
+  const videoObserver = new IntersectionObserver((entries, observer) => {
+    entries.forEach((entry) => {
+      const video = entry.target;
+      if (entry.isIntersecting) {
+        loadVideoIfNeeded(video);
+        observer.unobserve(video);
+      }
+    });
+  }, { rootMargin: '300px 0px' });
+
+  reelVideos.forEach((video) => videoObserver.observe(video));
+
   // Browsers block autoplay-with-sound, so every reel starts muted; a tap
   // on the video unmutes it (and toggles play/pause on subsequent taps),
   // matching the platform's native short-video player behavior.
@@ -217,10 +236,8 @@ document.addEventListener("DOMContentLoaded", function () {
         const video = entry.target;
         const postId = video.dataset.postId;
         if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+          loadVideoIfNeeded(video);
           video.play().catch(() => {});
-          // Count the view exactly once per post per page load, then stop
-          // observing this element so scrolling back and forth can't
-          // re-trigger it.
           fetch(`/post/${postId}/view`, { method: "POST" }).finally(() => {
             observer.unobserve(video);
           });

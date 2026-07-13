@@ -17,5 +17,12 @@
   <p class="switch-link">
     {{ t.no_account }} <a href="{{ url_for('register') }}"><b>{{ t.register }}</b></a>
   </p>
+  <p class="switch-link">
+    <a href="{{ url_for('forgot_password') }}"><b>{{ t.password_reset_sent }}</b></a>
+  </p>
+  <p class="switch-link">
+    <a href="{{ url_for('set_language_route', lang='en') }}">English</a> ·
+    <a href="{{ url_for('set_language_route', lang='am') }}">አማርኛ</a>
+  </p>
 </div>
 {% endblock %}

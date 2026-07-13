@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card auth-card">
+  <h1>{{ t.app_name }}</h1>
+  <p style="text-align:center;color:var(--gray)">{{ t.verification_required }}</p>
+  <form method="POST" action="{{ url_for('verify_email_page') }}">
+    <label>{{ t.verification_required }}</label>
+    <input type="text" name="verification_code" required>
+    <button type="submit" class="btn btn-full">{{ t.verification_success }}</button>
+  </form>
+  <form method="POST" action="{{ url_for('resend_verification') }}" style="margin-top:8px">
+    <button type="submit" class="btn btn-outline btn-full">{{ t.verification_sent }}</button>
+  </form>
+</div>
+{% endblock %}

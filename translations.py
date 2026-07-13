@@ -188,6 +188,14 @@ TRANSLATIONS = {
         "total_revenue": "ጠቅላላ ገቢ",
         "gifts_received_total": "ከጊፍት የተገኘ ጠቅላላ ገቢ",
         "language": "ቋንቋ",
+        "email_required": "ኢሜይል ያስገቡ",
+        "verification_sent": "የማረጋገጫ ኮድ ልኳል",
+        "verification_required": "እባክዎ ማረጋገጫ ኮድ ያስገቡ",
+        "verification_success": "ኢሜይልዎ ተረጋግጧል",
+        "invalid_verification_code": "የተሳሳተ ማረጋገጫ ኮድ",
+        "password_reset_sent": "የይለፍ ቃል ዳግም ማስጀመሪያ ኮድ ልኳል",
+        "invalid_reset_code": "የተሳሳተ የይለፍ ቃል ዳግም ማስጀመሪያ ኮድ",
+        "password_reset_success": "የይለፍ ቃል ተቀይሯል",
         "tab_home": "መነሻ",
         "tab_reels": "ሪልስ",
         "tab_chat": "መልእክት",
@@ -450,6 +458,14 @@ TRANSLATIONS = {
         "total_revenue": "Total Revenue",
         "gifts_received_total": "Total Received from Gifts",
         "language": "Language",
+        "email_required": "Please enter an email address",
+        "verification_sent": "A verification code was sent to your email",
+        "verification_required": "Please enter the verification code",
+        "verification_success": "Your email has been verified",
+        "invalid_verification_code": "The verification code is invalid",
+        "password_reset_sent": "A password reset code was sent to your email",
+        "invalid_reset_code": "The password reset code is invalid or expired",
+        "password_reset_success": "Your password was reset successfully",
         "tab_home": "Home",
         "tab_reels": "Reels",
         "tab_chat": "Chat",
@@ -1317,7 +1333,7 @@ TRANSLATIONS = {
     },
 }
 
-DEFAULT_LANG = "am"
+DEFAULT_LANG = "en"
 
 def get_translator(lang):
     """የተመረጠውን ቋንቋ መዝገበ ቃላት ይመልሳል"""

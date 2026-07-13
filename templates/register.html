@@ -33,5 +33,9 @@
   <p class="switch-link">
     {{ t.already_have_account }} <a href="{{ url_for('login') }}"><b>{{ t.login }}</b></a>
   </p>
+  <p class="switch-link">
+    <a href="{{ url_for('set_language_route', lang='en') }}">English</a> ·
+    <a href="{{ url_for('set_language_route', lang='am') }}">አማርኛ</a>
+  </p>
 </div>
 {% endblock %}

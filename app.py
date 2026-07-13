@@ -9,8 +9,10 @@ import os
 import re
 import sqlite3
 import secrets
+import smtplib
 import datetime
 from functools import wraps
+from email.message import EmailMessage
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import (
@@ -79,6 +81,13 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = "alta-jobs-secret-key-change-in-production"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 60 * 1024 * 1024  # 60MB (allows short Reels videos)
+app.config["PREFERRED_URL_SCHEME"] = os.environ.get("PREFERRED_URL_SCHEME", "https")
+app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "")
+app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", "587"))
+app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME", "")
+app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD", "")
+app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", "true").lower() in {"1", "true", "yes", "on"}
+app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER", "noreply@altajobs.app")
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -121,7 +130,12 @@ def init_db():
             is_admin INTEGER DEFAULT 0,
             created_at TEXT NOT NULL,
             plan TEXT DEFAULT NULL,          -- 'monthly' / 'yearly' / NULL
-            paid_until TEXT DEFAULT NULL
+            paid_until TEXT DEFAULT NULL,
+            email_verified INTEGER DEFAULT 0,
+            email_verification_code TEXT DEFAULT NULL,
+            password_reset_code TEXT DEFAULT NULL,
+            password_reset_expires TEXT DEFAULT NULL,
+            email_verified_at TEXT DEFAULT NULL
         );
 
         CREATE TABLE IF NOT EXISTS posts (
@@ -470,6 +484,19 @@ def migrate_db():
         code = f"{(uname or 'user')[:6].upper()}{uid}{secrets.token_hex(2).upper()}"
         db.execute("UPDATE users SET referral_code = ? WHERE id = ?", (code, uid))
     db.commit()
+
+    # add verification and password-reset columns for existing installs safely
+    user_cols = {row[1] for row in db.execute("PRAGMA table_info(users)")}
+    for col, coltype in {
+        "email_verified": "INTEGER DEFAULT 0",
+        "email_verification_code": "TEXT DEFAULT NULL",
+        "password_reset_code": "TEXT DEFAULT NULL",
+        "password_reset_expires": "TEXT DEFAULT NULL",
+        "email_verified_at": "TEXT DEFAULT NULL",
+    }.items():
+        if col not in user_cols:
+            db.execute(f"ALTER TABLE users ADD COLUMN {col} {coltype}")
+    db.commit()
     db.close()
 
 
@@ -480,6 +507,10 @@ def migrate_db():
 def set_language():
     if "lang" not in session:
         session["lang"] = DEFAULT_LANG
+    if request.path.startswith("/static") or request.path.startswith("/uploads"):
+        return
+    if request.path in {"/set_language/en", "/set_language/am"}:
+        return
 
 
 @app.before_request
@@ -969,15 +1000,51 @@ def record_unique_view(db, post_id, user_id):
 # ---------------------------------------------------------------------------
 # Auth routes
 # ---------------------------------------------------------------------------
+
+def _now_iso():
+    return datetime.datetime.utcnow().isoformat()
+
+
+def _generate_code(length=6):
+    return f"{secrets.randbelow(10 ** length):0{length}d}"
+
+
+def _send_email(subject, recipient, body):
+    if not recipient:
+        return False
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        msg["From"] = app.config["MAIL_DEFAULT_SENDER"]
+        msg["To"] = recipient
+        msg.set_content(body)
+        if app.config["MAIL_SERVER"]:
+            with smtplib.SMTP(app.config["MAIL_SERVER"], app.config["MAIL_PORT"]) as server:
+                if app.config["MAIL_USE_TLS"]:
+                    server.starttls()
+                if app.config["MAIL_USERNAME"]:
+                    server.login(app.config["MAIL_USERNAME"], app.config["MAIL_PASSWORD"])
+                server.send_message(msg)
+            return True
+    except Exception as exc:
+        print(f"Email send failed: {exc}")
+    print(f"[email] To={recipient}\nSubject={subject}\nBody={body}")
+    return True
+
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
-        email = request.form.get("email", "").strip()
+        email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
         full_name = request.form.get("full_name", "").strip()
         user_type = request.form.get("user_type", "worker")
         phone = request.form.get("phone", "").strip()
+
+        if not email:
+            flash(get_translator(session.get("lang", DEFAULT_LANG))["email_required"])
+            return redirect(url_for("register"))
 
         db = get_db()
         existing = db.execute(
@@ -987,22 +1054,31 @@ def register():
             flash(get_translator(session.get("lang", DEFAULT_LANG))["username_taken"])
             return redirect(url_for("register"))
 
+        verification_code = _generate_code()
         db.execute(
             """INSERT INTO users
-               (username, email, password_hash, full_name, user_type, phone, created_at, referral_code)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+               (username, email, password_hash, full_name, user_type, phone, created_at, referral_code,
+                email_verified, email_verification_code)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)""",
             (
                 username, email, generate_password_hash(password),
                 full_name, user_type, phone,
-                datetime.datetime.utcnow().isoformat(),
+                _now_iso(),
                 f"{username[:6].upper()}{secrets.token_hex(3).upper()}",
+                generate_password_hash(verification_code),
             ),
         )
         db.commit()
         new_user = db.execute(
-            "SELECT id FROM users WHERE username = ?", (username,)
+            "SELECT id, username, email FROM users WHERE username = ?", (username,)
         ).fetchone()
         session["user_id"] = new_user["id"]
+
+        _send_email(
+            "Verify your AltaJobs account",
+            new_user["email"],
+            f"Hello {new_user['username']},\n\nYour verification code is: {verification_code}\n\nUse it on the Verify Email page to complete signup.",
+        )
 
         # if the person signed up through a referral link, credit the referrer
         ref_code = request.form.get("ref_code", "").strip()
@@ -1015,16 +1091,132 @@ def register():
                     db.execute(
                         """INSERT INTO referrals (referrer_id, referred_id, created_at)
                            VALUES (?, ?, ?)""",
-                        (referrer["id"], new_user["id"], datetime.datetime.utcnow().isoformat()),
+                        (referrer["id"], new_user["id"], _now_iso()),
                     )
                     db.commit()
                 except sqlite3.IntegrityError:
                     pass
 
-        return redirect(url_for("feed"))
+        flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_sent"])
+        return redirect(url_for("verify_email_page"))
 
     ref_code = request.args.get("ref", "")
     return render_template("register.html", ref_code=ref_code)
+
+
+@app.route("/verify-email", methods=["GET", "POST"])
+@login_required
+def verify_email_page():
+    user = get_current_user()
+    if not user:
+        return redirect(url_for("login"))
+    if user["email_verified"] or not user["email_verification_code"]:
+        return redirect(url_for("feed"))
+    if request.method == "POST":
+        code = request.form.get("verification_code", "").strip()
+        if not code:
+            flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_required"])
+            return redirect(url_for("verify_email_page"))
+        if user and user["email_verification_code"] and check_password_hash(user["email_verification_code"], code):
+            db = get_db()
+            db.execute(
+                "UPDATE users SET email_verified = 1, email_verification_code = NULL, email_verified_at = ? WHERE id = ?",
+                (_now_iso(), user["id"]),
+            )
+            db.commit()
+            flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_success"])
+            return redirect(url_for("feed"))
+        flash(get_translator(session.get("lang", DEFAULT_LANG))["invalid_verification_code"])
+        return redirect(url_for("verify_email_page"))
+
+    return render_template("verify_email.html", user=user)
+
+
+@app.route("/resend-verification", methods=["POST"])
+@login_required
+def resend_verification():
+    user = get_current_user()
+    if not user or not user["email"]:
+        flash(get_translator(session.get("lang", DEFAULT_LANG))["email_required"])
+        return redirect(url_for("verify_email_page"))
+    code = _generate_code()
+    db = get_db()
+    db.execute(
+        "UPDATE users SET email_verification_code = ? WHERE id = ?",
+        (generate_password_hash(code), user["id"]),
+    )
+    db.commit()
+    _send_email(
+        "Verify your AltaJobs account",
+        user["email"],
+        f"Your new verification code is: {code}",
+    )
+    flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_sent"])
+    return redirect(url_for("verify_email_page"))
+
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        if not email:
+            flash(get_translator(session.get("lang", DEFAULT_LANG))["email_required"])
+            return redirect(url_for("forgot_password"))
+        db = get_db()
+        user = db.execute("SELECT id, username, email FROM users WHERE email = ?", (email,)).fetchone()
+        if user:
+            code = _generate_code()
+            db.execute(
+                "UPDATE users SET password_reset_code = ?, password_reset_expires = ? WHERE id = ?",
+                (
+                    generate_password_hash(code),
+                    (datetime.datetime.utcnow() + datetime.timedelta(minutes=15)).isoformat(),
+                    user["id"],
+                ),
+            )
+            db.commit()
+            _send_email(
+                "Reset your AltaJobs password",
+                user["email"],
+                f"Hello {user['username']},\n\nYour reset code is: {code}\n\nIt expires in 15 minutes.",
+            )
+        flash(get_translator(session.get("lang", DEFAULT_LANG))["password_reset_sent"])
+        return redirect(url_for("reset_password"))
+    return render_template("forgot_password.html")
+
+
+@app.route("/reset-password", methods=["GET", "POST"])
+def reset_password():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        code = request.form.get("reset_code", "").strip()
+        new_password = request.form.get("new_password", "")
+        if not email or not code or not new_password:
+            flash(get_translator(session.get("lang", DEFAULT_LANG))["invalid_reset_code"])
+            return redirect(url_for("reset_password"))
+        db = get_db()
+        user = db.execute(
+            "SELECT id, password_reset_code, password_reset_expires FROM users WHERE email = ?",
+            (email,),
+        ).fetchone()
+        if not user:
+            flash(get_translator(session.get("lang", DEFAULT_LANG))["email_required"])
+            return redirect(url_for("reset_password"))
+        expires = user["password_reset_expires"]
+        if not user["password_reset_code"] or not expires or datetime.datetime.utcnow() > datetime.datetime.fromisoformat(expires):
+            flash(get_translator(session.get("lang", DEFAULT_LANG))["invalid_reset_code"])
+            return redirect(url_for("reset_password"))
+        if not check_password_hash(user["password_reset_code"], code):
+            flash(get_translator(session.get("lang", DEFAULT_LANG))["invalid_reset_code"])
+            return redirect(url_for("reset_password"))
+        db.execute(
+            "UPDATE users SET password_hash = ?, password_reset_code = NULL, password_reset_expires = NULL WHERE id = ?",
+            (generate_password_hash(new_password), user["id"]),
+        )
+        db.commit()
+        flash(get_translator(session.get("lang", DEFAULT_LANG))["password_reset_success"])
+        return redirect(url_for("login"))
+    return render_template("reset_password.html")
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -1041,6 +1233,9 @@ def login():
                 flash("account_banned")
                 return redirect(url_for("login"))
             session["user_id"] = user["id"]
+            if user["email_verification_code"] and not user["email_verified"]:
+                flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_required"])
+                return redirect(url_for("verify_email_page"))
             return redirect(url_for("feed"))
         flash(get_translator(session.get("lang", DEFAULT_LANG))["login_failed"])
         return redirect(url_for("login"))

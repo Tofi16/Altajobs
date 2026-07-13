@@ -11,8 +11,9 @@
   {% for item in reels_data %}
     {% set post = item.post %}
     <section class="reel-slide">
-            <video data-post-id="{{ post['id'] }}" src="{{ photo_url(post['video']) }}"
-              muted loop playsinline preload="auto"></video>
+            <video data-post-id="{{ post['id'] }}"
+              data-src="{{ photo_url(post['video']) }}"
+              muted loop playsinline preload="none"></video>
       <div class="reel-gradient"></div>
 
         <div class="reel-caption">
