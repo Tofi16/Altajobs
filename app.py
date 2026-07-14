@@ -86,7 +86,8 @@ app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "")
 app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", "587"))
 app.config["MAIL_USERNAME"] = os.environ.get("MAIL_USERNAME", "")
 app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD", "")
-app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", "true").lower() in {"1", "true", "yes", "on"}
+app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", "True").lower() in ["true", "on", "1"]
+app.config["MAIL_USE_SSL"] = os.environ.get("MAIL_USE_SSL", "False").lower() in ["true", "on", "1"]
 app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER", "noreply@altajobs.app")
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -1198,8 +1199,12 @@ def _send_email(subject, recipient, body):
         if not app.config["MAIL_SERVER"]:
             print(f"[email] To={recipient}\nSubject={subject}\nBody={body}")
             return False
-        with smtplib.SMTP(app.config["MAIL_SERVER"], app.config["MAIL_PORT"]) as server:
-            if app.config["MAIL_USE_TLS"]:
+        if app.config["MAIL_USE_SSL"]:
+            server_ctx = smtplib.SMTP_SSL(app.config["MAIL_SERVER"], app.config["MAIL_PORT"])
+        else:
+            server_ctx = smtplib.SMTP(app.config["MAIL_SERVER"], app.config["MAIL_PORT"])
+        with server_ctx as server:
+            if app.config["MAIL_USE_TLS"] and not app.config["MAIL_USE_SSL"]:
                 server.starttls()
             if app.config["MAIL_USERNAME"]:
                 server.login(app.config["MAIL_USERNAME"], app.config["MAIL_PASSWORD"])
@@ -1250,11 +1255,13 @@ def register():
                     generate_password_hash(verification_code),
                 ),
             )
-            db.commit()
+            # NOTE: intentionally NOT committed yet. The new user row (and the
+            # username it locks in) is only persisted once the verification
+            # email has actually gone out below, so a broken/misconfigured
+            # SMTP server can never silently squat a username.
             new_user = db.execute(
                 "SELECT id, username, email FROM users WHERE lower(username) = ?", (normalized_username,)
             ).fetchone()
-            session["user_id"] = new_user["id"]
 
             try:
                 email_sent = _send_email(
@@ -1262,15 +1269,20 @@ def register():
                     new_user["email"],
                     f"Hello {new_user['username']},\n\nYour verification code is: {verification_code}\n\nUse it on the Verify Email page to complete signup.",
                 )
-            except Exception as exc:
+            except (smtplib.SMTPException, OSError) as exc:
                 print(f"[auth] verification email failed: {exc}")
                 email_sent = False
 
             if not email_sent:
-                print(f"[auth] verification email could not be delivered for {new_user['email']}")
-                flash("Your account was created, but the verification email could not be sent right now. You can verify later.")
-            else:
-                flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_sent"])
+                db.rollback()
+                flash(
+                    "የማረጋገጫ ኢሜይል መላክ አልተቻለም። እባክዎ የኢሜይል አድራሻዎን ወይም የSMTP ሰርቨር መረጃዎችን ያረጋግጡ።"
+                )
+                return redirect(url_for("register"))
+
+            db.commit()
+            session["user_id"] = new_user["id"]
+            flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_sent"])
 
             # if the person signed up through a referral link, credit the referrer
             ref_code = request.form.get("ref_code", "").strip()
@@ -1991,7 +2003,9 @@ def profile(user_id):
 
     posts = db.execute(
         """SELECT posts.*, users.username, users.full_name, users.avatar, users.user_type,
-                  users.is_verified, users.verified_until, users.is_vip, users.vip_until
+                  users.is_verified, users.verified_until, users.is_vip, users.vip_until,
+                  (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) AS like_count,
+                  (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) AS comment_count
            FROM posts JOIN users ON posts.user_id = users.id
            WHERE posts.user_id = ?
            ORDER BY posts.created_at DESC""",

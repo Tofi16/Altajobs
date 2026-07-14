@@ -6,9 +6,9 @@
   <div class="price-tag">{{ current_user['wallet_balance'] }} ETB</div>
   <div style="margin:10px 0;font-size:0.95rem">🪙 {{ current_user['alta_tokens'] }} {{ t.alta_tokens }}</div>
   <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:12px">
-    <a href="#deposit-form" class="btn btn-small">⬇️ Deposit Money</a>
-    <a href="#withdraw-form" class="btn btn-outline btn-small">⬆️ Request Withdrawal</a>
-    <a href="#transfer-form" class="btn btn-outline btn-small">🔁 Send Money</a>
+    <button type="button" class="btn btn-small js-toggle-form" data-target="deposit-form">⬇️ Deposit Money</button>
+    <button type="button" class="btn btn-outline btn-small js-toggle-form" data-target="withdraw-form">⬆️ Request Withdrawal</button>
+    <button type="button" class="btn btn-outline btn-small js-toggle-form" data-target="transfer-form">🔁 Send Money</button>
     <a href="{{ url_for('challenges') }}" class="btn btn-outline btn-small">🏆 Monthly Challenge</a>
   </div>
 </div>
@@ -57,63 +57,6 @@
 </div>
 
 <div class="card" style="margin-top:16px">
-  <h3>Accepted Payment Methods</h3>
-  <p class="post-meta" style="margin:4px 0 12px">Send your deposit to one of the accounts below, then submit the ticket with your reference and a receipt screenshot.</p>
-
-  {% if not banks %}
-    <p class="post-meta">No payment methods have been set up yet — please check back soon.</p>
-  {% else %}
-    <div style="display:flex;flex-direction:column;gap:10px">
-      {% for b in banks %}
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border:1px solid var(--border, #e5e7eb);border-radius:12px">
-        <div style="min-width:0">
-          <div style="font-weight:700">{{ b['bank_name'] }}</div>
-          <div class="post-meta" style="margin-top:2px" data-copy-text="{{ b['account_number'] }}">Acc #: {{ b['account_number'] }}</div>
-          <div class="post-meta">Holder: {{ b['account_holder_name'] }}</div>
-        </div>
-        <button type="button" class="btn btn-outline btn-small copy-bank-btn" data-copy-value="{{ b['account_number'] }}">📋 Copy</button>
-      </div>
-      {% endfor %}
-    </div>
-  {% endif %}
-
-  {% if telebirr_number %}
-    <p class="post-meta" style="margin-top:12px">Telebirr: <strong>{{ telebirr_number }}</strong></p>
-  {% endif %}
-</div>
-
-<script>
-  document.querySelectorAll('.copy-bank-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var value = btn.getAttribute('data-copy-value');
-      var done = function () {
-        var original = btn.textContent;
-        btn.textContent = '✅ Copied';
-        setTimeout(function () { btn.textContent = original; }, 1500);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(value).then(done).catch(function () {
-          window.prompt('Copy account number:', value);
-        });
-      } else {
-        window.prompt('Copy account number:', value);
-      }
-    });
-  });
-</script>
-
-<div class="card" id="transfer-form" style="margin-top:16px">
-  <h3>Send Money to Another User</h3>
-  <form method="POST" action="{{ url_for('wallet_transfer') }}">
-    <label>Recipient username / email / phone</label>
-    <input type="text" name="recipient_identifier" placeholder="Enter username, email, or phone" required>
-    <label>Amount (ETB)</label>
-    <input type="number" name="amount" min="1" required>
-    <button type="submit" class="btn btn-full">Send Transfer</button>
-  </form>
-</div>
-
-<div class="card" style="margin-top:16px">
   <h3>Transaction Tickets</h3>
   {% if not history %}
     <p class="post-meta">No deposit or withdrawal tickets yet.</p>
@@ -155,17 +98,34 @@
   {% endif %}
 </div>
 
-<div class="card" id="deposit-form" style="margin-top:16px">
+<div class="card wallet-slide-form" id="deposit-form" style="margin-top:16px;display:none">
   <h3>Deposit Money</h3>
   <form method="POST" action="{{ url_for('wallet_deposit') }}" enctype="multipart/form-data">
     <label>Bank / Payment Method</label>
-    <select name="bank" required>
+    <select name="bank" id="depositBankSelect" required>
       <option value="">Select bank</option>
       {% for b in banks %}
-      <option value="{{ b['bank_name'] }}">{{ b['bank_name'] }} — {{ b['account_number'] }}</option>
+      <option value="{{ b['bank_name'] }}"
+              data-account="{{ b['account_number'] }}"
+              data-holder="{{ b['account_holder_name'] }}">{{ b['bank_name'] }}</option>
       {% endfor %}
+      {% if telebirr_number %}
+      <option value="Telebirr" data-account="{{ telebirr_number }}" data-holder="Telebirr">Telebirr</option>
+      {% endif %}
     </select>
-    <label>{{ t.amount }}</label>
+
+    <div id="depositBankInfo" style="display:none;margin-top:10px;padding:12px 14px;border:1px solid var(--border, #e5e7eb);border-radius:12px">
+      <div style="font-weight:700" id="depositBankInfoName"></div>
+      <div class="post-meta" style="margin-top:2px">Acc #: <span id="depositBankInfoAccount"></span></div>
+      <div class="post-meta">Holder: <span id="depositBankInfoHolder"></span></div>
+      <button type="button" class="btn btn-outline btn-small" id="depositBankCopyBtn" style="margin-top:8px">📋 Copy Account Number</button>
+    </div>
+
+    {% if not banks and not telebirr_number %}
+      <p class="post-meta" style="margin-top:10px">No payment methods have been set up yet — please check back soon.</p>
+    {% endif %}
+
+    <label style="margin-top:14px">{{ t.amount }}</label>
     <input type="number" name="amount" min="1" required>
     <label>{{ t.transaction_ref }}</label>
     <input type="text" name="transaction_ref" required>
@@ -177,7 +137,7 @@
   </form>
 </div>
 
-<div class="card" id="withdraw-form" style="margin-top:16px">
+<div class="card wallet-slide-form" id="withdraw-form" style="margin-top:16px;display:none">
   <div class="withdraw-container">
     <h3>Withdraw Funds</h3>
     <form id="withdrawForm" method="POST" action="{{ url_for('withdraw_request') }}">
@@ -208,5 +168,122 @@
     </form>
   </div>
 </div>
+
+<div class="card wallet-slide-form" id="transfer-form" style="margin-top:16px;display:none">
+  <h3>Send Money to Another User</h3>
+  <form method="POST" action="{{ url_for('wallet_transfer') }}">
+    <label>Recipient username / email / phone</label>
+    <input type="text" name="recipient_identifier" placeholder="Enter username, email, or phone" required>
+    <label>Amount (ETB)</label>
+    <input type="number" name="amount" min="1" required>
+    <button type="submit" class="btn btn-full">Send Transfer</button>
+  </form>
+</div>
+
+<style>
+  .wallet-slide-form {
+    overflow: hidden;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0 !important;
+    opacity: 0;
+    transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.35s ease, margin 0.35s ease;
+  }
+  .wallet-slide-form.open {
+    display: block !important;
+    max-height: 1200px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+    margin-top: 16px !important;
+    opacity: 1;
+  }
+  .js-toggle-form.active {
+    filter: brightness(0.92);
+  }
+</style>
+
+<script>
+(function () {
+  var toggleButtons = document.querySelectorAll('.js-toggle-form');
+  var forms = document.querySelectorAll('.wallet-slide-form');
+
+  function closeAllForms() {
+    forms.forEach(function (f) {
+      f.classList.remove('open');
+      f.style.display = 'none';
+    });
+    toggleButtons.forEach(function (b) { b.classList.remove('active'); });
+  }
+
+  toggleButtons.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var targetId = btn.getAttribute('data-target');
+      var target = document.getElementById(targetId);
+      if (!target) return;
+      var isOpen = target.classList.contains('open');
+      closeAllForms();
+      if (!isOpen) {
+        target.style.display = 'block';
+        // force reflow so the transition actually plays
+        void target.offsetWidth;
+        target.classList.add('open');
+        btn.classList.add('active');
+        target.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+  });
+
+  // Deposit form: show admin bank details for the selected bank
+  var bankSelect = document.getElementById('depositBankSelect');
+  var bankInfo = document.getElementById('depositBankInfo');
+  var bankInfoName = document.getElementById('depositBankInfoName');
+  var bankInfoAccount = document.getElementById('depositBankInfoAccount');
+  var bankInfoHolder = document.getElementById('depositBankInfoHolder');
+  var bankCopyBtn = document.getElementById('depositBankCopyBtn');
+
+  if (bankSelect) {
+    bankSelect.addEventListener('change', function () {
+      var selected = bankSelect.options[bankSelect.selectedIndex];
+      var account = selected.getAttribute('data-account');
+      var holder = selected.getAttribute('data-holder');
+      if (!selected.value || !account) {
+        bankInfo.style.display = 'none';
+        return;
+      }
+      bankInfoName.textContent = selected.value;
+      bankInfoAccount.textContent = account;
+      bankInfoHolder.textContent = holder || '';
+      bankInfo.style.display = 'block';
+    });
+  }
+
+  if (bankCopyBtn) {
+    bankCopyBtn.addEventListener('click', function () {
+      var value = bankInfoAccount.textContent;
+      var done = function () {
+        var original = bankCopyBtn.textContent;
+        bankCopyBtn.textContent = '✅ Copied';
+        setTimeout(function () { bankCopyBtn.textContent = original; }, 1500);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(value).then(done).catch(function () {
+          window.prompt('Copy account number:', value);
+        });
+      } else {
+        window.prompt('Copy account number:', value);
+      }
+    });
+  }
+
+  // If the page loads with a #deposit-form / #withdraw-form / #transfer-form
+  // hash (e.g. from an older bookmark or link), open that form automatically.
+  var hash = window.location.hash.replace('#', '');
+  if (hash) {
+    var btn = document.querySelector('.js-toggle-form[data-target="' + hash + '"]');
+    if (btn) btn.click();
+  }
+})();
+</script>
 
 {% endblock %}
