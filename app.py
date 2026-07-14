@@ -531,6 +531,26 @@ def migrate_db():
     db.close()
 
 
+def ensure_database_schema():
+    """Ensure the SQLite schema exists and is upgraded safely on startup."""
+    try:
+        if hasattr(app, "extensions") and "sqlalchemy" in app.extensions:
+            db = app.extensions["sqlalchemy"]
+            db.create_all()
+        else:
+            init_db()
+    except Exception as exc:
+        print(f"Warning: database schema initialization failed: {exc}")
+        try:
+            migrate_db()
+        except Exception as migrate_exc:
+            print(f"Warning: database schema migration fallback failed: {migrate_exc}")
+
+
+with app.app_context():
+    ensure_database_schema()
+
+
 # ---------------------------------------------------------------------------
 # Language / i18n
 # ---------------------------------------------------------------------------
@@ -3524,8 +3544,6 @@ def uploaded_file(filename):
 
 
 if __name__ == "__main__":
-    if not os.path.exists(DATABASE):
-        init_db()
-    else:
-        init_db()  # idempotent - CREATE TABLE IF NOT EXISTS
+    with app.app_context():
+        ensure_database_schema()
     app.run(debug=True, host="0.0.0.0", port=5000)
