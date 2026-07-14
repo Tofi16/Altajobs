@@ -57,10 +57,50 @@
 </div>
 
 <div class="card" style="margin-top:16px">
-  <h3>Telebirr Deposit</h3>
-  <p class="post-meta" style="margin-top:4px">Send money to: <strong>{{ telebirr_number }}</strong></p>
-  <p class="post-meta" style="margin-top:4px">After sending, submit the deposit ticket below with the reference and receipt screenshot.</p>
+  <h3>Accepted Payment Methods</h3>
+  <p class="post-meta" style="margin:4px 0 12px">Send your deposit to one of the accounts below, then submit the ticket with your reference and a receipt screenshot.</p>
+
+  {% if not banks %}
+    <p class="post-meta">No payment methods have been set up yet — please check back soon.</p>
+  {% else %}
+    <div style="display:flex;flex-direction:column;gap:10px">
+      {% for b in banks %}
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border:1px solid var(--border, #e5e7eb);border-radius:12px">
+        <div style="min-width:0">
+          <div style="font-weight:700">{{ b['bank_name'] }}</div>
+          <div class="post-meta" style="margin-top:2px" data-copy-text="{{ b['account_number'] }}">Acc #: {{ b['account_number'] }}</div>
+          <div class="post-meta">Holder: {{ b['account_holder_name'] }}</div>
+        </div>
+        <button type="button" class="btn btn-outline btn-small copy-bank-btn" data-copy-value="{{ b['account_number'] }}">📋 Copy</button>
+      </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if telebirr_number %}
+    <p class="post-meta" style="margin-top:12px">Telebirr: <strong>{{ telebirr_number }}</strong></p>
+  {% endif %}
 </div>
+
+<script>
+  document.querySelectorAll('.copy-bank-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var value = btn.getAttribute('data-copy-value');
+      var done = function () {
+        var original = btn.textContent;
+        btn.textContent = '✅ Copied';
+        setTimeout(function () { btn.textContent = original; }, 1500);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(value).then(done).catch(function () {
+          window.prompt('Copy account number:', value);
+        });
+      } else {
+        window.prompt('Copy account number:', value);
+      }
+    });
+  });
+</script>
 
 <div class="card" id="transfer-form" style="margin-top:16px">
   <h3>Send Money to Another User</h3>
@@ -121,10 +161,9 @@
     <label>Bank / Payment Method</label>
     <select name="bank" required>
       <option value="">Select bank</option>
-      <option value="Commercial Bank of Ethiopia (CBE)">Commercial Bank of Ethiopia (CBE)</option>
-      <option value="Telebirr">Telebirr</option>
-      <option value="Awash Bank">Awash Bank</option>
-      <option value="Dashen Bank">Dashen Bank</option>
+      {% for b in banks %}
+      <option value="{{ b['bank_name'] }}">{{ b['bank_name'] }} — {{ b['account_number'] }}</option>
+      {% endfor %}
     </select>
     <label>{{ t.amount }}</label>
     <input type="number" name="amount" min="1" required>

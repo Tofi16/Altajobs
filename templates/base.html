@@ -108,17 +108,107 @@
 </div>
 
 {% if current_user %}
+<style>
+  /* --- Modernized bottom nav (5 tabs: Home / Inbox / CV / Wallet / Profile) --- */
+  .app-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 4px;
+    padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
+  }
+  .app-nav .nav-tab {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    flex: 1;
+    padding: 8px 4px 6px;
+    border-radius: 16px;
+    text-decoration: none;
+    color: #8a8f98;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    transition: color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+  }
+  .app-nav .nav-tab i {
+    font-size: 1.55rem;
+    line-height: 1;
+    transition: transform 0.2s ease;
+  }
+  .app-nav .nav-tab:active {
+    transform: scale(0.92);
+  }
+  .app-nav .nav-tab.active {
+    color: #00c853;
+    background: rgba(0, 200, 83, 0.10);
+  }
+  .app-nav .nav-tab.active i {
+    filter: drop-shadow(0 0 6px rgba(0, 200, 83, 0.55));
+  }
+  .app-nav .nav-tab.active::before {
+    content: "";
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 26px;
+    height: 3px;
+    border-radius: 999px;
+    background: #00c853;
+    box-shadow: 0 0 8px 1px rgba(0, 200, 83, 0.7);
+  }
+  .app-nav .nav-badge {
+    position: absolute;
+    top: 2px;
+    right: calc(50% - 20px);
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #ff3b30;
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .app-nav .nav-profile-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef1f4;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #555;
+  }
+  .app-nav .nav-tab.active .nav-profile-avatar {
+    box-shadow: 0 0 0 2px #00c853;
+  }
+  .app-nav .nav-profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+</style>
 <nav class="app-nav">
   <a href="{{ url_for('feed') }}" class="nav-tab {{ 'active' if request.path == '/' or request.path.startswith('/post/') or request.path.startswith('/saved') }}">
     <i class='bx {{ "bxs-home" if request.path == "/" else "bx-home" }}'></i>
     <span>{{ t.tab_home }}</span>
-  </a>
-  <a href="{{ url_for('reels_feed') }}" class="nav-tab {{ 'active' if request.path.startswith('/reels') or request.path.startswith('/follow') }}">
-    <i class='bx {{ "bxs-video" if request.path.startswith("/reels") else "bx-video" }}'></i>
-    <span>{{ t.tab_reels }}</span>
-  </a>
-  <a href="{{ url_for('create_menu') }}" class="nav-tab nav-create">
-    <span class="nav-create-btn"><i class='bx bx-plus'></i></span>
   </a>
   <a href="{{ url_for('chat_inbox') }}" class="nav-tab {{ 'active' if request.path.startswith('/chat') }}" style="position:relative">
     <i class='bx {{ "bxs-message-rounded-dots" if request.path.startswith("/chat") else "bx-message-rounded-dots" }}'></i>

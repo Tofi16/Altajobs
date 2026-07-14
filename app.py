@@ -33,8 +33,8 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 DATABASE = os.path.join(DATA_DIR, "altajobs.db")
 UPLOAD_FOLDER = os.path.join(DATA_DIR, "uploads")
+CV_PHOTO_FOLDER = os.path.join(UPLOAD_FOLDER, "cv_photos")
 ALLOWED_EXT = {"png", "jpg", "jpeg", "gif", "webp"}
-ALLOWED_VIDEO_EXT = {"mp4", "webm", "mov"}
 
 FREE_TRIAL_DAYS = 30
 MONTHLY_PRICE = 1500
@@ -47,6 +47,7 @@ CHANNEL_VERIFICATION_MONTHLY_PRICE = 500  # የ channel/group Blue Tick ወር�
 CHANNEL_VERIFICATION_WARNING_DAYS = 7      # ማብቂያው ከመድረሱ ስንት ቀን በፊት ማስጠንቀቂያ እንደሚታይ
 VIP_MONTHLY_PRICE = 800                   # የ VIP ወርሃዊ ዋጋ (ብር) - ከዋሌት ሲቀነስ
 PLATFORM_CUT_PERCENT = 30                 # ከእያንዳንዱ ጊፍት ላይ ለመድረኩ (ለ Tofik) የሚቆረጠው %
+CV_PREMIUM_PRICE = 50                     # "Banana AI" premium CV (with photo) ዋጋ (ብር) - ከዋሌት ሲቀነስ
 
 # --- Monthly Business Challenge settings -----------------------------------
 CHALLENGE_TIERS = [50, 100, 200, 500, 1000]     # 5 ደረጃ ያላቸው pools (ETB)
@@ -64,7 +65,6 @@ CHECKIN_REWARDS = {1: 5, 2: 10, 3: 15, 4: 20, 5: 25, 6: 30, 7: 50}
 TASK_REWARDS = {
     "profile_completion": 100,   # one-time
     "share_job": 10,             # repeatable
-    "watch_employer_video": 15,  # repeatable
 }
 DAILY_TASK_CAP = 200
 
@@ -80,7 +80,7 @@ GIFT_CATALOG = {
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "alta-jobs-secret-key-change-in-production"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-app.config["MAX_CONTENT_LENGTH"] = 60 * 1024 * 1024  # 60MB (allows short Reels videos)
+app.config["MAX_CONTENT_LENGTH"] = 15 * 1024 * 1024  # 15MB (photo/receipt/CV-photo uploads only, no video)
 app.config["PREFERRED_URL_SCHEME"] = os.environ.get("PREFERRED_URL_SCHEME", "https")
 app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "")
 app.config["MAIL_PORT"] = int(os.environ.get("MAIL_PORT", "587"))
@@ -90,6 +90,7 @@ app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", "true").lower() in {
 app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER", "noreply@altajobs.app")
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(CV_PHOTO_FOLDER, exist_ok=True)
 
 
 # ---------------------------------------------------------------------------
@@ -247,10 +248,10 @@ def init_db():
         CREATE TABLE IF NOT EXISTS token_transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
-            kind TEXT NOT NULL,          -- 'checkin' / 'profile_completion' / 'share_job' / 'watch_employer_video'
+            kind TEXT NOT NULL,          -- 'checkin' / 'profile_completion' / 'share_job'
             amount INTEGER NOT NULL,
             streak_day INTEGER,          -- only set for kind='checkin'
-            post_id INTEGER,             -- only set for share_job/watch_employer_video (1 reward per video)
+            post_id INTEGER,             -- only set for kind='share_job' (1 reward per post)
             created_at TEXT NOT NULL,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         );
@@ -403,6 +404,29 @@ def init_db():
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         );
 
+        CREATE TABLE IF NOT EXISTS bank_accounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bank_name TEXT NOT NULL,
+            account_number TEXT NOT NULL,
+            account_holder_name TEXT NOT NULL,
+            is_active INTEGER DEFAULT 1,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS cv_documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            full_name TEXT,
+            target_role TEXT,
+            summary TEXT,
+            experience TEXT,
+            achievements TEXT,      -- newline-joined list
+            skills TEXT,            -- comma-joined list
+            photo TEXT DEFAULT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
         CREATE TABLE IF NOT EXISTS gifts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sender_id INTEGER NOT NULL,
@@ -450,20 +474,25 @@ def migrate_db():
             db.execute(f"ALTER TABLE users ADD COLUMN {col} {coltype}")
     db.commit()
 
-    # posts table: add video + view_count for the Reels feature
+    # posts table: view_count backs the generic per-post unique-view counter
+    # (record_unique_view / log_post_view). The old "video" and "mentions"
+    # columns were only ever used by the Reels feature, which has been
+    # removed - they are intentionally no longer added here. Existing
+    # databases that already have those columns keep them as unused legacy
+    # fields (SQLite ALTER TABLE ... DROP COLUMN is version-dependent, so we
+    # don't attempt to drop them automatically); nothing in the app writes
+    # to them anymore.
     post_cols = {row[1] for row in db.execute("PRAGMA table_info(posts)")}
     post_new_columns = {
-        "video": "TEXT DEFAULT NULL",
         "view_count": "INTEGER DEFAULT 0",
-        "mentions": "TEXT DEFAULT NULL",
     }
     for col, coltype in post_new_columns.items():
         if col not in post_cols:
             db.execute(f"ALTER TABLE posts ADD COLUMN {col} {coltype}")
     db.commit()
 
-    # token_transactions table: add post_id (ties share_job/watch_employer_video
-    # rewards to a specific video so they can't be repeated for the same one)
+    # token_transactions table: add post_id (ties share_job rewards to a
+    # specific post so the same post can't be repeatedly rewarded)
     tx_cols = {row[1] for row in db.execute("PRAGMA table_info(token_transactions)")}
     if "post_id" not in tx_cols:
         db.execute("ALTER TABLE token_transactions ADD COLUMN post_id INTEGER DEFAULT NULL")
@@ -623,11 +652,49 @@ def get_current_user():
     return db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
 
 
+# Endpoints a signed-in-but-not-yet-verified user is still allowed to reach.
+# Keep this list minimal - anything not in it will bounce an unverified
+# user straight to the verification page, even if they type the URL
+# directly instead of following a redirect.
+_VERIFICATION_EXEMPT_ENDPOINTS = {"verify_email_page", "resend_verification"}
+
+
 def login_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if not session.get("user_id"):
+        uid = session.get("user_id")
+        if not uid:
             return redirect(url_for("login"))
+
+        db = get_db()
+        user = db.execute(
+            "SELECT is_banned, email_verified, email_verification_code FROM users WHERE id = ?",
+            (uid,),
+        ).fetchone()
+        if not user:
+            # session points at an account that no longer exists
+            session.pop("user_id", None)
+            return redirect(url_for("login"))
+
+        if user["is_banned"]:
+            session.pop("user_id", None)
+            flash("account_banned")
+            return redirect(url_for("login"))
+
+        # STRICT OTP ENFORCEMENT: a session cookie alone is no longer enough
+        # to reach the rest of the app. Previously, registration set
+        # session["user_id"] immediately and only the login *form* checked
+        # email_verified - so a newly-registered, unverified user could just
+        # type "/" (or any other URL) in the address bar and skip the OTP
+        # step entirely. Checking it here, on every request, closes that.
+        if (
+            user["email_verification_code"]
+            and not user["email_verified"]
+            and f.__name__ not in _VERIFICATION_EXEMPT_ENDPOINTS
+        ):
+            flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_required"])
+            return redirect(url_for("verify_email_page"))
+
         return f(*args, **kwargs)
     return wrapper
 
@@ -677,27 +744,23 @@ def subscription_required(f):
 
 
 DAILY_POST_LIMIT = 1   # standard posts per day once the free trial has ended
-DAILY_REEL_LIMIT = 1   # reels per day once the free trial has ended
 
 
-def _daily_post_count(db, user_id, kind):
-    """kind: 'standard' (general/job/skill posts) or 'reel'"""
+def _daily_post_count(db, user_id, kind="standard"):
+    """kind is always 'standard' now that Reels has been removed; the
+    parameter is kept so any remaining callers don't need to change."""
     today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
-    if kind == "reel":
-        type_filter = "post_type = 'reel'"
-    else:
-        type_filter = "post_type != 'reel'"
     row = db.execute(
-        f"""SELECT COUNT(*) c FROM posts
-            WHERE user_id = ? AND {type_filter} AND created_at LIKE ?""",
+        """SELECT COUNT(*) c FROM posts
+            WHERE user_id = ? AND created_at LIKE ?""",
         (user_id, f"{today}%"),
     ).fetchone()
     return row["c"]
 
 
-def daily_limit_required(kind):
-    """After the free trial ends, non-subscribers can still use the app but are
-    capped at 1 standard post / 1 reel per day instead of being locked out
+def daily_limit_required(kind="standard"):
+    """After the free trial ends, non-subscribers can still use the app but
+    are capped at 1 standard post per day instead of being locked out
     entirely. Admins and active subscribers/trial users are never limited."""
     def decorator(f):
         @wraps(f)
@@ -709,11 +772,10 @@ def daily_limit_required(kind):
                 return f(*args, **kwargs)
 
             db = get_db()
-            count = _daily_post_count(db, user["id"], kind)
-            limit = DAILY_REEL_LIMIT if kind == "reel" else DAILY_POST_LIMIT
-            if count >= limit:
-                flash("daily_reel_limit_reached" if kind == "reel" else "daily_post_limit_reached")
-                return redirect(url_for("reels_feed") if kind == "reel" else url_for("feed"))
+            count = _daily_post_count(db, user["id"])
+            if count >= DAILY_POST_LIMIT:
+                flash("daily_post_limit_reached")
+                return redirect(url_for("feed"))
             return f(*args, **kwargs)
         return wrapper
     return decorator
@@ -825,14 +887,13 @@ def save_photo(file_storage):
     return unique
 
 
-def allowed_video_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_VIDEO_EXT
-
-
-def save_video(file_storage):
+def save_cv_photo(file_storage):
+    """Saves a CV portrait/passport photo to static/uploads/cv_photos/ (or
+    Supabase Storage under a cv_photos/ prefix if configured), separately
+    from the general post/avatar uploads folder."""
     if not file_storage or file_storage.filename == "":
         return None
-    if not allowed_video_file(file_storage.filename):
+    if not allowed_file(file_storage.filename):
         return None
     filename = secure_filename(file_storage.filename)
     unique = f"{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{filename}"
@@ -840,17 +901,20 @@ def save_video(file_storage):
     if _supabase_client:
         try:
             file_bytes = file_storage.read()
-            content_type = file_storage.mimetype or "video/mp4"
+            content_type = file_storage.mimetype or "application/octet-stream"
+            storage_key = f"cv_photos/{unique}"
             _supabase_client.storage.from_(SUPABASE_BUCKET).upload(
-                unique, file_bytes, {"content-type": content_type}
+                storage_key, file_bytes, {"content-type": content_type}
             )
-            return _supabase_client.storage.from_(SUPABASE_BUCKET).get_public_url(unique)
+            return _supabase_client.storage.from_(SUPABASE_BUCKET).get_public_url(storage_key)
         except Exception as e:
-            print(f"⚠️  Supabase video upload failed ({e}); saving locally instead.")
+            print(f"⚠️  Supabase CV photo upload failed ({e}); saving locally instead.")
             file_storage.stream.seek(0)
 
-    file_storage.save(os.path.join(app.config["UPLOAD_FOLDER"], unique))
-    return unique
+    file_storage.save(os.path.join(CV_PHOTO_FOLDER, unique))
+    # stored value is prefixed so photo_url()/uploaded_file() can tell it
+    # apart from a general upload and serve it from the right subfolder
+    return f"cv_photos/{unique}"
 
 
 @app.template_global()
@@ -881,7 +945,16 @@ def set_setting(key, value):
     return value
 
 
-def _generate_cv_payload(form_data):
+def get_active_banks():
+    """Returns all currently-active admin-managed deposit bank accounts,
+    for display on the wallet deposit form."""
+    db = get_db()
+    return db.execute(
+        "SELECT * FROM bank_accounts WHERE is_active = 1 ORDER BY bank_name"
+    ).fetchall()
+
+
+def _generate_cv_payload(form_data, photo=None):
     full_name = (form_data.get("full_name") or "").strip() or "Your Name"
     target_role = (form_data.get("target_role") or "").strip() or "Professional"
     summary = (form_data.get("summary") or "").strip()
@@ -909,6 +982,7 @@ def _generate_cv_payload(form_data):
         "experience": experience,
         "skills": skills,
         "achievements": achievements,
+        "photo": photo,
     }
 
 
@@ -1037,9 +1111,9 @@ def has_completed_task(db, user_id, kind):
 def award_task_reward(db, user_id, kind, post_id=None):
     """Awards a task-to-earn reward with anti-abuse rules baked in:
     - 'profile_completion' can only ever be earned once, globally.
-    - 'share_job' / 'watch_employer_video' can only be earned ONCE PER VIDEO
-      (post_id) per user - repeatedly sharing/watching the same video no
-      longer pays out more than once, closing the exploit.
+    - 'share_job' can only be earned ONCE PER POST (post_id) per user -
+      repeatedly sharing the same job post no longer pays out more than
+      once, closing the exploit.
     - The combined daily task cap (DAILY_TASK_CAP) still applies on top.
     Returns the reward amount if it was awarded, or None if blocked."""
     if kind == "profile_completion":
@@ -1396,7 +1470,6 @@ def feed():
         """SELECT posts.*, users.username, users.full_name, users.avatar, users.user_type,
                   users.is_verified, users.verified_until, users.is_vip, users.vip_until
            FROM posts JOIN users ON posts.user_id = users.id
-           WHERE posts.post_type != 'reel'
            ORDER BY posts.created_at DESC LIMIT 100"""
     ).fetchall()
 
@@ -1619,11 +1692,7 @@ def delete_post(post_id):
 @login_required
 def log_post_view(post_id):
     db = get_db()
-    is_new_view = record_unique_view(db, post_id, session["user_id"])
-    if is_new_view:
-        post = db.execute("SELECT post_type, user_id FROM posts WHERE id = ?", (post_id,)).fetchone()
-        if post and post["post_type"] == "reel" and post["user_id"] != session["user_id"]:
-            award_task_reward(db, session["user_id"], "watch_employer_video", post_id=post_id)
+    record_unique_view(db, post_id, session["user_id"])
     return {"ok": True}
 
 
@@ -1908,74 +1977,6 @@ def coming_soon(feature):
 
 
 # ---------------------------------------------------------------------------
-# Reels / Shorts - fullscreen vertical video feed
-# ---------------------------------------------------------------------------
-@app.route("/reels")
-@login_required
-def reels_feed():
-    db = get_db()
-    uid = session["user_id"]
-    reels = db.execute(
-        """SELECT posts.*, users.username, users.full_name, users.avatar,
-                  users.is_verified, users.verified_until, users.is_vip, users.vip_until
-           FROM posts JOIN users ON posts.user_id = users.id
-           WHERE posts.post_type = 'reel' AND posts.video IS NOT NULL
-           ORDER BY posts.created_at DESC LIMIT 30"""
-    ).fetchall()
-
-    liked_ids = {r["post_id"] for r in db.execute(
-        "SELECT post_id FROM likes WHERE user_id = ?", (uid,)
-    ).fetchall()}
-    following_ids = {r["followed_id"] for r in db.execute(
-        "SELECT followed_id FROM follows WHERE follower_id = ?", (uid,)
-    ).fetchall()}
-
-    reels_data = []
-    for r in reels:
-        comment_count = db.execute(
-            "SELECT COUNT(*) c FROM comments WHERE post_id = ?", (r["id"],)
-        ).fetchone()["c"]
-        like_count = db.execute(
-            "SELECT COUNT(*) c FROM likes WHERE post_id = ?", (r["id"],)
-        ).fetchone()["c"]
-        reels_data.append({
-            "post": r, "liked": r["id"] in liked_ids,
-            "following": r["user_id"] in following_ids,
-            "comment_count": comment_count, "like_count": like_count,
-        })
-
-    return render_template("reels.html", reels_data=reels_data)
-
-
-@app.route("/reels/new", methods=["GET", "POST"])
-@login_required
-@daily_limit_required("reel")
-def new_reel():
-    if request.method == "POST":
-        content = request.form.get("content", "").strip()
-        mentions_raw = request.form.get("mentions", "").strip()
-        video = save_video(request.files.get("video"))
-        if not video:
-            flash("video_required")
-            return redirect(url_for("new_reel"))
-
-        # normalize the mentions field into clean "@username @username" form
-        usernames = re.findall(r"[A-Za-z0-9_]+", mentions_raw)
-        mentions = " ".join(f"@{u}" for u in usernames) if usernames else None
-
-        db = get_db()
-        db.execute(
-            """INSERT INTO posts (user_id, content, video, post_type, mentions, created_at)
-               VALUES (?, ?, ?, 'reel', ?, ?)""",
-            (session["user_id"], content, video, mentions, datetime.datetime.utcnow().isoformat()),
-        )
-        db.commit()
-        return redirect(url_for("reels_feed"))
-
-    return render_template("reel_new.html")
-
-
-# ---------------------------------------------------------------------------
 # Profile / Ratings
 # ---------------------------------------------------------------------------
 @app.route("/profile/<int:user_id>")
@@ -1992,7 +1993,7 @@ def profile(user_id):
         """SELECT posts.*, users.username, users.full_name, users.avatar, users.user_type,
                   users.is_verified, users.verified_until, users.is_vip, users.vip_until
            FROM posts JOIN users ON posts.user_id = users.id
-           WHERE posts.user_id = ? AND posts.post_type != 'reel'
+           WHERE posts.user_id = ?
            ORDER BY posts.created_at DESC""",
         (user_id,),
     ).fetchall()
@@ -2015,7 +2016,7 @@ def profile(user_id):
         "SELECT COUNT(*) c FROM follows WHERE follower_id = ?", (user_id,)
     ).fetchone()["c"]
     posts_count = db.execute(
-        "SELECT COUNT(*) c FROM posts WHERE user_id = ? AND post_type != 'reel'", (user_id,)
+        "SELECT COUNT(*) c FROM posts WHERE user_id = ?", (user_id,)
     ).fetchone()["c"]
     is_following = False
     if current_uid := session.get("user_id"):
@@ -2401,11 +2402,6 @@ def tokens_page():
             "reward": TASK_REWARDS["share_job"],
             "automatic": True,
         },
-        {
-            "key": "watch_employer_video",
-            "reward": TASK_REWARDS["watch_employer_video"],
-            "automatic": True,
-        },
     ]
     return render_template(
         "tokens.html",
@@ -2465,12 +2461,12 @@ def api_daily_checkin():
 @login_required
 def api_complete_task():
     """Only 'profile_completion' is claimable directly by the client - it's a
-    one-time, server-validated action. 'share_job' and 'watch_employer_video'
-    are NOT accepted here anymore: they used to be free-standing claim
-    buttons that could be clicked repeatedly on the same video for unlimited
-    tokens. They're now awarded automatically (via award_task_reward) the
-    moment a genuine share or unique video view happens, tied to that
-    specific post_id, so the same video can never pay out twice."""
+    one-time, server-validated action. 'share_job' is NOT accepted here
+    anymore: it used to be a free-standing claim button that could be
+    clicked repeatedly on the same post for unlimited tokens. It's now
+    awarded automatically (via award_task_reward) the moment a genuine
+    share happens, tied to that specific post_id, so the same post can
+    never pay out twice."""
     data = request.get_json(silent=True) or request.form
     task_type = data.get("task_type")
     if task_type != "profile_completion":
@@ -2505,9 +2501,51 @@ def api_complete_task():
 @login_required
 def cv_maker():
     payload = None
+    user = get_current_user()
+
     if request.method == "POST":
-        payload = _generate_cv_payload(request.form)
-    return render_template("cv_maker.html", payload=payload)
+        if user["wallet_balance"] < CV_PREMIUM_PRICE:
+            flash(f"Insufficient wallet balance - generating a premium CV costs {CV_PREMIUM_PRICE} ETB.")
+            return redirect(url_for("wallet"))
+
+        photo = save_cv_photo(request.files.get("photo"))
+        payload = _generate_cv_payload(request.form, photo=photo)
+
+        db = get_db()
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            # Conditional UPDATE (balance >= price) makes this atomic and
+            # race-safe - the same pattern used by buy_verification/buy_vip -
+            # so the CV can never be charged for twice or charged past zero.
+            cur = db.execute(
+                "UPDATE users SET wallet_balance = wallet_balance - ? "
+                "WHERE id = ? AND wallet_balance >= ?",
+                (CV_PREMIUM_PRICE, user["id"], CV_PREMIUM_PRICE),
+            )
+            if cur.rowcount == 0:
+                db.rollback()
+                flash(f"Insufficient wallet balance - generating a premium CV costs {CV_PREMIUM_PRICE} ETB.")
+                return redirect(url_for("wallet"))
+
+            db.execute(
+                """INSERT INTO cv_documents
+                   (user_id, full_name, target_role, summary, experience,
+                    achievements, skills, photo, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    user["id"], payload["full_name"], payload["target_role"],
+                    payload["summary"], payload["experience"],
+                    "\n".join(payload["achievements"]), ", ".join(payload["skills"]),
+                    photo, datetime.datetime.utcnow().isoformat(),
+                ),
+            )
+            db.commit()
+            flash("Premium CV generated! Your wallet balance has been updated.")
+        except Exception:
+            db.rollback()
+            raise
+
+    return render_template("cv_maker.html", payload=payload, cv_price=CV_PREMIUM_PRICE)
 
 
 # ---------------------------------------------------------------------------
@@ -2547,6 +2585,7 @@ def wallet():
         vip_price=VIP_MONTHLY_PRICE,
         vip_now=is_currently_vip(user),
         challenge_status=challenge_status,
+        banks=get_active_banks(),
     )
 
 
@@ -2597,7 +2636,12 @@ def wallet_deposit():
     ref = request.form.get("transaction_ref", "").strip()
     note = request.form.get("note", "").strip()
     receipt_photo = save_photo(request.files.get("receipt_photo"))
-    if amount > 0 and bank and ref:
+
+    # Only accept a bank name that's currently active in the admin-managed
+    # list, so users can't submit a deposit against a bank that was removed
+    # or never existed.
+    active_bank_names = {b["bank_name"] for b in get_active_banks()}
+    if amount > 0 and bank and bank in active_bank_names and ref:
         db = get_db()
         db.execute(
             """INSERT INTO wallet_transactions
@@ -2607,6 +2651,8 @@ def wallet_deposit():
         )
         db.commit()
         flash("payment_pending")
+    else:
+        flash("Please select a valid bank, amount, and transaction reference.")
     return redirect(url_for("wallet"))
 
 
@@ -3237,6 +3283,95 @@ def admin_update_telebirr():
     if number:
         set_setting("telebirr_wallet_number", number)
     return redirect(request.referrer or url_for("admin_dashboard"))
+
+
+# ---------------------------------------------------------------------------
+# Admin - Dynamic Bank Access (accepted deposit payment methods)
+# ---------------------------------------------------------------------------
+@app.route("/admin/banks")
+@login_required
+@admin_required
+def admin_banks():
+    db = get_db()
+    banks = db.execute(
+        "SELECT * FROM bank_accounts ORDER BY is_active DESC, bank_name"
+    ).fetchall()
+    return render_template("admin_banks.html", banks=banks)
+
+
+@app.route("/admin/banks/add", methods=["POST"])
+@login_required
+@admin_required
+def admin_banks_add():
+    bank_name = (request.form.get("bank_name") or "").strip()
+    account_number = (request.form.get("account_number") or "").strip()
+    account_holder_name = (request.form.get("account_holder_name") or "").strip()
+
+    if not bank_name or not account_number or not account_holder_name:
+        flash("Please fill in the bank name, account number, and account holder name.")
+        return redirect(url_for("admin_banks"))
+
+    db = get_db()
+    db.execute(
+        """INSERT INTO bank_accounts
+           (bank_name, account_number, account_holder_name, is_active, created_at)
+           VALUES (?, ?, ?, 1, ?)""",
+        (bank_name, account_number, account_holder_name, datetime.datetime.utcnow().isoformat()),
+    )
+    db.commit()
+    flash("Bank account added.")
+    return redirect(url_for("admin_banks"))
+
+
+@app.route("/admin/banks/<int:bank_id>/edit", methods=["POST"])
+@login_required
+@admin_required
+def admin_banks_edit(bank_id):
+    bank_name = (request.form.get("bank_name") or "").strip()
+    account_number = (request.form.get("account_number") or "").strip()
+    account_holder_name = (request.form.get("account_holder_name") or "").strip()
+
+    if not bank_name or not account_number or not account_holder_name:
+        flash("Please fill in the bank name, account number, and account holder name.")
+        return redirect(url_for("admin_banks"))
+
+    db = get_db()
+    db.execute(
+        """UPDATE bank_accounts
+           SET bank_name = ?, account_number = ?, account_holder_name = ?
+           WHERE id = ?""",
+        (bank_name, account_number, account_holder_name, bank_id),
+    )
+    db.commit()
+    flash("Bank account updated.")
+    return redirect(url_for("admin_banks"))
+
+
+@app.route("/admin/banks/<int:bank_id>/toggle", methods=["POST"])
+@login_required
+@admin_required
+def admin_banks_toggle(bank_id):
+    """Soft enable/disable instead of deleting, so historical deposit
+    tickets that reference this bank name keep making sense in the admin
+    dashboard even after it's retired."""
+    db = get_db()
+    db.execute(
+        "UPDATE bank_accounts SET is_active = 1 - is_active WHERE id = ?",
+        (bank_id,),
+    )
+    db.commit()
+    return redirect(url_for("admin_banks"))
+
+
+@app.route("/admin/banks/<int:bank_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def admin_banks_delete(bank_id):
+    db = get_db()
+    db.execute("DELETE FROM bank_accounts WHERE id = ?", (bank_id,))
+    db.commit()
+    flash("Bank account deleted.")
+    return redirect(url_for("admin_banks"))
 
 
 @app.route("/admin")
