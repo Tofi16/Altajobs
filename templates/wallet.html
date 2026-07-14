@@ -8,6 +8,7 @@
   <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:12px">
     <a href="#deposit-form" class="btn btn-small">⬇️ Deposit Money</a>
     <a href="#withdraw-form" class="btn btn-outline btn-small">⬆️ Request Withdrawal</a>
+    <a href="#transfer-form" class="btn btn-outline btn-small">🔁 Send Money</a>
     <a href="{{ url_for('challenges') }}" class="btn btn-outline btn-small">🏆 Monthly Challenge</a>
   </div>
 </div>
@@ -53,6 +54,23 @@
       <a href="{{ url_for('challenges') }}" class="btn btn-outline btn-small">Join Challenge</a>
     {% endif %}
   </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <h3>Telebirr Deposit</h3>
+  <p class="post-meta" style="margin-top:4px">Send money to: <strong>{{ telebirr_number }}</strong></p>
+  <p class="post-meta" style="margin-top:4px">After sending, submit the deposit ticket below with the reference and receipt screenshot.</p>
+</div>
+
+<div class="card" id="transfer-form" style="margin-top:16px">
+  <h3>Send Money to Another User</h3>
+  <form method="POST" action="{{ url_for('wallet_transfer') }}">
+    <label>Recipient username / email / phone</label>
+    <input type="text" name="recipient_identifier" placeholder="Enter username, email, or phone" required>
+    <label>Amount (ETB)</label>
+    <input type="number" name="amount" min="1" required>
+    <button type="submit" class="btn btn-full">Send Transfer</button>
+  </form>
 </div>
 
 <div class="card" style="margin-top:16px">

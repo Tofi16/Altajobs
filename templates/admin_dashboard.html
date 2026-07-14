@@ -5,7 +5,12 @@
 
 <div class="card" style="margin-top:14px">
   <h2 style="margin:0 0 4px;color:var(--accent)">🛠️ Admin Dashboard</h2>
-  <p class="post-meta">Pending Deposit Approvals</p>
+  <form method="POST" action="{{ url_for('admin_update_telebirr') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
+    <label style="margin:0">Telebirr receiver</label>
+    <input type="text" name="telebirr_number" value="{{ telebirr_number }}" style="max-width:260px;margin:0">
+    <button type="submit" class="btn btn-small">Save</button>
+  </form>
+  <p class="post-meta" style="margin-top:8px">Pending Deposit Approvals</p>
 </div>
 
 <div class="card" style="padding:0;overflow-x:auto">

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2 style="margin:0 0 6px">📝 AI-Assisted CV Maker</h2>
+  <p class="post-meta" style="margin:0 0 12px">Create a polished, premium-looking CV in minutes with a clear professional summary and a strong achievement-focused layout.</p>
+  <form method="POST">
+    <label>Full name</label>
+    <input type="text" name="full_name" placeholder="Your full name" value="{{ payload['full_name'] if payload else '' }}">
+
+    <label>Target role</label>
+    <input type="text" name="target_role" placeholder="Example: Software Engineer" value="{{ payload['target_role'] if payload else '' }}">
+
+    <label>Professional summary</label>
+    <textarea name="summary" rows="4" placeholder="Describe your expertise and value in a few sentences">{{ payload['summary'] if payload else '' }}</textarea>
+
+    <label>Experience</label>
+    <input type="text" name="experience" placeholder="Example: 4+ years of experience" value="{{ payload['experience'] if payload else '' }}">
+
+    <label>Key achievements (one per line)</label>
+    <textarea name="achievements" rows="5" placeholder="Led team delivery&#10;Improved efficiency by 30%&#10;Managed high-impact clients">{% if payload %}{% for item in payload['achievements'] %}{{ item }}{% if not loop.last %}
+{% endif %}{% endfor %}{% endif %}</textarea>
+
+    <label>Skills (comma separated)</label>
+    <input type="text" name="skills" placeholder="Leadership, Communication, Project Management" value="{{ ', '.join(payload['skills']) if payload else '' }}">
+
+    <button type="submit" class="btn btn-full">Generate CV</button>
+  </form>
+</div>
+
+{% if payload %}
+<div class="card cv-preview-card">
+  <div class="cv-preview">
+    <div class="cv-header">
+      <div>
+        <div class="cv-name">{{ payload['full_name'] }}</div>
+        <div class="cv-role">{{ payload['target_role'] }}</div>
+      </div>
+      <div class="cv-badge">Premium</div>
+    </div>
+
+    <div class="cv-section">
+      <h3>Professional Summary</h3>
+      <p>{{ payload['summary'] }}</p>
+    </div>
+
+    <div class="cv-section">
+      <h3>Experience</h3>
+      <p>{{ payload['experience'] }}</p>
+    </div>
+
+    <div class="cv-section">
+      <h3>Key Achievements</h3>
+      <ul>
+        {% for item in payload['achievements'] %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="cv-section">
+      <h3>Skills</h3>
+      <div class="cv-skill-list">
+        {% for skill in payload['skills'] %}
+        <span class="cv-chip">{{ skill }}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

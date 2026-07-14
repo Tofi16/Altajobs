@@ -685,6 +685,19 @@ label { font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 4px;
   cursor: pointer;
 }
 
+/* ---------- CV Maker ---------- */
+.cv-preview-card { background: linear-gradient(135deg, rgba(46,204,113,0.16), rgba(230,184,0,0.12)); }
+.cv-preview { border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 18px; background: rgba(255,255,255,0.04); }
+.cv-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+.cv-name { font-size: 1.2rem; font-weight: 800; }
+.cv-role { color: var(--accent); font-weight: 700; }
+.cv-badge { background: var(--gold-gradient); color: #362a04; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 800; }
+.cv-section { margin-top: 12px; }
+.cv-section h3 { margin: 0 0 6px; color: var(--accent); font-size: 0.92rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.cv-section p, .cv-section li { color: var(--text); line-height: 1.5; }
+.cv-skill-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.cv-chip { padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid var(--border); font-size: 0.82rem; }
+
 /* ---------- Pricing ---------- */
 .pricing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 480px) { .pricing-grid { grid-template-columns: 1fr; } }

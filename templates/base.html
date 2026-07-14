@@ -44,6 +44,7 @@
 
   <div class="sidebar-card">
     <a href="{{ url_for('wallet') }}" class="sidebar-link"><i class='bx bx-wallet'></i> {{ t.wallet }}</a>
+    <a href="{{ url_for('cv_maker') }}" class="sidebar-link"><i class='bx bx-file'></i> CV Maker</a>
     <a href="{{ url_for('tokens_page') }}" class="sidebar-link"><i class='bx bx-coin-stack'></i> {{ t.alta_tokens }}</a>
     <a href="{{ url_for('challenges') }}" class="sidebar-link"><i class='bx bx-trophy'></i> {{ t.monthly_challenge_title }}</a>
     <a href="{{ url_for('settings_page') }}" class="sidebar-link"><i class='bx bx-cog'></i> {{ t.tab_settings }}</a>
@@ -125,6 +126,10 @@
     {% if unread_message_count and unread_message_count > 0 %}
       <span class="nav-badge">{{ unread_message_count if unread_message_count < 10 else '9+' }}</span>
     {% endif %}
+  </a>
+  <a href="{{ url_for('cv_maker') }}" class="nav-tab {{ 'active' if request.path.startswith('/cv-maker') }}">
+    <i class='bx {{ "bxs-file" if request.path.startswith("/cv-maker") else "bx-file" }}'></i>
+    <span>CV</span>
   </a>
   <a href="{{ url_for('wallet') }}" class="nav-tab {{ 'active' if request.path.startswith('/wallet') }}">
     <i class='bx {{ "bxs-wallet" if request.path.startswith("/wallet") else "bx-wallet" }}'></i>

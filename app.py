@@ -415,6 +415,13 @@ def init_db():
             FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY(receiver_id) REFERENCES users(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS app_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key TEXT UNIQUE NOT NULL,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
         """
     )
     db.commit()
@@ -460,6 +467,24 @@ def migrate_db():
     tx_cols = {row[1] for row in db.execute("PRAGMA table_info(token_transactions)")}
     if "post_id" not in tx_cols:
         db.execute("ALTER TABLE token_transactions ADD COLUMN post_id INTEGER DEFAULT NULL")
+    db.commit()
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS app_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key TEXT UNIQUE NOT NULL,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    """)
+    db.commit()
+
+    settings_existing = {row[0] for row in db.execute("SELECT key FROM app_settings")}
+    if "telebirr_wallet_number" not in settings_existing:
+        db.execute(
+            "INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)",
+            ("telebirr_wallet_number", TELEBIRR_WALLET_NUMBER, datetime.datetime.utcnow().isoformat()),
+        )
     db.commit()
 
     # wallet_transactions table: add deposit ticket fields if missing
@@ -811,6 +836,54 @@ def photo_url(value):
     if value.startswith("http://") or value.startswith("https://"):
         return value
     return url_for("uploaded_file", filename=value)
+
+
+def get_setting(key, default=None):
+    db = get_db()
+    row = db.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row else default
+
+
+def set_setting(key, value):
+    db = get_db()
+    db.execute(
+        "INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+        (key, value, datetime.datetime.utcnow().isoformat()),
+    )
+    db.commit()
+    return value
+
+
+def _generate_cv_payload(form_data):
+    full_name = (form_data.get("full_name") or "").strip() or "Your Name"
+    target_role = (form_data.get("target_role") or "").strip() or "Professional"
+    summary = (form_data.get("summary") or "").strip()
+    experience = (form_data.get("experience") or "").strip() or "3+ years of proven impact"
+    achievements = [item.strip() for item in (form_data.get("achievements") or "").split("\n") if item.strip()]
+    skills = [item.strip() for item in (form_data.get("skills") or "").split(",") if item.strip()]
+    if not achievements:
+        achievements = [
+            "Led cross-functional execution with measurable measurable outcomes",
+            "Built strong stakeholder relationships and reliable delivery",
+        ]
+    if not skills:
+        skills = ["Communication", "Leadership", "Problem solving", "Teamwork"]
+
+    summary_text = (
+        f"{full_name} is a {target_role} focused on delivering high-impact work with professionalism, clarity, and measurable results. "
+        f"With {experience}, they bring a balanced blend of execution, collaboration, and growth mindset."
+        if not summary
+        else summary
+    )
+    return {
+        "full_name": full_name,
+        "target_role": target_role,
+        "summary": summary_text,
+        "experience": experience,
+        "skills": skills,
+        "achievements": achievements,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -2365,6 +2438,18 @@ def api_complete_task():
 
 
 # ---------------------------------------------------------------------------
+# AI-Assisted CV Maker
+# ---------------------------------------------------------------------------
+@app.route("/cv-maker", methods=["GET", "POST"])
+@login_required
+def cv_maker():
+    payload = None
+    if request.method == "POST":
+        payload = _generate_cv_payload(request.form)
+    return render_template("cv_maker.html", payload=payload)
+
+
+# ---------------------------------------------------------------------------
 # Wallet (deposit / withdraw)
 # ---------------------------------------------------------------------------
 @app.route("/wallet")
@@ -2395,13 +2480,52 @@ def wallet():
         "wallet.html",
         history=history,
         gifts_received=gifts_received,
-        telebirr_number=TELEBIRR_WALLET_NUMBER,
+        telebirr_number=get_setting("telebirr_wallet_number", TELEBIRR_WALLET_NUMBER),
         verification_price=VERIFICATION_MONTHLY_PRICE,
         verified_now=is_currently_verified(user),
         vip_price=VIP_MONTHLY_PRICE,
         vip_now=is_currently_vip(user),
         challenge_status=challenge_status,
     )
+
+
+@app.route("/wallet/transfer", methods=["POST"])
+@login_required
+def wallet_transfer():
+    amount = int(request.form.get("amount", 0) or 0)
+    recipient_identifier = (request.form.get("recipient_identifier") or "").strip()
+    if amount <= 0 or not recipient_identifier:
+        flash("Please enter a valid amount and recipient")
+        return redirect(url_for("wallet"))
+
+    db = get_db()
+    sender = get_current_user()
+    if sender["wallet_balance"] < amount:
+        flash("Insufficient wallet balance")
+        return redirect(url_for("wallet"))
+
+    recipient = db.execute(
+        "SELECT * FROM users WHERE lower(username) = lower(?) OR lower(email) = lower(?) OR lower(phone) = lower(?)",
+        (recipient_identifier, recipient_identifier, recipient_identifier),
+    ).fetchone()
+    if not recipient or recipient["id"] == sender["id"]:
+        flash("Recipient could not be found")
+        return redirect(url_for("wallet"))
+
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        db.execute("UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ?", (amount, sender["id"]))
+        db.execute("UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?", (amount, recipient["id"]))
+        db.execute(
+            "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'transfer', ?, ?, 'approved', ?)",
+            (sender["id"], amount, f"Sent to {recipient['username']}", datetime.datetime.utcnow().isoformat()),
+        )
+        db.commit()
+        flash("P2P transfer sent")
+    except Exception:
+        db.rollback()
+        raise
+    return redirect(url_for("wallet"))
 
 
 @app.route("/wallet/deposit", methods=["POST"])
@@ -2499,17 +2623,34 @@ def buy_verification():
     db = get_db()
     user = get_current_user()
     if user["wallet_balance"] >= VERIFICATION_MONTHLY_PRICE:
-        new_balance = user["wallet_balance"] - VERIFICATION_MONTHLY_PRICE
-        base = datetime.datetime.utcnow()
-        if is_currently_verified(user):
-            base = datetime.datetime.fromisoformat(user["verified_until"])
-        verified_until = base + datetime.timedelta(days=30)
-        db.execute(
-            """UPDATE users SET wallet_balance = ?, is_verified = 1, verified_until = ?
-               WHERE id = ?""",
-            (new_balance, verified_until.isoformat(), user["id"]),
-        )
-        db.commit()
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            new_balance = user["wallet_balance"] - VERIFICATION_MONTHLY_PRICE
+            base = datetime.datetime.utcnow()
+            if is_currently_verified(user):
+                base = datetime.datetime.fromisoformat(user["verified_until"])
+            verified_until = base + datetime.timedelta(days=30)
+            db.execute(
+                """UPDATE users SET wallet_balance = ?, is_verified = 1, verified_until = ?
+                   WHERE id = ?""",
+                (new_balance, verified_until.isoformat(), user["id"]),
+            )
+            admin_user = db.execute(
+                "SELECT * FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1"
+            ).fetchone()
+            if admin_user:
+                db.execute(
+                    "UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
+                    (VERIFICATION_MONTHLY_PRICE, admin_user["id"]),
+                )
+            db.execute(
+                "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'verification', ?, ?, 'approved', ?)",
+                (user["id"], VERIFICATION_MONTHLY_PRICE, "Blue Tick purchase", datetime.datetime.utcnow().isoformat()),
+            )
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
     else:
         flash("insufficient_balance")
     return redirect(url_for("wallet"))
@@ -3027,6 +3168,16 @@ def forfeit_winner(entry_id):
 # ---------------------------------------------------------------------------
 # Admin
 # ---------------------------------------------------------------------------
+@app.route("/admin/settings/telebirr", methods=["POST"])
+@login_required
+@admin_required
+def admin_update_telebirr():
+    number = (request.form.get("telebirr_number") or "").strip()
+    if number:
+        set_setting("telebirr_wallet_number", number)
+    return redirect(request.referrer or url_for("admin_dashboard"))
+
+
 @app.route("/admin")
 @login_required
 @admin_required
@@ -3114,6 +3265,7 @@ def admin_dashboard():
         "admin_dashboard.html",
         pending_deposits=pending_deposits,
         pending_withdrawals=pending_withdrawals,
+        telebirr_number=get_setting("telebirr_wallet_number", TELEBIRR_WALLET_NUMBER),
     )
 
 
