@@ -522,6 +522,12 @@ def migrate_db():
         if col not in user_cols:
             db.execute(f"ALTER TABLE users ADD COLUMN {col} {coltype}")
     db.commit()
+
+    try:
+        db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_ci ON users (lower(username))")
+        db.commit()
+    except Exception as exc:
+        print(f"Warning: could not create case-insensitive username index: {exc}")
     db.close()
 
 
@@ -1082,6 +1088,10 @@ def _generate_code(length=6):
     return f"{secrets.randbelow(10 ** length):0{length}d}"
 
 
+def _normalize_username(username):
+    return (username or "").strip().casefold()
+
+
 def _send_email(subject, recipient, body):
     if not recipient:
         return False
@@ -1091,24 +1101,26 @@ def _send_email(subject, recipient, body):
         msg["From"] = app.config["MAIL_DEFAULT_SENDER"]
         msg["To"] = recipient
         msg.set_content(body)
-        if app.config["MAIL_SERVER"]:
-            with smtplib.SMTP(app.config["MAIL_SERVER"], app.config["MAIL_PORT"]) as server:
-                if app.config["MAIL_USE_TLS"]:
-                    server.starttls()
-                if app.config["MAIL_USERNAME"]:
-                    server.login(app.config["MAIL_USERNAME"], app.config["MAIL_PASSWORD"])
-                server.send_message(msg)
-            return True
+        if not app.config["MAIL_SERVER"]:
+            print(f"[email] To={recipient}\nSubject={subject}\nBody={body}")
+            return False
+        with smtplib.SMTP(app.config["MAIL_SERVER"], app.config["MAIL_PORT"]) as server:
+            if app.config["MAIL_USE_TLS"]:
+                server.starttls()
+            if app.config["MAIL_USERNAME"]:
+                server.login(app.config["MAIL_USERNAME"], app.config["MAIL_PASSWORD"])
+            server.send_message(msg)
+        return True
     except Exception as exc:
         print(f"Email send failed: {exc}")
-    print(f"[email] To={recipient}\nSubject={subject}\nBody={body}")
-    return True
+        return False
 
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
+        normalized_username = _normalize_username(username)
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
         full_name = request.form.get("full_name", "").strip()
@@ -1120,58 +1132,75 @@ def register():
             return redirect(url_for("register"))
 
         db = get_db()
-        existing = db.execute(
-            "SELECT id FROM users WHERE username = ?", (username,)
-        ).fetchone()
-        if existing:
-            flash(get_translator(session.get("lang", DEFAULT_LANG))["username_taken"])
-            return redirect(url_for("register"))
-
-        verification_code = _generate_code()
-        db.execute(
-            """INSERT INTO users
-               (username, email, password_hash, full_name, user_type, phone, created_at, referral_code,
-                email_verified, email_verification_code)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)""",
-            (
-                username, email, generate_password_hash(password),
-                full_name, user_type, phone,
-                _now_iso(),
-                f"{username[:6].upper()}{secrets.token_hex(3).upper()}",
-                generate_password_hash(verification_code),
-            ),
-        )
-        db.commit()
-        new_user = db.execute(
-            "SELECT id, username, email FROM users WHERE username = ?", (username,)
-        ).fetchone()
-        session["user_id"] = new_user["id"]
-
-        _send_email(
-            "Verify your AltaJobs account",
-            new_user["email"],
-            f"Hello {new_user['username']},\n\nYour verification code is: {verification_code}\n\nUse it on the Verify Email page to complete signup.",
-        )
-
-        # if the person signed up through a referral link, credit the referrer
-        ref_code = request.form.get("ref_code", "").strip()
-        if ref_code:
-            referrer = db.execute(
-                "SELECT id FROM users WHERE referral_code = ?", (ref_code,)
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            existing = db.execute(
+                "SELECT id FROM users WHERE lower(username) = ?", (normalized_username,)
             ).fetchone()
-            if referrer and referrer["id"] != new_user["id"]:
-                try:
-                    db.execute(
-                        """INSERT INTO referrals (referrer_id, referred_id, created_at)
-                           VALUES (?, ?, ?)""",
-                        (referrer["id"], new_user["id"], _now_iso()),
-                    )
-                    db.commit()
-                except sqlite3.IntegrityError:
-                    pass
+            if existing:
+                db.rollback()
+                flash("This username is already taken. Please choose another one.")
+                return redirect(url_for("register"))
 
-        flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_sent"])
-        return redirect(url_for("verify_email_page"))
+            verification_code = _generate_code()
+            db.execute(
+                """INSERT INTO users
+                   (username, email, password_hash, full_name, user_type, phone, created_at, referral_code,
+                    email_verified, email_verification_code)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)""",
+                (
+                    username, email, generate_password_hash(password),
+                    full_name, user_type, phone,
+                    _now_iso(),
+                    f"{username[:6].upper()}{secrets.token_hex(3).upper()}",
+                    generate_password_hash(verification_code),
+                ),
+            )
+            db.commit()
+            new_user = db.execute(
+                "SELECT id, username, email FROM users WHERE lower(username) = ?", (normalized_username,)
+            ).fetchone()
+            session["user_id"] = new_user["id"]
+
+            try:
+                email_sent = _send_email(
+                    "Verify your AltaJobs account",
+                    new_user["email"],
+                    f"Hello {new_user['username']},\n\nYour verification code is: {verification_code}\n\nUse it on the Verify Email page to complete signup.",
+                )
+            except Exception as exc:
+                print(f"[auth] verification email failed: {exc}")
+                email_sent = False
+
+            if not email_sent:
+                print(f"[auth] verification email could not be delivered for {new_user['email']}")
+                flash("Your account was created, but the verification email could not be sent right now. You can verify later.")
+            else:
+                flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_sent"])
+
+            # if the person signed up through a referral link, credit the referrer
+            ref_code = request.form.get("ref_code", "").strip()
+            if ref_code:
+                referrer = db.execute(
+                    "SELECT id FROM users WHERE referral_code = ?", (ref_code,)
+                ).fetchone()
+                if referrer and referrer["id"] != new_user["id"]:
+                    try:
+                        db.execute(
+                            """INSERT INTO referrals (referrer_id, referred_id, created_at)
+                               VALUES (?, ?, ?)""",
+                            (referrer["id"], new_user["id"], _now_iso()),
+                        )
+                        db.commit()
+                    except sqlite3.IntegrityError:
+                        pass
+
+            return redirect(url_for("verify_email_page"))
+        except sqlite3.IntegrityError as exc:
+            db.rollback()
+            print(f"[auth] registration failed due to integrity error: {exc}")
+            flash("This username is already taken. Please choose another one.")
+            return redirect(url_for("register"))
 
     ref_code = request.args.get("ref", "")
     return render_template("register.html", ref_code=ref_code)
@@ -1219,12 +1248,20 @@ def resend_verification():
         (generate_password_hash(code), user["id"]),
     )
     db.commit()
-    _send_email(
-        "Verify your AltaJobs account",
-        user["email"],
-        f"Your new verification code is: {code}",
-    )
-    flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_sent"])
+    try:
+        email_sent = _send_email(
+            "Verify your AltaJobs account",
+            user["email"],
+            f"Your new verification code is: {code}",
+        )
+    except Exception as exc:
+        print(f"[auth] resend verification email failed: {exc}")
+        email_sent = False
+
+    if not email_sent:
+        flash("We could not send the verification email right now, but your code is still available for later verification.")
+    else:
+        flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_sent"])
     return redirect(url_for("verify_email_page"))
 
 
@@ -1248,11 +1285,15 @@ def forgot_password():
                 ),
             )
             db.commit()
-            _send_email(
-                "Reset your AltaJobs password",
-                user["email"],
-                f"Hello {user['username']},\n\nYour reset code is: {code}\n\nIt expires in 15 minutes.",
-            )
+            try:
+                email_sent = _send_email(
+                    "Reset your AltaJobs password",
+                    user["email"],
+                    f"Hello {user['username']},\n\nYour reset code is: {code}\n\nIt expires in 15 minutes.",
+                )
+            except Exception as exc:
+                print(f"[auth] password reset email failed: {exc}")
+                email_sent = False
         flash(get_translator(session.get("lang", DEFAULT_LANG))["password_reset_sent"])
         return redirect(url_for("reset_password"))
     return render_template("forgot_password.html")
@@ -1299,7 +1340,7 @@ def login():
         password = request.form.get("password", "")
         db = get_db()
         user = db.execute(
-            "SELECT * FROM users WHERE username = ?", (username,)
+            "SELECT * FROM users WHERE lower(username) = ?", (_normalize_username(username),)
         ).fetchone()
         if user and check_password_hash(user["password_hash"], password):
             if user["is_banned"]:
