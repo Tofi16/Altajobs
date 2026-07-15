@@ -201,11 +201,11 @@
   <div class="profile-header-actions">
     <div class="lang-switcher">
       <select id="profileLangSwitcher" onchange="if(this.value) window.location.href=this.value;" aria-label="{{ t.language if t.language is defined else 'Language' }}">
-        <option value="{{ url_for('set_language', lang='am') }}" {{ 'selected' if current_lang == 'am' }}>አማርኛ</option>
-        <option value="{{ url_for('set_language', lang='en') }}" {{ 'selected' if current_lang == 'en' }}>English</option>
-        <option value="{{ url_for('set_language', lang='om') }}" {{ 'selected' if current_lang == 'om' }}>Afaan Oromoo</option>
-        <option value="{{ url_for('set_language', lang='ti') }}" {{ 'selected' if current_lang == 'ti' }}>ትግርኛ</option>
-        <option value="{{ url_for('set_language', lang='ar') }}" {{ 'selected' if current_lang == 'ar' }}>العربية</option>
+        <option value="{{ url_for('set_language_route', lang='am') }}" {{ 'selected' if current_lang == 'am' }}>አማርኛ</option>
+        <option value="{{ url_for('set_language_route', lang='en') }}" {{ 'selected' if current_lang == 'en' }}>English</option>
+        <option value="{{ url_for('set_language_route', lang='om') }}" {{ 'selected' if current_lang == 'om' }}>Afaan Oromoo</option>
+        <option value="{{ url_for('set_language_route', lang='ti') }}" {{ 'selected' if current_lang == 'ti' }}>ትግርኛ</option>
+        <option value="{{ url_for('set_language_route', lang='ar') }}" {{ 'selected' if current_lang == 'ar' }}>العربية</option>
       </select>
     </div>
     <button class="hamburger-btn" id="profileMenuBtn" aria-label="{{ t.more }}" aria-expanded="false" aria-controls="profileDrawer">☰</button>
