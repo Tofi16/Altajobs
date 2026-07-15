@@ -1,0 +1,22 @@
+{# 
+  Reusable star rating component.
+  Expects `avg_stars` (float, 0-5) in context.
+  Optional `size` = "lg" for a larger rating (used on profile summary).
+  Usage: {% include '_star_rating.html' with context %}
+         {% with avg_stars=some_value, size='lg' %}{% include '_star_rating.html' with context %}{% endwith %}
+#}
+{% set _full = avg_stars|int %}
+{% set _has_half = (avg_stars - _full) >= 0.25 and (avg_stars - _full) < 0.75 %}
+{% set _rounded_full = _full + (1 if (avg_stars - _full) >= 0.75 else 0) %}
+{% set _empty = 5 - _rounded_full - (1 if _has_half else 0) %}
+<span class="star-rating {{ 'star-rating-lg' if size == 'lg' }}" title="{{ avg_stars }} / 5">
+  {% for _ in range(_rounded_full) %}
+    <svg class="star-filled" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.3 6.9.7-5.2 4.7 1.5 6.8L12 17.6l-6.1 3.4 1.5-6.8-5.2-4.7 6.9-.7z"/></svg>
+  {% endfor %}
+  {% if _has_half %}
+    <svg class="star-half" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.3 6.9.7-5.2 4.7 1.5 6.8L12 17.6l-6.1 3.4 1.5-6.8-5.2-4.7 6.9-.7z"/></svg>
+  {% endif %}
+  {% for _ in range(_empty) %}
+    <svg class="star-empty" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.3 6.9.7-5.2 4.7 1.5 6.8L12 17.6l-6.1 3.4 1.5-6.8-5.2-4.7 6.9-.7z"/></svg>
+  {% endfor %}
+</span>

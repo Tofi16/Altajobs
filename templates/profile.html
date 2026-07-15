@@ -12,7 +12,11 @@
   /* ---------- Hamburger menu ---------- */
   .profile-header{
     display:flex;align-items:center;justify-content:space-between;
+    gap:10px;
     padding:6px 2px;margin-bottom:10px;
+  }
+  .profile-header-actions{
+    display:flex;align-items:center;gap:8px;
   }
   .hamburger-btn{
     background:var(--alta-card);
@@ -22,6 +26,37 @@
     display:flex;align-items:center;justify-content:center;
     font-size:1.2rem;cursor:pointer;color:inherit;
   }
+
+  /* ---------- Language switcher (relocated from Feed header) ---------- */
+  .lang-switcher{
+    position:relative;
+    display:flex;align-items:center;
+  }
+  .lang-switcher select{
+    appearance:none;-webkit-appearance:none;-moz-appearance:none;
+    background:var(--alta-card);
+    border:1px solid var(--alta-border);
+    border-radius:12px;
+    color:inherit;
+    font-size:0.85rem;
+    font-weight:600;
+    padding:10px 30px 10px 14px;
+    height:42px;
+    cursor:pointer;
+    outline:none;
+  }
+  .lang-switcher::after{
+    content:"▾";
+    position:absolute;
+    right:10px;
+    top:50%;
+    transform:translateY(-50%);
+    font-size:0.7rem;
+    opacity:.6;
+    pointer-events:none;
+  }
+  .lang-switcher select:focus{border-color:var(--gold, #2ECC71)}
+
   .hamburger-overlay{
     position:fixed;inset:0;background:rgba(0,0,0,0.45);
     opacity:0;pointer-events:none;transition:opacity .2s ease;
@@ -73,14 +108,108 @@
   .profile-summary .avatar{margin:0 auto 6px}
   .profile-name{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}
 
+  /* ---------- Professional Stats Grid ---------- */
+  .stats-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    width:100%;
+    max-width:420px;
+    margin:16px auto 4px;
+    border:1px solid var(--alta-border);
+    border-radius:14px;
+    overflow:hidden;
+  }
+  .stat-cell{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:2px;
+    padding:12px 6px;
+    background:var(--alta-card);
+    border-right:1px solid var(--alta-border);
+  }
+  .stat-cell:last-child{border-right:none}
+  .stat-value{
+    font-size:1.15rem;
+    font-weight:700;
+    line-height:1.1;
+  }
+  .stat-label{
+    font-size:0.72rem;
+    opacity:.65;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
+
+  /* ---------- Visual Star Rating System ---------- */
+  .star-rating{
+    display:inline-flex;
+    align-items:center;
+    gap:2px;
+    vertical-align:middle;
+  }
+  .star-rating svg{
+    width:16px;height:16px;
+    flex-shrink:0;
+  }
+  .star-rating.star-rating-lg svg{width:20px;height:20px}
+  .star-rating .star-filled path{fill:#FFB020}
+  .star-rating .star-half path{fill:url(#alta-star-half-grad)}
+  .star-rating .star-empty path{fill:none;stroke:#8a8f98;stroke-width:1.5}
+  .rating-count-text{font-size:0.8rem;opacity:.65;margin-left:4px}
+
+  /* ---------- Modern Interaction Icon Chips ---------- */
+  .post-actions-row{
+    display:flex;
+    align-items:center;
+    gap:16px;
+    margin-top:10px;
+    padding-top:10px;
+    border-top:1px solid var(--alta-border);
+  }
+  .icon-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:0.85rem;
+    color:inherit;
+    text-decoration:none;
+    opacity:.85;
+    background:none;
+    border:none;
+    cursor:pointer;
+    padding:4px 2px;
+  }
+  .icon-chip:hover{opacity:1}
+  .icon-chip .icon-chip-emoji{font-size:1rem;line-height:1}
+
   @media (min-width:640px){
     .hamburger-drawer{width:300px}
   }
 </style>
 
+<!-- Shared SVG defs for half-star gradient (used by star-rating component) -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="alta-star-half-grad">
+      <stop offset="50%" stop-color="#FFB020"/>
+      <stop offset="50%" stop-color="transparent"/>
+    </linearGradient>
+  </defs>
+</svg>
+
 <div class="profile-header">
   <span class="user-title">{{ t.profile }}</span>
-  <button class="hamburger-btn" id="profileMenuBtn" aria-label="{{ t.more }}" aria-expanded="false" aria-controls="profileDrawer">☰</button>
+  <div class="profile-header-actions">
+    <div class="lang-switcher">
+      <select id="profileLangSwitcher" onchange="if(this.value) window.location.href=this.value;" aria-label="{{ t.language if t.language is defined else 'Language' }}">
+        <option value="{{ url_for('set_language', lang='am') }}" {{ 'selected' if current_lang == 'am' }}>አማርኛ</option>
+        <option value="{{ url_for('set_language', lang='en') }}" {{ 'selected' if current_lang == 'en' }}>English</option>
+        <option value="{{ url_for('set_language', lang='om') }}" {{ 'selected' if current_lang == 'om' }}>Afaan Oromoo</option>
+        <option value="{{ url_for('set_language', lang='ti') }}" {{ 'selected' if current_lang == 'ti' }}>ትግርኛ</option>
+        <option value="{{ url_for('set_language', lang='ar') }}" {{ 'selected' if current_lang == 'ar' }}>العربية</option>
+      </select>
+    </div>
+    <button class="hamburger-btn" id="profileMenuBtn" aria-label="{{ t.more }}" aria-expanded="false" aria-controls="profileDrawer">☰</button>
+  </div>
 </div>
 
 <div class="hamburger-overlay" id="profileMenuOverlay"></div>
@@ -127,7 +256,23 @@
     {% if is_vip_now(profile_user) %}<span class="verified-badge vip-badge">👑 {{ t.vip }}</span>{% endif %}
   </div>
   <div class="profile-type">{{ t.worker if profile_user['user_type']=='worker' else t.employer }}</div>
-  <div class="post-meta">{{ followers_count }} {{ t.followers }} • {{ following_count }} {{ t.follow|lower }} • {{ posts_count }} {{ t.feed|lower }}</div>
+
+  <!-- Professional Stats Grid (replaces plain-text follower/following/post line) -->
+  <div class="stats-grid">
+    <div class="stat-cell">
+      <span class="stat-value">{{ followers_count }}</span>
+      <span class="stat-label">{{ t.followers }}</span>
+    </div>
+    <div class="stat-cell">
+      <span class="stat-value">{{ following_count }}</span>
+      <span class="stat-label">{{ t.follow }}</span>
+    </div>
+    <div class="stat-cell">
+      <span class="stat-value">{{ posts_count }}</span>
+      <span class="stat-label">{{ t.feed }}</span>
+    </div>
+  </div>
+
   {% if profile_user['phone'] %}<div class="post-meta">📞 {{ profile_user['phone'] }}</div>{% endif %}
 
   {% if current_user and current_user['id'] != profile_user['id'] %}
@@ -144,8 +289,8 @@
   {% if profile_user['user_type'] == 'worker' %}
     <div style="margin-top:10px">
       {% if avg_stars %}
-        <span class="stars">{{ '★' * (avg_stars|round|int) }}{{ '☆' * (5 - avg_stars|round|int) }}</span>
-        <span class="post-meta">({{ rating_count }} {{ t.rating|lower }})</span>
+        {% include '_star_rating.html' with context %}
+        <span class="rating-count-text">({{ rating_count }} {{ t.rating|lower }})</span>
       {% else %}
         <span class="post-meta">{{ t.average_rating }}: —</span>
       {% endif %}
@@ -227,7 +372,10 @@
   <h3>{{ t.rating }}</h3>
   {% for r in ratings %}
     <div class="comment">
-      <div class="comment-author">{{ r['employer_username'] }} — <span class="stars">{{ '★' * r['stars'] }}</span></div>
+      <div class="comment-author">
+        {{ r['employer_username'] }} —
+        {% with avg_stars=r['stars'] %}{% include '_star_rating.html' with context %}{% endwith %}
+      </div>
       {% if r['comment'] %}<div class="comment-content">{{ r['comment'] }}</div>{% endif %}
     </div>
   {% endfor %}
@@ -256,7 +404,17 @@
     {% if p['photo'] %}
       <img class="post-photo" src="{{ photo_url(p['photo']) }}">
     {% endif %}
-    <a href="{{ url_for('post_detail', post_id=p['id']) }}" class="post-meta">{{ t.comments }} → &nbsp; 👁️ {{ p['view_count'] }}</a>
+    <!-- Modern Interaction Icons (replaces plain "Comments ->" text link) -->
+    <div class="post-actions-row">
+      <a href="{{ url_for('post_detail', post_id=p['id']) }}" class="icon-chip">
+        <span class="icon-chip-emoji">💬</span>
+        <span>{{ p['comment_count'] if p['comment_count'] is defined else t.comments }}</span>
+      </a>
+      <span class="icon-chip">
+        <span class="icon-chip-emoji">👁️</span>
+        <span>{{ p['view_count'] }}</span>
+      </span>
+    </div>
   </div>
 {% endfor %}
 </div>
@@ -264,7 +422,20 @@
 <div id="analysis" class="tab-content" style="display:none;">
   <div class="card glass-card" style="padding:16px">
     <h3>Analysis</h3>
-    <p class="post-meta">Followers: {{ followers_count }} • Following: {{ following_count }} • Posts: {{ posts_count }}</p>
+    <div class="stats-grid" style="max-width:100%;margin:0 0 12px">
+      <div class="stat-cell">
+        <span class="stat-value">{{ followers_count }}</span>
+        <span class="stat-label">{{ t.followers }}</span>
+      </div>
+      <div class="stat-cell">
+        <span class="stat-value">{{ following_count }}</span>
+        <span class="stat-label">{{ t.follow }}</span>
+      </div>
+      <div class="stat-cell">
+        <span class="stat-value">{{ posts_count }}</span>
+        <span class="stat-label">{{ t.feed }}</span>
+      </div>
+    </div>
     {% if profile_user['bio'] %}<p>{{ profile_user['bio'] }}</p>{% endif %}
     {% if profile_user['skills'] %}<p><strong>{{ t.skills }}</strong>: {{ profile_user['skills'] }}</p>{% endif %}
     {% if profile_user['experience'] %}<p><strong>{{ t.experience }}</strong>: {{ profile_user['experience'] }}</p>{% endif %}

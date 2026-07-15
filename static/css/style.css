@@ -345,7 +345,7 @@ html[dir="rtl"] .fab { right: auto; left: 18px; }
 }
 
 /* ---------- Auth forms ---------- */
-.auth-card { max-width: 420px; margin: 40px auto; }
+.auth-card { max-width: 420px; margin: 40px auto; width: 100%; }
 .auth-card h1 { text-align: center; color: var(--accent); }
 input, textarea, select {
   width: 100%;
@@ -359,6 +359,72 @@ input, textarea, select {
   color: var(--text);
 }
 input::placeholder, textarea::placeholder { color: var(--muted); }
+
+/* ==========================================================================
+   Part 6: Zoom Control & Mobile Layout Integrity
+   ========================================================================== */
+
+/* --- Auto-Zoom Prevention (the "16px rule") ---
+   iOS Safari auto-zooms the viewport on focus if a form field computes to
+   a font-size under 16px. This block pins every text-entry element (by
+   explicit type, not just tag name, so nothing added later slips through
+   at a smaller size) to a 16px/1rem floor. High-specificity + placed late
+   in the cascade so later ad-hoc rules can't quietly shrink it again. */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="week"],
+input[type="time"],
+input:not([type]),
+textarea,
+select {
+  font-size: 16px !important;
+  font-size: max(16px, 1rem) !important;
+}
+
+/* Checkboxes/radios/range/file/color are excluded above since they don't
+   trigger zoom and shouldn't be forced to a text size. */
+
+/* --- Fluid Responsive Elements ---
+   Guard against fixed-pixel-width components breaking layout if a user
+   forces a manual pinch-zoom despite user-scalable=no, or on very narrow
+   devices. Every major container gets width:100% + a max-width ceiling
+   instead of a hard px width. */
+.app-shell,
+.container,
+.topbar-inner,
+.auth-card,
+.card,
+.sidebar-card,
+.modal-box,
+.token-hero,
+.withdraw-container,
+.message-compose {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+img, video, svg, canvas, iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Belt-and-suspenders: nothing should be able to force horizontal scroll
+   on the page shell, no matter what a nested component does. Scoped to
+   html/body rather than a global `*` selector so it can't collapse
+   flex/grid children or absolutely-positioned overlay elements
+   (reel icons, avatars, badges, etc.) elsewhere in the app. */
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
 label { font-weight: 600; font-size: 0.9rem; display: block; margin-bottom: 4px; color: var(--text); }
 .btn {
   display: inline-block;
