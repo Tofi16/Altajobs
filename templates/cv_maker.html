@@ -1,6 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
 
+{# 1. Safe Defaults to prevent 500 Internal Server Error #}
+{% set cv_tiers = cv_tiers or {
+  'basic': {'label': 'Basic', 'price': 100, 'cover_letter': false, 'priority_badge': false},
+  'standard': {'label': 'Standard', 'price': 250, 'cover_letter': true, 'priority_badge': false},
+  'vip': {'label': 'VIP', 'price': 800, 'cover_letter': true, 'priority_badge': true}
+} %}
+{% set cv_templates = cv_templates or {
+  'modern': {'label': 'Modern Layout', 'accent': '#00c853'},
+  'classic': {'label': 'Classic Layout', 'accent': '#1e88e5'},
+  'creative': {'label': 'Creative Layout', 'accent': '#8e24aa'}
+} %}
+{% set selected_tier = selected_tier or 'standard' %}
+{% set selected_template = selected_template or 'modern' %}
+{% set payload = payload or none %}
+{% set gemini_enabled = gemini_enabled or false %}
+
 <style>
   .cv-photo-input-row {
     display: flex;
@@ -215,11 +231,11 @@
     <div class="headshot-studio">
       <div class="headshot-row">
         <img class="cv-photo-preview" id="headshotPreview"
-             src="{% if payload and payload['photo'] %}{{ photo_url(payload['photo']) }}{% endif %}"
-             style="{{ '' if payload and payload['photo'] else 'display:none' }}">
+             src="{% if payload and payload.get('photo') %}{% if photo_url is defined %}{{ photo_url(payload.get('photo')) }}{% else %}/static/uploads/{{ payload.get('photo') }}{% endif %}{% endif %}"
+             style="{{ '' if payload and payload.get('photo') else 'display:none' }}">
         <div style="flex:1;min-width:200px">
           <input type="file" name="photo" id="headshotInput" accept="image/png,image/jpeg,image/jpg,image/webp" onchange="onHeadshotSelected(this)">
-          <input type="hidden" name="existing_photo" id="existingPhotoField" value="{{ payload['photo'] if payload else '' }}">
+          <input type="hidden" name="existing_photo" id="existingPhotoField" value="{{ payload.get('photo', '') if payload else '' }}">
           <div class="headshot-status" id="headshotStatus">Upload a portrait photo. Corporate background replacement is coming soon — for now it's used as-is.</div>
         </div>
       </div>
@@ -234,61 +250,61 @@
     </div>
 
     <label>Full name</label>
-    <input type="text" name="full_name" id="f_full_name" placeholder="Your full name" value="{{ payload['full_name'] if payload else '' }}" oninput="updateStrength()">
+    <input type="text" name="full_name" id="f_full_name" placeholder="Your full name" value="{{ payload.get('full_name', '') if payload else '' }}" oninput="updateStrength()">
 
     <label>Target role</label>
-    <input type="text" name="target_role" id="f_target_role" placeholder="Example: Software Engineer" value="{{ payload['target_role'] if payload else '' }}" oninput="updateStrength()">
+    <input type="text" name="target_role" id="f_target_role" placeholder="Example: Software Engineer" value="{{ payload.get('target_role', '') if payload else '' }}" oninput="updateStrength()">
 
     <label>Professional summary (rough notes are fine — AI will polish it)</label>
-    <textarea name="summary" id="f_summary" rows="4" placeholder="Describe your expertise and value in a few sentences" oninput="updateStrength()">{{ payload['summary'] if payload else '' }}</textarea>
+    <textarea name="summary" id="f_summary" rows="4" placeholder="Describe your expertise and value in a few sentences" oninput="updateStrength()">{{ payload.get('summary', '') if payload else '' }}</textarea>
 
     <label>Experience</label>
-    <input type="text" name="experience" id="f_experience" placeholder="Example: 4+ years of experience" value="{{ payload['experience'] if payload else '' }}" oninput="updateStrength()">
+    <input type="text" name="experience" id="f_experience" placeholder="Example: 4+ years of experience" value="{{ payload.get('experience', '') if payload else '' }}" oninput="updateStrength()">
 
     <label>Key achievements (one per line)</label>
-    <textarea name="achievements" id="f_achievements" rows="5" placeholder="Led team delivery&#10;Improved efficiency by 30%&#10;Managed high-impact clients" oninput="updateStrength()">{% if payload %}{% for item in payload['achievements'] %}{{ item }}{% if not loop.last %}
+    <textarea name="achievements" id="f_achievements" rows="5" placeholder="Led team delivery&#10;Improved efficiency by 30%&#10;Managed high-impact clients" oninput="updateStrength()">{% if payload and payload.get('achievements') %}{% for item in payload.get('achievements', []) %}{{ item }}{% if not loop.last %}
 {% endif %}{% endfor %}{% endif %}</textarea>
 
     <label>Skills (comma separated)</label>
-    <input type="text" name="skills" id="f_skills" placeholder="Leadership, Communication, Project Management" value="{{ ', '.join(payload['skills']) if payload else '' }}" oninput="updateStrength()">
+    <input type="text" name="skills" id="f_skills" placeholder="Leadership, Communication, Project Management" value="{{ payload.get('skills', []) | join(', ') if payload else '' }}" oninput="updateStrength()">
 
-    <button type="submit" class="btn btn-full" id="generateBtn">Generate CV (<span id="priceLabel">{{ cv_tiers[selected_tier].price }}</span> ETB)</button>
+    <button type="submit" class="btn btn-full" id="generateBtn">Generate CV (<span id="priceLabel">{{ cv_tiers[selected_tier].price if selected_tier in cv_tiers else '0' }}</span> ETB)</button>
   </form>
 </div>
 
 {% if payload %}
 <div class="card cv-preview-card">
-  <div class="cv-preview" data-template="{{ payload.template_key }}" style="border-top:6px solid {{ cv_templates[payload.template_key].accent }}">
+  <div class="cv-preview" data-template="{{ payload.get('template_key', 'modern') }}" style="border-top:6px solid {{ cv_templates[payload.get('template_key', 'modern')].accent if payload.get('template_key') in cv_templates else '#00c853' }}">
     <div class="cv-header">
       <div class="cv-header-left">
-        {% if payload['photo'] %}
-          <img class="cv-photo" src="{{ photo_url(payload['photo']) }}" alt="{{ payload['full_name'] }}">
+        {% if payload.get('photo') %}
+          <img class="cv-photo" src="{% if photo_url is defined %}{{ photo_url(payload.get('photo')) }}{% else %}/static/uploads/{{ payload.get('photo') }}{% endif %}" alt="{{ payload.get('full_name') }}">
         {% else %}
-          <div class="cv-photo-fallback" style="background:linear-gradient(135deg, {{ cv_templates[payload.template_key].accent }}, #00e676)">{{ (payload['full_name'] or "?")[0] }}</div>
+          <div class="cv-photo-fallback" style="background:linear-gradient(135deg, {{ cv_templates[payload.get('template_key', 'modern')].accent if payload.get('template_key') in cv_templates else '#00c853' }}, #00e676)">{{ (payload.get('full_name') or "?")[0] }}</div>
         {% endif %}
         <div style="min-width:0">
-          <div class="cv-name">{{ payload['full_name'] }}</div>
-          <div class="cv-role">{{ payload['target_role'] }}</div>
-          {% if payload['priority_badge'] %}<div class="cv-priority-badge">⭐ Priority Job Seeker</div>{% endif %}
+          <div class="cv-name">{{ payload.get('full_name', '') }}</div>
+          <div class="cv-role">{{ payload.get('target_role', '') }}</div>
+          {% if payload.get('priority_badge') %}<div class="cv-priority-badge">⭐ Priority Job Seeker</div>{% endif %}
         </div>
       </div>
-      <div class="cv-badge">{{ payload['tier_label'] }}</div>
+      <div class="cv-badge">{{ payload.get('tier_label', '') }}</div>
     </div>
 
     <div class="cv-section">
       <h3>Professional Summary</h3>
-      <p>{{ payload['summary'] }}</p>
+      <p>{{ payload.get('summary', '') }}</p>
     </div>
 
     <div class="cv-section">
       <h3>Experience</h3>
-      <p>{{ payload['experience'] }}</p>
+      <p>{{ payload.get('experience', '') }}</p>
     </div>
 
     <div class="cv-section">
       <h3>Key Achievements</h3>
       <ul>
-        {% for item in payload['achievements'] %}
+        {% for item in payload.get('achievements', []) %}
         <li>{{ item }}</li>
         {% endfor %}
       </ul>
@@ -297,16 +313,16 @@
     <div class="cv-section">
       <h3>Skills</h3>
       <div class="cv-skill-list">
-        {% for skill in payload['skills'] %}
+        {% for skill in payload.get('skills', []) %}
         <span class="cv-chip">{{ skill }}</span>
         {% endfor %}
       </div>
     </div>
 
-    {% if payload['cover_letter'] %}
+    {% if payload.get('cover_letter') %}
     <div class="cv-section">
       <h3>Cover Letter</h3>
-      <p style="white-space:pre-line">{{ payload['cover_letter'] }}</p>
+      <p style="white-space:pre-line">{{ payload.get('cover_letter') }}</p>
     </div>
     {% endif %}
   </div>
@@ -317,14 +333,21 @@
 {% endif %}
 
 <script>
-  var CV_TIER_PRICES = {{ (cv_tiers.items() | map('list') | list) | tojson }}.reduce(function(acc, pair){ acc[pair[0]] = pair[1].price; return acc; }, {});
+  // Safe parsing of cv_tiers to avoid crashes
+  var cvTiersRaw = {{ cv_tiers | tojson | safe }};
+  var CV_TIER_PRICES = {};
+  for (var key in cvTiersRaw) {
+    if (cvTiersRaw.hasOwnProperty(key)) {
+      CV_TIER_PRICES[key] = cvTiersRaw[key].price;
+    }
+  }
 
   function onTierChange() {
     document.querySelectorAll('[data-tier-card]').forEach(function (el) {
       var input = el.querySelector('input');
       el.classList.toggle('selected', input.checked);
       if (input.checked) {
-        document.getElementById('priceLabel').textContent = CV_TIER_PRICES[input.value];
+        document.getElementById('priceLabel').textContent = CV_TIER_PRICES[input.value] || '0';
       }
     });
   }
