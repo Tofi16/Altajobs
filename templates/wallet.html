@@ -1,55 +1,38 @@
 {% extends "base.html" %}
 {% block content %}
 
-<style>
-  :root{
-    --alta-bg:#161b22;
-    --alta-card:rgba(255,255,255,0.045);
-    --alta-border:rgba(255,255,255,0.09);
-    --alta-radius:16px;
-  }
-  .glass-card{
-    background:var(--alta-card);
-    border:1px solid var(--alta-border);
-    border-radius:var(--alta-radius);
-    backdrop-filter:blur(14px);
-    -webkit-backdrop-filter:blur(14px);
-    box-shadow:0 4px 24px rgba(0,0,0,0.18);
-  }
-  .wallet-hero{
-    text-align:center;padding:26px 18px;
-  }
-  .wallet-hero .price-tag{
-    font-size:2.1rem;font-weight:800;margin:8px 0;
-  }
-  .wallet-actions{
-    display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:14px;
-  }
-  .wallet-grid{
-    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-    gap:14px;margin-top:16px;
-  }
-  .wallet-grid .glass-card{padding:18px;margin:0}
-  .bank-row{
-    display:flex;align-items:center;justify-content:space-between;gap:10px;
-    padding:14px 16px;border:1px solid var(--alta-border);border-radius:14px;
-    background:rgba(255,255,255,0.02);
-  }
-  .wallet-table{width:100%;border-collapse:collapse}
-  .wallet-table th, .wallet-table td{padding:10px;text-align:left}
-  .wallet-table thead th{border-bottom:1px solid var(--alta-border);opacity:.75;font-weight:600}
-  .wallet-table tbody tr:not(:last-child) td{border-bottom:1px solid var(--alta-border)}
-</style>
+<!-- Wallet styles moved to static/css/style.css (Tech & Trust theme) -->
 
-<div class="card glass-card wallet-hero">
-  <h2 style="margin:0">Wallet Hub</h2>
-  <div class="price-tag">{{ current_user['wallet_balance'] }} ETB</div>
-  <div style="margin:6px 0;font-size:0.95rem">🪙 {{ current_user['alta_tokens'] }} {{ t.alta_tokens }}</div>
-  <div class="wallet-actions">
-    <a href="#deposit-form" class="btn btn-small">⬇️ Deposit Money</a>
-    <a href="#withdraw-form" class="btn btn-outline btn-small">⬆️ Request Withdrawal</a>
-    <a href="#transfer-form" class="btn btn-outline btn-small">🔁 Send Money</a>
-    <a href="{{ url_for('challenges') }}" class="btn btn-outline btn-small">🏆 Monthly Challenge</a>
+<div class="card wallet-digital-card">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+    <div>
+      <h2 style="margin:0">Wallet Hub</h2>
+      <div class="wallet-balance">{{ current_user['wallet_balance'] }} ETB</div>
+      <div class="wallet-sub">🪙 <span id="walletTokensCount">{{ current_user['alta_tokens'] }} {{ t.alta_tokens }}</span></div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:0.85rem;color:var(--muted)">Card</div>
+      <div style="margin-top:8px;color:var(--muted)">•••• •••• •••• 4242</div>
+    </div>
+  </div>
+
+  <div class="wallet-quick-actions">
+    <button class="wallet-action-btn" onclick="location.href='#deposit-form'">
+      <div class="circle">⬇️</div>
+      <div class="wallet-action-label">Deposit</div>
+    </button>
+    <button class="wallet-action-btn" onclick="location.href='#withdraw-form'">
+      <div class="circle" style="background:rgba(29,155,240,0.12);color:var(--text)">⬆️</div>
+      <div class="wallet-action-label">Withdraw</div>
+    </button>
+    <button class="wallet-action-btn" onclick="location.href='#transfer-form'">
+      <div class="circle">🔁</div>
+      <div class="wallet-action-label">Send</div>
+    </button>
+    <button class="wallet-action-btn" onclick='location.href="{{ url_for("challenges") }}"'>
+      <div class="circle">🏆</div>
+      <div class="wallet-action-label">Challenge</div>
+    </button>
   </div>
 </div>
 
@@ -106,12 +89,14 @@
     <div style="display:flex;flex-direction:column;gap:10px">
       {% for b in banks %}
       <div class="bank-row">
-        <div style="min-width:0">
+        <div style="min-width:0;display:flex;flex-direction:column;gap:6px">
           <div style="font-weight:700">{{ b['bank_name'] }}</div>
-          <div class="post-meta" style="margin-top:2px" data-copy-text="{{ b['account_number'] }}">Acc #: {{ b['account_number'] }}</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div class="post-meta" style="margin:0" data-copy-text="{{ b['account_number'] }}">Acc #: {{ b['account_number'] }}</div>
+            <button type="button" class="btn btn-outline btn-small copy-bank-btn" data-copy-value="{{ b['account_number'] }}">📋 Copy</button>
+          </div>
           <div class="post-meta">Holder: {{ b['account_holder_name'] }}</div>
         </div>
-        <button type="button" class="btn btn-outline btn-small copy-bank-btn" data-copy-value="{{ b['account_number'] }}">📋 Copy</button>
       </div>
       {% endfor %}
     </div>
@@ -202,7 +187,7 @@
     <select name="bank" required>
       <option value="">Select bank</option>
       {% for b in banks %}
-      <option value="{{ b['bank_name'] }}">{{ b['bank_name'] }} — {{ b['account_number'] }}</option>
+      <option value="{{ b['bank_name'] }}">{{ b['bank_name'] }}</option>
       {% endfor %}
     </select>
     <label>{{ t.amount }}</label>

@@ -1,5 +1,6 @@
 Flask>=3.0
 gunicorn>=21.2
+psycopg2-binary>=2.9
 
 # NOTE: this only lists what app.py itself imports (Flask/Werkzeug + gunicorn
 # for production serving). If your project already has a requirements.txt

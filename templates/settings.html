@@ -20,7 +20,7 @@
 </div>
 
 <a href="{{ url_for('wallet') }}" class="card" style="display:block;text-decoration:none;padding:0;overflow:hidden">
-  <div style="background:var(--gold-gradient);padding:16px;color:#362a04">
+  <div style="background:linear-gradient(135deg, var(--accent), var(--accent-dark));padding:16px;color:#ffffff">
     <div style="font-weight:800;font-size:1.05rem">✨ {{ t.upgrade_to_premium }}</div>
     {% if not current_user['paid_until'] %}
       <div style="font-size:0.85rem;margin-top:4px;opacity:0.85">🎁 {{ t.days_left }}: {{ trial_days_left }}</div>

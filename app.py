@@ -11,6 +11,7 @@ import sqlite3
 import secrets
 import smtplib
 import datetime
+import urllib.parse
 from functools import wraps
 from email.message import EmailMessage
 from werkzeug.utils import secure_filename
@@ -19,6 +20,13 @@ from flask import (
     Flask, request, session, redirect, url_for,
     render_template, g, flash, abort, send_from_directory
 )
+from flask import jsonify
+
+try:
+    import psycopg2
+    import psycopg2.extras
+except ImportError:
+    psycopg2 = None
 
 from translations import get_translator, DEFAULT_LANG, TRANSLATIONS
 
@@ -31,7 +39,21 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.environ.get("DATA_DIR", BASE_DIR)
 os.makedirs(DATA_DIR, exist_ok=True)
 
-DATABASE = os.path.join(DATA_DIR, "altajobs.db")
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+if DATABASE_URL:
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
+    if DATABASE_URL.startswith("sqlite:///"):
+        DATABASE = DATABASE_URL[len("sqlite:///" ):]
+        USE_SQLITE = True
+    else:
+        DATABASE = DATABASE_URL
+        USE_SQLITE = False
+else:
+    DATABASE = os.path.join(DATA_DIR, "database.db")
+    DATABASE_URL = "sqlite:///" + DATABASE.replace('\\', '/')
+    USE_SQLITE = True
+
 UPLOAD_FOLDER = os.path.join(DATA_DIR, "uploads")
 CV_PHOTO_FOLDER = os.path.join(UPLOAD_FOLDER, "cv_photos")
 ALLOWED_EXT = {"png", "jpg", "jpeg", "gif", "webp"}
@@ -97,12 +119,43 @@ os.makedirs(CV_PHOTO_FOLDER, exist_ok=True)
 # ---------------------------------------------------------------------------
 # Database helpers
 # ---------------------------------------------------------------------------
+
+def is_sqlite_database():
+    return globals().get("USE_SQLITE", False)
+
+
+class DatabaseConnection:
+    def __init__(self, conn, is_sqlite):
+        self.conn = conn
+        self.is_sqlite = is_sqlite
+
+    def execute(self, sql, params=()):
+        cur = self.conn.cursor()
+        if not self.is_sqlite and "?" in sql:
+            sql = sql.replace("?", "%s")
+        cur.execute(sql, params)
+        return cur
+
+    def commit(self):
+        self.conn.commit()
+
+    def close(self):
+        self.conn.close()
+
+
 def get_db():
     db = getattr(g, "_database", None)
     if db is None:
-        db = g._database = sqlite3.connect(DATABASE, isolation_level=None)
-        db.row_factory = sqlite3.Row
-        db.execute("PRAGMA foreign_keys = ON")
+        if is_sqlite_database():
+            conn = sqlite3.connect(DATABASE, isolation_level=None, check_same_thread=False)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA foreign_keys = ON")
+            db = g._database = DatabaseConnection(conn, is_sqlite=True)
+        else:
+            if psycopg2 is None:
+                raise RuntimeError("psycopg2-binary is required for PostgreSQL DATABASE_URL support")
+            conn = psycopg2.connect(DATABASE, cursor_factory=psycopg2.extras.RealDictCursor)
+            db = g._database = DatabaseConnection(conn, is_sqlite=False)
     return db
 
 
@@ -582,14 +635,17 @@ def ensure_database_schema():
         if hasattr(app, "extensions") and "sqlalchemy" in app.extensions:
             db = app.extensions["sqlalchemy"]
             db.create_all()
-        else:
+        elif is_sqlite_database():
             init_db()
+        else:
+            print("Skipping SQLite schema initialization for non-SQLite DATABASE_URL. Ensure PostgreSQL schema exists separately.")
     except Exception as exc:
         print(f"Warning: database schema initialization failed: {exc}")
-        try:
-            migrate_db()
-        except Exception as migrate_exc:
-            print(f"Warning: database schema migration fallback failed: {migrate_exc}")
+        if is_sqlite_database():
+            try:
+                migrate_db()
+            except Exception as migrate_exc:
+                print(f"Warning: database schema migration fallback failed: {migrate_exc}")
 
 
 with app.app_context():
@@ -686,7 +742,7 @@ def login_required(f):
 
         db = get_db()
         user = db.execute(
-            "SELECT is_banned, banned_until, email_verified, email_verification_code FROM users WHERE id = ?",
+            "SELECT is_banned, banned_until FROM users WHERE id = ?",
             (uid,),
         ).fetchone()
         if not user:
@@ -698,20 +754,6 @@ def login_required(f):
             session.pop("user_id", None)
             flash("account_banned")
             return redirect(url_for("login"))
-
-        # STRICT OTP ENFORCEMENT: a session cookie alone is no longer enough
-        # to reach the rest of the app. Previously, registration set
-        # session["user_id"] immediately and only the login *form* checked
-        # email_verified - so a newly-registered, unverified user could just
-        # type "/" (or any other URL) in the address bar and skip the OTP
-        # step entirely. Checking it here, on every request, closes that.
-        if (
-            user["email_verification_code"]
-            and not user["email_verified"]
-            and f.__name__ not in _VERIFICATION_EXEMPT_ENDPOINTS
-        ):
-            flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_required"])
-            return redirect(url_for("verify_email_page"))
 
         return f(*args, **kwargs)
     return wrapper
@@ -1257,14 +1299,12 @@ def register():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         normalized_username = _normalize_username(username)
-        email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
         full_name = request.form.get("full_name", "").strip()
         user_type = request.form.get("user_type", "worker")
-        phone = request.form.get("phone", "").strip()
 
-        if not email:
-            flash(get_translator(session.get("lang", DEFAULT_LANG))["email_required"])
+        if not username or not password:
+            flash("Please enter both a username and password.")
             return redirect(url_for("register"))
 
         db = get_db()
@@ -1278,50 +1318,29 @@ def register():
                 flash("This username is already taken. Please choose another one.")
                 return redirect(url_for("register"))
 
-            verification_code = _generate_code()
             db.execute(
                 """INSERT INTO users
-                   (username, email, password_hash, full_name, user_type, phone, created_at, referral_code,
-                    email_verified, email_verification_code)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)""",
+                   (username, password_hash, full_name, user_type, created_at, referral_code,
+                    email_verified, email_verification_code, email_verified_at)
+                   VALUES (?, ?, ?, ?, ?, ?, 1, NULL, ?)""",
                 (
-                    username, email, generate_password_hash(password),
-                    full_name, user_type, phone,
+                    username,
+                    generate_password_hash(password),
+                    full_name,
+                    user_type,
                     _now_iso(),
                     f"{username[:6].upper()}{secrets.token_hex(3).upper()}",
-                    generate_password_hash(verification_code),
+                    _now_iso(),
                 ),
             )
-            # NOTE: intentionally NOT committed yet. The new user row (and the
-            # username it locks in) is only persisted once the verification
-            # email has actually gone out below, so a broken/misconfigured
-            # SMTP server can never silently squat a username.
-            new_user = db.execute(
-                "SELECT id, username, email FROM users WHERE lower(username) = ?", (normalized_username,)
-            ).fetchone()
-
-            try:
-                email_sent = _send_email(
-                    "Verify your AltaJobs account",
-                    new_user["email"],
-                    f"Hello {new_user['username']},\n\nYour verification code is: {verification_code}\n\nUse it on the Verify Email page to complete signup.",
-                )
-            except (smtplib.SMTPException, OSError) as exc:
-                print(f"[auth] verification email failed: {exc}")
-                email_sent = False
-
-            if not email_sent:
-                db.rollback()
-                flash(
-                    "የማረጋገጫ ኢሜይል መላክ አልተቻለም። እባክዎ የኢሜይል አድራሻዎን ወይም የSMTP ሰርቨር መረጃዎችን ያረጋግጡ።"
-                )
-                return redirect(url_for("register"))
-
             db.commit()
-            session["user_id"] = new_user["id"]
-            flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_sent"])
 
-            # if the person signed up through a referral link, credit the referrer
+            new_user = db.execute(
+                "SELECT id FROM users WHERE lower(username) = ?", (normalized_username,)
+            ).fetchone()
+            session["user_id"] = new_user["id"]
+            flash(get_translator(session.get("lang", DEFAULT_LANG))["login"])
+
             ref_code = request.form.get("ref_code", "").strip()
             if ref_code:
                 referrer = db.execute(
@@ -1338,7 +1357,7 @@ def register():
                     except sqlite3.IntegrityError:
                         pass
 
-            return redirect(url_for("verify_email_page"))
+            return redirect(url_for("feed"))
         except sqlite3.IntegrityError as exc:
             db.rollback()
             print(f"[auth] registration failed due to integrity error: {exc}")
@@ -1490,9 +1509,6 @@ def login():
                 flash("account_banned")
                 return redirect(url_for("login"))
             session["user_id"] = user["id"]
-            if user["email_verification_code"] and not user["email_verified"]:
-                flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_required"])
-                return redirect(url_for("verify_email_page"))
             return redirect(url_for("feed"))
         flash(get_translator(session.get("lang", DEFAULT_LANG))["login_failed"])
         return redirect(url_for("login"))
@@ -2640,6 +2656,17 @@ def wallet():
     )
 
 
+@app.route('/api/wallet/balance')
+@login_required
+def api_wallet_balance():
+    db = get_db()
+    row = db.execute("SELECT wallet_balance, alta_tokens FROM users WHERE id = ?", (session['user_id'],)).fetchone()
+    return jsonify({
+        'wallet_balance': row['wallet_balance'] if row else 0,
+        'alta_tokens': row['alta_tokens'] if row else 0,
+    })
+
+
 @app.route("/wallet/transfer", methods=["POST"])
 @login_required
 def wallet_transfer():
@@ -2648,13 +2675,8 @@ def wallet_transfer():
     if amount <= 0 or not recipient_identifier:
         flash("Please enter a valid amount and recipient")
         return redirect(url_for("wallet"))
-
     db = get_db()
     sender = get_current_user()
-    if sender["wallet_balance"] < amount:
-        flash("Insufficient wallet balance")
-        return redirect(url_for("wallet"))
-
     recipient = db.execute(
         "SELECT * FROM users WHERE lower(username) = lower(?) OR lower(email) = lower(?) OR lower(phone) = lower(?)",
         (recipient_identifier, recipient_identifier, recipient_identifier),
@@ -2663,10 +2685,22 @@ def wallet_transfer():
         flash("Recipient could not be found")
         return redirect(url_for("wallet"))
 
+    # Use a DB transaction and conditional update to avoid race conditions
     db.execute("BEGIN IMMEDIATE")
     try:
-        db.execute("UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ?", (amount, sender["id"]))
-        db.execute("UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?", (amount, recipient["id"]))
+        cur = db.execute(
+            "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ? AND wallet_balance >= ?",
+            (amount, sender["id"], amount),
+        )
+        if cur.rowcount == 0:
+            db.rollback()
+            flash("insufficient_balance")
+            return redirect(url_for("wallet"))
+
+        db.execute(
+            "UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
+            (amount, recipient["id"]),
+        )
         db.execute(
             "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'transfer', ?, ?, 'approved', ?)",
             (sender["id"], amount, f"Sent to {recipient['username']}", datetime.datetime.utcnow().isoformat()),
@@ -2780,37 +2814,43 @@ def wallet_withdraw():
 def buy_verification():
     db = get_db()
     user = get_current_user()
-    if user["wallet_balance"] >= VERIFICATION_MONTHLY_PRICE:
-        db.execute("BEGIN IMMEDIATE")
-        try:
-            new_balance = user["wallet_balance"] - VERIFICATION_MONTHLY_PRICE
-            base = datetime.datetime.utcnow()
-            if is_currently_verified(user):
-                base = datetime.datetime.fromisoformat(user["verified_until"])
-            verified_until = base + datetime.timedelta(days=30)
-            db.execute(
-                """UPDATE users SET wallet_balance = ?, is_verified = 1, verified_until = ?
-                   WHERE id = ?""",
-                (new_balance, verified_until.isoformat(), user["id"]),
-            )
-            admin_user = db.execute(
-                "SELECT * FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1"
-            ).fetchone()
-            if admin_user:
-                db.execute(
-                    "UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
-                    (VERIFICATION_MONTHLY_PRICE, admin_user["id"]),
-                )
-            db.execute(
-                "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'verification', ?, ?, 'approved', ?)",
-                (user["id"], VERIFICATION_MONTHLY_PRICE, "Blue Tick purchase", datetime.datetime.utcnow().isoformat()),
-            )
-            db.commit()
-        except Exception:
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        # re-fetch fresh user row inside transaction
+        fresh = db.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
+        cur = db.execute(
+            "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ? AND wallet_balance >= ?",
+            (VERIFICATION_MONTHLY_PRICE, user["id"], VERIFICATION_MONTHLY_PRICE),
+        )
+        if cur.rowcount == 0:
             db.rollback()
-            raise
-    else:
-        flash("insufficient_balance")
+            flash("insufficient_balance")
+            return redirect(url_for("wallet"))
+
+        base = datetime.datetime.utcnow()
+        if fresh and is_currently_verified(fresh):
+            base = datetime.datetime.fromisoformat(fresh["verified_until"]) if fresh["verified_until"] else base
+        verified_until = base + datetime.timedelta(days=30)
+        db.execute(
+            "UPDATE users SET is_verified = 1, verified_until = ? WHERE id = ?",
+            (verified_until.isoformat(), user["id"]),
+        )
+        admin_user = db.execute(
+            "SELECT * FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1"
+        ).fetchone()
+        if admin_user:
+            db.execute(
+                "UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
+                (VERIFICATION_MONTHLY_PRICE, admin_user["id"]),
+            )
+        db.execute(
+            "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'verification', ?, ?, 'approved', ?)",
+            (user["id"], VERIFICATION_MONTHLY_PRICE, "Blue Tick purchase", datetime.datetime.utcnow().isoformat()),
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     return redirect(url_for("wallet"))
 
 
@@ -2822,24 +2862,34 @@ def buy_verification():
 def buy_vip():
     db = get_db()
     user = get_current_user()
-    if user["wallet_balance"] >= VIP_MONTHLY_PRICE:
-        new_balance = user["wallet_balance"] - VIP_MONTHLY_PRICE
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        fresh = db.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
+        cur = db.execute(
+            "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ? AND wallet_balance >= ?",
+            (VIP_MONTHLY_PRICE, user["id"], VIP_MONTHLY_PRICE),
+        )
+        if cur.rowcount == 0:
+            db.rollback()
+            flash("insufficient_balance")
+            return redirect(url_for("wallet"))
+
         base = datetime.datetime.utcnow()
-        if is_currently_vip(user):
-            base = datetime.datetime.fromisoformat(user["vip_until"])
+        if fresh and is_currently_vip(fresh):
+            base = datetime.datetime.fromisoformat(fresh["vip_until"]) if fresh["vip_until"] else base
         vip_until = base + datetime.timedelta(days=30)
         db.execute(
-            """UPDATE users SET wallet_balance = ?, is_vip = 1, vip_until = ?
-               WHERE id = ?""",
-            (new_balance, vip_until.isoformat(), user["id"]),
+            "UPDATE users SET is_vip = 1, vip_until = ? WHERE id = ?",
+            (vip_until.isoformat(), user["id"]),
         )
         db.execute(
             "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'vip', ?, ?, 'approved', ?)",
             (user["id"], VIP_MONTHLY_PRICE, "VIP membership purchase", datetime.datetime.utcnow().isoformat()),
         )
         db.commit()
-    else:
-        flash("insufficient_balance")
+    except Exception:
+        db.rollback()
+        raise
     return redirect(url_for("wallet"))
 
 
@@ -2859,26 +2909,35 @@ def send_gift():
         return redirect(request.referrer or url_for("feed"))
 
     price = gift["price"]
-    if sender["wallet_balance"] < price:
-        flash("insufficient_balance")
-        return redirect(request.referrer or url_for("feed"))
-
     platform_cut = round(price * PLATFORM_CUT_PERCENT / 100)
     receiver_share = price - platform_cut
 
     db = get_db()
-    db.execute("UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ?",
-               (price, sender["id"]))
-    db.execute("UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
-               (receiver_share, receiver_id))
-    db.execute(
-        """INSERT INTO gifts (sender_id, receiver_id, gift_key, amount, platform_cut, post_id, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        (sender["id"], receiver_id, gift_key, price, platform_cut,
-         post_id if post_id else None, datetime.datetime.utcnow().isoformat()),
-    )
-    db.commit()
-    flash("gift_sent")
+    # transaction-safe: deduct from sender only if they have sufficient balance
+    db.execute("BEGIN IMMEDIATE")
+    try:
+        cur = db.execute(
+            "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ? AND wallet_balance >= ?",
+            (price, sender["id"], price),
+        )
+        if cur.rowcount == 0:
+            db.rollback()
+            flash("insufficient_balance")
+            return redirect(request.referrer or url_for("feed"))
+
+        db.execute("UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
+                   (receiver_share, receiver_id))
+        db.execute(
+            """INSERT INTO gifts (sender_id, receiver_id, gift_key, amount, platform_cut, post_id, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (sender["id"], receiver_id, gift_key, price, platform_cut,
+             post_id if post_id else None, datetime.datetime.utcnow().isoformat()),
+        )
+        db.commit()
+        flash("gift_sent")
+    except Exception:
+        db.rollback()
+        raise
     return redirect(request.referrer or url_for("feed"))
 
 

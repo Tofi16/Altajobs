@@ -3,7 +3,7 @@
 <style>
   .aj-input {
     border-radius: 12px;
-    border: 1px solid #d7dbe0;
+    border: 1px solid var(--border);
     padding: 12px 14px;
     width: 100%;
     box-sizing: border-box;
@@ -12,8 +12,8 @@
     outline: none;
   }
   .aj-input:focus {
-    border-color: #00C853;
-    box-shadow: 0 0 0 4px rgba(0, 200, 83, 0.18);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(29, 155, 240, 0.18);
   }
   .aj-password-wrap { position: relative; }
   .aj-password-wrap .aj-input { padding-right: 42px; }
@@ -29,29 +29,6 @@
     line-height: 1;
     padding: 4px;
   }
-  .aj-type-cards {
-    display: flex;
-    gap: 12px;
-    margin: 6px 0 4px;
-  }
-  .aj-type-card {
-    flex: 1;
-    border: 2px solid #d7dbe0;
-    border-radius: 14px;
-    padding: 16px 10px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color .15s ease, background-color .15s ease, transform .1s ease;
-    user-select: none;
-  }
-  .aj-type-card:active { transform: scale(0.98); }
-  .aj-type-card .aj-type-icon { font-size: 28px; display: block; margin-bottom: 6px; }
-  .aj-type-card.selected {
-    border-color: #00C853;
-    background: rgba(0, 200, 83, 0.08);
-    box-shadow: 0 0 0 3px rgba(0, 200, 83, 0.15);
-  }
-  .aj-type-card.dimmed { opacity: 0.55; }
 </style>
 
 <div class="card auth-card">
@@ -60,40 +37,14 @@
 
   <form method="POST" id="registerForm">
     <input type="hidden" name="ref_code" value="{{ ref_code }}">
-    <input type="hidden" name="user_type" id="user_type_input" value="worker">
-
-    <label>{{ t.full_name }}</label>
-    <input class="aj-input" type="text" name="full_name" required>
 
     <label>{{ t.username }}</label>
     <input class="aj-input" type="text" name="username" required>
-
-    <label>{{ t.email }}</label>
-    <input class="aj-input" type="email" name="email">
-
-    <label>Telegram username</label>
-    <input class="aj-input" type="text" name="telegram_username" placeholder="@yourusername">
-    <small style="color:var(--gray)">Used to send you a one-tap verification code via our Telegram bot.</small>
 
     <label style="margin-top:10px;display:block;">{{ t.password }}</label>
     <div class="aj-password-wrap">
       <input class="aj-input" type="password" name="password" id="passwordField" required>
       <button type="button" class="aj-eye-toggle" onclick="aj_togglePassword()">👁️</button>
-    </div>
-
-    <label>{{ t.phone }}</label>
-    <input class="aj-input" type="tel" name="phone" placeholder="09xxxxxxxx">
-
-    <label>{{ t.user_type }}</label>
-    <div class="aj-type-cards">
-      <div class="aj-type-card selected" data-type="worker" onclick="aj_selectType('worker')">
-        <span class="aj-type-icon">🛠️</span>
-        <span>{{ t.worker }}</span>
-      </div>
-      <div class="aj-type-card dimmed" data-type="employer" onclick="aj_selectType('employer')">
-        <span class="aj-type-icon">💼</span>
-        <span>{{ t.employer }}</span>
-      </div>
     </div>
 
     <button type="submit" class="btn btn-full">{{ t.create_account }}</button>

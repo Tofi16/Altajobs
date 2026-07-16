@@ -8,7 +8,7 @@
   'vip': {'label': 'VIP', 'price': 800, 'cover_letter': true, 'priority_badge': true}
 } %}
 {% set cv_templates = cv_templates or {
-  'modern': {'label': 'Modern Layout', 'accent': '#00c853'},
+  'modern': {'label': 'Modern Layout', 'accent': '#1D9BF0'},
   'classic': {'label': 'Classic Layout', 'accent': '#1e88e5'},
   'creative': {'label': 'Creative Layout', 'accent': '#8e24aa'}
 } %}
@@ -16,168 +16,6 @@
 {% set selected_template = selected_template or 'modern' %}
 {% set payload = payload or none %}
 {% set gemini_enabled = gemini_enabled or false %}
-
-<style>
-  .cv-photo-input-row {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin: 6px 0 16px;
-  }
-  .cv-photo-preview {
-    width: 72px;
-    height: 72px;
-    border-radius: 14px;
-    object-fit: cover;
-    background: #eef1f4;
-    border: 1px solid rgba(0,0,0,0.08);
-    flex-shrink: 0;
-  }
-
-  /* ---------- Tiered pricing cards ---------- */
-  .tier-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 10px;
-    margin: 10px 0 18px;
-  }
-  .tier-card {
-    position: relative;
-    border: 2px solid rgba(0,0,0,0.08);
-    border-radius: 14px;
-    padding: 14px;
-    cursor: pointer;
-    transition: border-color .15s ease, transform .15s ease;
-  }
-  .tier-card:hover { transform: translateY(-2px); }
-  .tier-card input { position: absolute; opacity: 0; pointer-events: none; }
-  .tier-card.selected { border-color: #00c853; box-shadow: 0 0 0 3px rgba(0,200,83,0.12); }
-  .tier-name { font-weight: 800; font-size: 1rem; margin-bottom: 2px; }
-  .tier-price { font-size: 1.3rem; font-weight: 800; color: #0a7a3c; margin-bottom: 8px; }
-  .tier-features { list-style: none; padding: 0; margin: 0; font-size: 0.78rem; opacity: .8; display: flex; flex-direction: column; gap: 4px; }
-  .tier-features li:before { content: "✓ "; color: #00c853; font-weight: 700; }
-  .tier-card.vip { border-color: rgba(255,176,32,0.4); }
-  .tier-card.vip.selected { border-color: #FFB020; box-shadow: 0 0 0 3px rgba(255,176,32,0.15); }
-
-  /* ---------- Live CV Strength Meter ---------- */
-  .strength-wrap { margin: 4px 0 18px; }
-  .strength-label-row { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 6px; }
-  .strength-track { height: 10px; border-radius: 6px; background: rgba(0,0,0,0.08); overflow: hidden; }
-  .strength-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #ff5252, #FFB020, #00c853); transition: width .25s ease; border-radius: 6px; }
-
-  /* ---------- Template swipe carousel ---------- */
-  .template-carousel {
-    display: flex;
-    gap: 12px;
-    overflow-x: auto;
-    padding: 4px 2px 12px;
-    margin-bottom: 6px;
-    scroll-snap-type: x mandatory;
-  }
-  .template-option {
-    scroll-snap-align: start;
-    flex: 0 0 132px;
-    cursor: pointer;
-    border: 2px solid rgba(0,0,0,0.08);
-    border-radius: 14px;
-    padding: 8px;
-    text-align: center;
-  }
-  .template-option.selected { border-color: #00c853; box-shadow: 0 0 0 3px rgba(0,200,83,0.12); }
-  .template-option input { position: absolute; opacity: 0; pointer-events: none; }
-  .template-preview-swatch {
-    height: 80px;
-    border-radius: 8px;
-    margin-bottom: 6px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 8px;
-  }
-  .template-preview-swatch .bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.85); }
-  .template-preview-swatch .bar.short { width: 55%; }
-  .template-name { font-size: 0.8rem; font-weight: 700; }
-
-  /* ---------- AI Magic Refiner note ---------- */
-  .ai-refiner-note {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    margin: 10px 0 14px;
-    padding: 10px 14px;
-    border-radius: 12px;
-    background: rgba(46, 204, 113, 0.08);
-    color: #0a7a3c;
-    font-size: 0.82rem;
-    line-height: 1.4;
-  }
-  .ai-refiner-note.disabled { background: rgba(0,0,0,0.05); color: #777; }
-
-  /* ---------- Headshot Studio ---------- */
-  .headshot-studio {
-    border: 1px dashed rgba(0,0,0,0.15);
-    border-radius: 14px;
-    padding: 14px;
-    margin: 8px 0 18px;
-  }
-  .headshot-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-  .headshot-status { font-size: 0.78rem; opacity: .7; margin-top: 6px; }
-
-  /* --- Premium CV header with passport photo --- */
-  .cv-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-  }
-  .cv-header-left {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    min-width: 0;
-  }
-  .cv-photo {
-    width: 120px;
-    height: 120px;
-    border-radius: 16px;
-    object-fit: cover;
-    flex-shrink: 0;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-    border: 2px solid #fff;
-  }
-  .cv-photo-fallback {
-    width: 120px;
-    height: 120px;
-    border-radius: 16px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #00c853, #00e676);
-    color: #fff;
-    font-size: 2.2rem;
-    font-weight: 800;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-  }
-  .cv-priority-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: linear-gradient(135deg, #FFB020, #FFD666);
-    color: #4a3400;
-    font-weight: 800;
-    font-size: 0.72rem;
-    padding: 4px 10px;
-    border-radius: 999px;
-    margin-top: 4px;
-  }
-
-  @media print {
-    .card:not(.cv-preview-card) { display: none !important; }
-    .app-nav, .topbar, .left-sidebar, .right-sidebar { display: none !important; }
-    .cv-preview-card { box-shadow: none !important; border: none !important; }
-  }
-</style>
 
 <div class="card">
   <h2 style="margin:0 0 6px">🍌 Banana AI Premium CV Maker</h2>
@@ -194,6 +32,8 @@
   </div>
 
   <form method="POST" enctype="multipart/form-data" id="cvForm">
+
+    <script type="application/json" id="cvData">{{ {'cv_tiers': cv_tiers, 'cv_templates': cv_templates, 'selected_tier': selected_tier} | tojson | safe }}</script>
 
     <label>1. Choose your CV tier</label>
     <div class="tier-grid">
@@ -216,8 +56,8 @@
     <div class="template-carousel" id="templateCarousel">
       {% for key, tpl in cv_templates.items() %}
         <label class="template-option {{ 'selected' if selected_template == key }}" data-template-card="{{ key }}">
-          <input type="radio" name="template_key" value="{{ key }}" {{ 'checked' if selected_template == key }} onchange="onTemplateChange()">
-          <div class="template-preview-swatch" style="background:{{ tpl.accent }}">
+              <input type="radio" name="template_key" value="{{ key }}" {{ 'checked' if selected_template == key }} onchange="onTemplateChange()">
+              <div class="template-preview-swatch" style="background: {{ tpl['accent'] }};">
             <div class="bar"></div>
             <div class="bar short"></div>
             <div class="bar"></div>
@@ -230,9 +70,10 @@
     <label>3. AI Headshot Studio</label>
     <div class="headshot-studio">
       <div class="headshot-row">
-        <img class="cv-photo-preview" id="headshotPreview"
-             src="{% if payload and payload.get('photo') %}{% if photo_url is defined %}{{ photo_url(payload.get('photo')) }}{% else %}/static/uploads/{{ payload.get('photo') }}{% endif %}{% endif %}"
-             style="{{ '' if payload and payload.get('photo') else 'display:none' }}">
+           <img class="cv-photo-preview" id="headshotPreview"
+             src="{{ (photo_url(payload.get('photo')) if photo_url is defined else '/static/uploads/' ~ payload.get('photo')) if payload and payload.get('photo') else '' }}"
+             alt="Headshot preview"
+             style="display: {{ 'block' if payload and payload.get('photo') else 'none' }};">
         <div style="flex:1;min-width:200px">
           <input type="file" name="photo" id="headshotInput" accept="image/png,image/jpeg,image/jpg,image/webp" onchange="onHeadshotSelected(this)">
           <input type="hidden" name="existing_photo" id="existingPhotoField" value="{{ payload.get('photo', '') if payload else '' }}">
@@ -249,10 +90,10 @@
       <div class="strength-track"><div class="strength-fill" id="strengthFill"></div></div>
     </div>
 
-    <label>Full name</label>
+    <label for="f_full_name">Full name</label>
     <input type="text" name="full_name" id="f_full_name" placeholder="Your full name" value="{{ payload.get('full_name', '') if payload else '' }}" oninput="updateStrength()">
 
-    <label>Target role</label>
+    <label for="f_target_role">Target role</label>
     <input type="text" name="target_role" id="f_target_role" placeholder="Example: Software Engineer" value="{{ payload.get('target_role', '') if payload else '' }}" oninput="updateStrength()">
 
     <label>Professional summary (rough notes are fine — AI will polish it)</label>
@@ -262,25 +103,24 @@
     <input type="text" name="experience" id="f_experience" placeholder="Example: 4+ years of experience" value="{{ payload.get('experience', '') if payload else '' }}" oninput="updateStrength()">
 
     <label>Key achievements (one per line)</label>
-    <textarea name="achievements" id="f_achievements" rows="5" placeholder="Led team delivery&#10;Improved efficiency by 30%&#10;Managed high-impact clients" oninput="updateStrength()">{% if payload and payload.get('achievements') %}{% for item in payload.get('achievements', []) %}{{ item }}{% if not loop.last %}
-{% endif %}{% endfor %}{% endif %}</textarea>
+    <textarea name="achievements" id="f_achievements" rows="5" placeholder="Led team delivery&#10;Improved efficiency by 30%&#10;Managed high-impact clients" oninput="updateStrength()">{{ payload.get('achievements') | join('\n') if payload and payload.get('achievements') else '' }}</textarea>
 
     <label>Skills (comma separated)</label>
-    <input type="text" name="skills" id="f_skills" placeholder="Leadership, Communication, Project Management" value="{{ payload.get('skills', []) | join(', ') if payload else '' }}" oninput="updateStrength()">
+    <input type="text" name="skills" id="f_skills" placeholder="Leadership, Communication, Project Management" value="{{ payload.get('skills') | join(', ') if payload and payload.get('skills') else '' }}" oninput="updateStrength()">
 
-    <button type="submit" class="btn btn-full" id="generateBtn">Generate CV (<span id="priceLabel">{{ cv_tiers[selected_tier].price if selected_tier in cv_tiers else '0' }}</span> ETB)</button>
+    <button type="submit" class="btn btn-full" id="generateBtn">Generate CV (<span id="priceLabel">{{ cv_tiers[selected_tier]['price'] if selected_tier in cv_tiers else 0 }}</span> ETB)</button>
   </form>
 </div>
 
 {% if payload %}
 <div class="card cv-preview-card">
-  <div class="cv-preview" data-template="{{ payload.get('template_key', 'modern') }}" style="border-top:6px solid {{ cv_templates[payload.get('template_key', 'modern')].accent if payload.get('template_key') in cv_templates else '#00c853' }}">
+  <div class="cv-preview" data-template="{{ payload.get('template_key', 'modern') }}" style="border-top:6px solid {{ cv_templates[payload.get('template_key', 'modern')]['accent'] if payload.get('template_key') in cv_templates else 'var(--accent)' }}">
     <div class="cv-header">
       <div class="cv-header-left">
         {% if payload.get('photo') %}
           <img class="cv-photo" src="{% if photo_url is defined %}{{ photo_url(payload.get('photo')) }}{% else %}/static/uploads/{{ payload.get('photo') }}{% endif %}" alt="{{ payload.get('full_name') }}">
         {% else %}
-          <div class="cv-photo-fallback" style="background:linear-gradient(135deg, {{ cv_templates[payload.get('template_key', 'modern')].accent if payload.get('template_key') in cv_templates else '#00c853' }}, #00e676)">{{ (payload.get('full_name') or "?")[0] }}</div>
+          <div class="cv-photo-fallback" style="background:linear-gradient(135deg, {{ cv_templates[payload.get('template_key', 'modern')]['accent'] if payload.get('template_key') in cv_templates else 'var(--accent)' }}, var(--accent-dark))">{{ (payload.get('full_name') or '?')|first }}</div>
         {% endif %}
         <div style="min-width:0">
           <div class="cv-name">{{ payload.get('full_name', '') }}</div>
@@ -333,21 +173,22 @@
 {% endif %}
 
 <script>
-  // Safe parsing of cv_tiers to avoid crashes
-  var cvTiersRaw = {{ cv_tiers | tojson | safe }};
+  // Read server-provided JSON data from the DOM rather than embedding Jinja inside JS
+  var cvDataEl = document.getElementById('cvData');
+  var cvData = {};
+  try { cvData = JSON.parse(cvDataEl ? cvDataEl.textContent : '{}') || {}; } catch (e) { cvData = {}; }
+  var cvTiersRaw = cvData.cv_tiers || {};
   var CV_TIER_PRICES = {};
-  for (var key in cvTiersRaw) {
-    if (cvTiersRaw.hasOwnProperty(key)) {
-      CV_TIER_PRICES[key] = cvTiersRaw[key].price;
-    }
-  }
+  Object.keys(cvTiersRaw).forEach(function (key) { CV_TIER_PRICES[key] = cvTiersRaw[key] && cvTiersRaw[key].price ? cvTiersRaw[key].price : 0; });
 
   function onTierChange() {
     document.querySelectorAll('[data-tier-card]').forEach(function (el) {
       var input = el.querySelector('input');
-      el.classList.toggle('selected', input.checked);
+      if (!input) return;
+      el.classList.toggle('selected', !!input.checked);
       if (input.checked) {
-        document.getElementById('priceLabel').textContent = CV_TIER_PRICES[input.value] || '0';
+        var priceEl = document.getElementById('priceLabel');
+        if (priceEl) priceEl.textContent = CV_TIER_PRICES[input.value] !== undefined ? CV_TIER_PRICES[input.value] : '0';
       }
     });
   }
@@ -355,7 +196,8 @@
   function onTemplateChange() {
     document.querySelectorAll('[data-template-card]').forEach(function (el) {
       var input = el.querySelector('input');
-      el.classList.toggle('selected', input.checked);
+      if (!input) return;
+      el.classList.toggle('selected', !!input.checked);
     });
   }
 
@@ -378,10 +220,12 @@
     var filled = 0;
     fields.forEach(function (id) {
       var el = document.getElementById(id);
-      if (el && el.value.trim().length > 0) filled++;
+      if (el && typeof el.value === 'string' && el.value.trim().length > 0) filled++;
     });
-    var hasPhoto = (document.getElementById('headshotInput').files.length > 0) ||
-                   (document.getElementById('existingPhotoField').value.trim().length > 0);
+    var headshotInput = document.getElementById('headshotInput');
+    var existingPhotoField = document.getElementById('existingPhotoField');
+    var hasPhoto = (headshotInput && headshotInput.files && headshotInput.files.length > 0) ||
+                   (existingPhotoField && typeof existingPhotoField.value === 'string' && existingPhotoField.value.trim().length > 0);
     var total = fields.length + 1; // +1 for photo
     var score = filled + (hasPhoto ? 1 : 0);
     var pct = Math.round((score / total) * 100);
@@ -390,6 +234,14 @@
   }
 
   document.addEventListener('DOMContentLoaded', function () {
+    // Initialize UI using parsed server data
+    try {
+      // mark selected tier/template visually
+      var selTier = cvData.selected_tier || null;
+      if (selTier) {
+        var card = document.querySelector('[data-tier-card="' + selTier + '"]'); if (card) card.classList.add('selected');
+      }
+    } catch (e) {}
     onTierChange();
     onTemplateChange();
     updateStrength();

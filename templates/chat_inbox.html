@@ -23,7 +23,7 @@
     height: 20px;
     padding: 0 6px;
     border-radius: 999px;
-    background: #00c853;
+    background: var(--accent);
     color: #fff;
     font-size: 0.7rem;
     font-weight: 800;
@@ -58,10 +58,10 @@
   {% if not active %}
     <div class="inbox-empty-state">
       <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <circle cx="100" cy="100" r="90" fill="rgba(46,204,113,0.08)"/>
+        <circle cx="100" cy="100" r="90" fill="rgba(29,155,240,0.08)"/>
         <rect x="45" y="65" width="110" height="80" rx="14" fill="none" stroke="#8a8f98" stroke-width="4"/>
         <path d="M45 75 L100 115 L155 75" fill="none" stroke="#8a8f98" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="140" cy="60" r="18" fill="#00c853"/>
+        <circle cx="140" cy="60" r="18" fill="var(--accent)"/>
         <path d="M132 60 h16 M140 52 v16" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
       </svg>
       <div class="inbox-empty-title">{{ t.no_conversations }}</div>

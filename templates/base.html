@@ -24,8 +24,10 @@
       <a href="{{ url_for('coming_soon', feature='notifications') }}" class="topbar-icon-btn" aria-label="Notifications">
         <i class='bx bx-bell'></i>
       </a>
-      <a href="{{ url_for('tokens_page') }}" class="wallet-pill" style="color:var(--gold)">🪙 {{ current_user['alta_tokens'] }} Tokens</a>
-      <a href="{{ url_for('wallet') }}" class="wallet-pill">💰 {{ current_user['wallet_balance'] }} ETB</a>
+      <a id="tokensPill" href="{{ url_for('tokens_page') }}" class="wallet-pill" style="color:var(--accent)">🪙 {{ current_user['alta_tokens'] }} Tokens</a>
+      <a id="walletPill" href="{{ url_for('wallet') }}" class="wallet-pill">💰 {{ current_user['wallet_balance'] }} ETB</a>
+        <a id="tokensPill" href="{{ url_for('tokens_page') }}" class="wallet-pill" style="color:var(--accent)"><i class='bx bx-coin-stack'></i> <span class="pill-text">{{ current_user['alta_tokens'] }} Tokens</span></a>
+        <a id="walletPill" href="{{ url_for('wallet') }}" class="wallet-pill"><i class='bx bx-wallet'></i> <span class="pill-text">{{ current_user['wallet_balance'] }} ETB</span></a>
     </div>
   </div>
 </header>
@@ -36,7 +38,7 @@
 {% if current_user %}
 <aside class="left-sidebar">
   <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="sidebar-card" style="display:block;text-decoration:none">
-    <div class="avatar" style="width:48px;height:48px;margin-bottom:8px">
+    <div class="avatar gradient" style="width:48px;height:48px;margin-bottom:8px">
       {% if current_user['avatar'] %}<img src="{{ photo_url(current_user['avatar']) }}">{% else %}{{ (current_user['full_name'] or current_user['username'])[0] }}{% endif %}
     </div>
     <div style="font-weight:800;color:var(--text)">{{ current_user['full_name'] or current_user['username'] }}</div>
@@ -72,7 +74,7 @@
 
   {% if request.path.startswith('/profile/') %}
   <div class="card lang-switch-card">
-    <h4 style="margin:0 0 8px">🌐 Language</h4>
+    <h4 style="margin:0 0 8px"><i class='bx bx-world'></i> Language</h4>
     <div class="lang-switch-row">
       <a href="{{ url_for('set_language_route', lang='en') }}" class="lang-switch-pill {{ 'active' if current_lang=='en' }}">English</a>
       <a href="{{ url_for('set_language_route', lang='am') }}" class="lang-switch-pill {{ 'active' if current_lang=='am' }}">አማርኛ</a>
@@ -108,9 +110,9 @@
   </div>
 
   {% if not is_verified_now(current_user) and not is_vip_now(current_user) %}
-  <a href="{{ url_for('wallet') }}" class="sidebar-card" style="display:block;text-decoration:none;background:var(--gold-gradient);color:#362a04">
-    <div style="font-weight:800">✨ {{ t.upgrade_to_premium }}</div>
-    <div style="font-size:0.8rem;margin-top:4px">🎁 {{ t.days_left }}: {{ trial_days_left }}</div>
+  <a href="{{ url_for('wallet') }}" class="sidebar-card" style="display:block;text-decoration:none;background:linear-gradient(135deg, var(--accent), var(--accent-dark));color:#ffffff">
+    <div style="font-weight:800"><i class='bx bx-star'></i> {{ t.upgrade_to_premium }}</div>
+    <div style="font-size:0.8rem;margin-top:4px"><i class='bx bx-gift'></i> {{ t.days_left }}: {{ trial_days_left }}</div>
   </a>
   {% endif %}
 </aside>
@@ -119,103 +121,7 @@
 </div>
 
 {% if current_user %}
-<style>
-  /* --- Modernized bottom nav (5 tabs: Home / Inbox / CV / Wallet / Profile) --- */
-  .app-nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-    gap: 4px;
-    padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
-  }
-  .app-nav .nav-tab {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    flex: 1;
-    padding: 8px 4px 6px;
-    border-radius: 16px;
-    text-decoration: none;
-    color: #8a8f98;
-    font-size: 0.68rem;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    transition: color 0.2s ease, background 0.2s ease, transform 0.15s ease;
-  }
-  .app-nav .nav-tab i {
-    font-size: 1.55rem;
-    line-height: 1;
-    transition: transform 0.2s ease;
-  }
-  .app-nav .nav-tab:active {
-    transform: scale(0.92);
-  }
-  .app-nav .nav-tab.active {
-    color: #00c853;
-    background: rgba(0, 200, 83, 0.10);
-  }
-  .app-nav .nav-tab.active i {
-    filter: drop-shadow(0 0 6px rgba(0, 200, 83, 0.55));
-  }
-  .app-nav .nav-tab.active::before {
-    content: "";
-    position: absolute;
-    top: -10px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 26px;
-    height: 3px;
-    border-radius: 999px;
-    background: #00c853;
-    box-shadow: 0 0 8px 1px rgba(0, 200, 83, 0.7);
-  }
-  .app-nav .nav-badge {
-    position: absolute;
-    top: 2px;
-    right: calc(50% - 20px);
-    min-width: 16px;
-    height: 16px;
-    padding: 0 4px;
-    border-radius: 999px;
-    background: #ff3b30;
-    color: #fff;
-    font-size: 0.6rem;
-    font-weight: 800;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-  }
-  .app-nav .nav-profile-avatar {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #eef1f4;
-    font-size: 0.7rem;
-    font-weight: 800;
-    color: #555;
-  }
-  .app-nav .nav-tab.active .nav-profile-avatar {
-    box-shadow: 0 0 0 2px #00c853;
-  }
-  .app-nav .nav-profile-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-</style>
+<!-- Bottom nav styles are centralized in static/css/style.css -->
 <nav class="app-nav">
   <a href="{{ url_for('feed') }}" class="nav-tab {{ 'active' if request.path == '/' or request.path.startswith('/post/') or request.path.startswith('/saved') }}">
     <i class='bx {{ "bxs-home" if request.path == "/" else "bx-home" }}'></i>
@@ -247,6 +153,19 @@
     <span>{{ t.tab_profile }}</span>
   </a>
 </nav>
+<script>
+  // Fetch fresh balance and tokens on page load to avoid stale session values
+  document.addEventListener('DOMContentLoaded', function () {
+    try {
+      fetch('{{ url_for("api_wallet_balance") }}').then(function (r) { return r.json(); }).then(function (data) {
+        var w = document.getElementById('walletPill');
+        var t = document.getElementById('tokensPill');
+        if (w && typeof data.wallet_balance !== 'undefined') w.textContent = '💰 ' + data.wallet_balance + ' ETB';
+        if (t && typeof data.alta_tokens !== 'undefined') t.textContent = '🪙 ' + data.alta_tokens + ' Tokens';
+      }).catch(function () {});
+    } catch (e) {}
+  });
+</script>
 {% endif %}
 
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
