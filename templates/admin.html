@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+{% include "admin_nav.html" %}
 <h2>{{ t.admin_panel }}</h2>
 
 <a href="{{ url_for('admin_challenges') }}" class="btn btn-gold btn-small">🏆 {{ t.monthly_challenge_title }}</a>

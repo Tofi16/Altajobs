@@ -469,6 +469,8 @@ def migrate_db():
         "alta_tokens": "INTEGER DEFAULT 0",
         "last_checkin": "TEXT DEFAULT NULL",
         "current_streak": "INTEGER DEFAULT 0",
+        "banned_until": "TEXT DEFAULT NULL",
+        "ban_reason": "TEXT DEFAULT NULL",
     }
     for col, coltype in new_columns.items():
         if col not in existing_cols:
@@ -505,6 +507,19 @@ def migrate_db():
             key TEXT UNIQUE NOT NULL,
             value TEXT NOT NULL,
             updated_at TEXT NOT NULL
+        )
+    """)
+    db.commit()
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            ntype TEXT DEFAULT 'info',   -- 'info' / 'warning' / 'deposit' / 'withdrawal' / 'ban'
+            message TEXT NOT NULL,
+            is_read INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         )
     """)
     db.commit()
@@ -599,8 +614,10 @@ def check_banned():
     uid = session.get("user_id")
     if uid:
         db = get_db()
-        row = db.execute("SELECT is_banned FROM users WHERE id = ?", (uid,)).fetchone()
-        if row and row["is_banned"]:
+        row = db.execute(
+            "SELECT is_banned, banned_until FROM users WHERE id = ?", (uid,)
+        ).fetchone()
+        if row and is_currently_banned(row):
             session.pop("user_id", None)
             flash("account_banned")
 
@@ -669,7 +686,7 @@ def login_required(f):
 
         db = get_db()
         user = db.execute(
-            "SELECT is_banned, email_verified, email_verification_code FROM users WHERE id = ?",
+            "SELECT is_banned, banned_until, email_verified, email_verification_code FROM users WHERE id = ?",
             (uid,),
         ).fetchone()
         if not user:
@@ -677,7 +694,7 @@ def login_required(f):
             session.pop("user_id", None)
             return redirect(url_for("login"))
 
-        if user["is_banned"]:
+        if is_currently_banned(user):
             session.pop("user_id", None)
             flash("account_banned")
             return redirect(url_for("login"))
@@ -780,6 +797,26 @@ def daily_limit_required(kind="standard"):
             return f(*args, **kwargs)
         return wrapper
     return decorator
+
+
+def is_currently_banned(user):
+    """True if the user is permanently banned, or has an active temporary ban."""
+    if not user:
+        return False
+    if user["is_banned"]:
+        return True
+    banned_until = user["banned_until"] if "banned_until" in user.keys() else None
+    if banned_until and datetime.datetime.utcnow() <= datetime.datetime.fromisoformat(banned_until):
+        return True
+    return False
+
+
+def add_notification(db, user_id, message, ntype="info"):
+    """Insert a notification that shows up in the user's notification feed."""
+    db.execute(
+        "INSERT INTO notifications (user_id, ntype, message, created_at) VALUES (?, ?, ?, ?)",
+        (user_id, ntype, message, datetime.datetime.utcnow().isoformat()),
+    )
 
 
 def is_currently_verified(user):
@@ -1449,7 +1486,7 @@ def login():
             "SELECT * FROM users WHERE lower(username) = ?", (_normalize_username(username),)
         ).fetchone()
         if user and check_password_hash(user["password_hash"], password):
-            if user["is_banned"]:
+            if is_currently_banned(user):
                 flash("account_banned")
                 return redirect(url_for("login"))
             session["user_id"] = user["id"]
@@ -2796,6 +2833,10 @@ def buy_vip():
                WHERE id = ?""",
             (new_balance, vip_until.isoformat(), user["id"]),
         )
+        db.execute(
+            "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'vip', ?, ?, 'approved', ?)",
+            (user["id"], VIP_MONTHLY_PRICE, "VIP membership purchase", datetime.datetime.utcnow().isoformat()),
+        )
         db.commit()
     else:
         flash("insufficient_balance")
@@ -3514,6 +3555,11 @@ def approve_deposit(tx_id):
                 "UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
                 (tx["amount"], tx["user_id"]),
             )
+            add_notification(
+                db, tx["user_id"],
+                f"Your deposit of {tx['amount']} ETB was approved and credited to your wallet.",
+                ntype="deposit",
+            )
         db.commit()
     except Exception:
         db.rollback()
@@ -3526,11 +3572,17 @@ def approve_deposit(tx_id):
 @admin_required
 def reject_deposit(tx_id):
     db = get_db()
+    reason = (request.form.get("reason") or "").strip()
     db.execute("BEGIN IMMEDIATE")
     try:
         # Nothing was ever deducted for a deposit request, so rejecting it
         # is just a status change - no balance change needed.
-        _claim_pending_transaction(db, tx_id, "deposit", "rejected")
+        tx = _claim_pending_transaction(db, tx_id, "deposit", "rejected")
+        if tx:
+            msg = f"Your deposit of {tx['amount']} ETB was rejected."
+            if reason:
+                msg += f" Reason: {reason}"
+            add_notification(db, tx["user_id"], msg, ntype="deposit")
         db.commit()
     except Exception:
         db.rollback()
@@ -3560,6 +3612,7 @@ def approve_withdrawal(tx_id):
 @admin_required
 def reject_withdrawal(tx_id):
     db = get_db()
+    reason = (request.form.get("reason") or "").strip()
     db.execute("BEGIN IMMEDIATE")
     try:
         tx = _claim_pending_transaction(db, tx_id, "withdrawal", "rejected")
@@ -3569,6 +3622,10 @@ def reject_withdrawal(tx_id):
                 "UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
                 (tx["amount"], tx["user_id"]),
             )
+            msg = f"Your withdrawal request of {tx['amount']} ETB was rejected and the funds were returned to your wallet."
+            if reason:
+                msg += f" Reason: {reason}"
+            add_notification(db, tx["user_id"], msg, ntype="withdrawal")
         db.commit()
     except Exception:
         db.rollback()
@@ -3671,12 +3728,16 @@ def resolve_report(report_id):
 @login_required
 @admin_required
 def ban_user(user_id):
+    """Permanent Ban - instantly and permanently blocks the account."""
     db = get_db()
     target = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     if target and not target["is_admin"]:
-        db.execute("UPDATE users SET is_banned = 1 WHERE id = ?", (user_id,))
+        db.execute(
+            "UPDATE users SET is_banned = 1, banned_until = NULL, ban_reason = ? WHERE id = ?",
+            (request.form.get("reason") or "Permanently banned by admin.", user_id),
+        )
         db.commit()
-    return redirect(request.referrer or url_for("admin_panel"))
+    return redirect(request.referrer or url_for("admin_users"))
 
 
 @app.route("/admin/user/<int:user_id>/unban", methods=["POST"])
@@ -3684,9 +3745,289 @@ def ban_user(user_id):
 @admin_required
 def unban_user(user_id):
     db = get_db()
-    db.execute("UPDATE users SET is_banned = 0 WHERE id = ?", (user_id,))
+    db.execute(
+        "UPDATE users SET is_banned = 0, banned_until = NULL, ban_reason = NULL WHERE id = ?",
+        (user_id,),
+    )
     db.commit()
-    return redirect(request.referrer or url_for("admin_panel"))
+    return redirect(request.referrer or url_for("admin_users"))
+
+
+@app.route("/admin/user/<int:user_id>/tempban", methods=["POST"])
+@login_required
+@admin_required
+def temp_ban_user(user_id):
+    """Temporary Ban - suspends the account for a custom number of days."""
+    db = get_db()
+    target = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    try:
+        days = max(1, int(request.form.get("days", 3)))
+    except (TypeError, ValueError):
+        days = 3
+    if target and not target["is_admin"]:
+        until = datetime.datetime.utcnow() + datetime.timedelta(days=days)
+        reason = request.form.get("reason") or f"Temporarily suspended for {days} day(s)."
+        db.execute(
+            "UPDATE users SET banned_until = ?, ban_reason = ? WHERE id = ?",
+            (until.isoformat(), reason, user_id),
+        )
+        add_notification(
+            db, user_id,
+            f"Your account has been suspended for {days} day(s). Reason: {reason}",
+            ntype="ban",
+        )
+        db.commit()
+    return redirect(request.referrer or url_for("admin_users"))
+
+
+@app.route("/admin/user/<int:user_id>/warn", methods=["POST"])
+@login_required
+@admin_required
+def warn_user(user_id):
+    """Issue Warning - sends a direct pop-up warning to the user's notifications."""
+    db = get_db()
+    target = db.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
+    message = (request.form.get("message") or "").strip()
+    if target and message:
+        add_notification(db, user_id, message, ntype="warning")
+        db.commit()
+    return redirect(request.referrer or url_for("admin_users"))
+
+
+@app.route("/admin/user/<int:user_id>/generate-password", methods=["POST"])
+@login_required
+@admin_required
+def generate_temp_password(user_id):
+    """Account Recovery - generates a secure temporary password and displays
+    it once on screen so the admin can share it with the user."""
+    db = get_db()
+    target = db.execute("SELECT id, username FROM users WHERE id = ?", (user_id,)).fetchone()
+    if target:
+        temp_password = secrets.token_urlsafe(9)
+        db.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (generate_password_hash(temp_password), user_id),
+        )
+        add_notification(
+            db, user_id,
+            "An admin generated a new temporary password for your account. "
+            "Please log in and change it as soon as possible.",
+            ntype="info",
+        )
+        db.commit()
+        session["_generated_password_for"] = target["username"]
+        session["_generated_password_value"] = temp_password
+    return redirect(request.referrer or url_for("admin_users"))
+
+
+# ---------------------------------------------------------------------------
+# Admin - User Directory Hub
+# ---------------------------------------------------------------------------
+@app.route("/admin/users")
+@login_required
+@admin_required
+def admin_users():
+    db = get_db()
+    q = request.args.get("q", "").strip()
+    page = max(1, request.args.get("page", 1, type=int))
+    per_page = 20
+    offset = (page - 1) * per_page
+
+    where = ""
+    params = []
+    if q:
+        where = "WHERE username LIKE ? OR phone LIKE ? OR full_name LIKE ?"
+        like = f"%{q}%"
+        params = [like, like, like]
+
+    total = db.execute(f"SELECT COUNT(*) c FROM users {where}", params).fetchone()["c"]
+    users = db.execute(
+        f"""SELECT id, username, full_name, phone, wallet_balance, created_at,
+                   is_banned, banned_until, ban_reason, is_verified, is_admin
+            FROM users {where}
+            ORDER BY created_at DESC LIMIT ? OFFSET ?""",
+        params + [per_page, offset],
+    ).fetchall()
+
+    generated_password = None
+    generated_for = session.pop("_generated_password_for", None)
+    if generated_for:
+        generated_password = session.pop("_generated_password_value", None)
+
+    return render_template(
+        "admin_users.html",
+        users=users, q=q, page=page, per_page=per_page, total=total,
+        is_currently_banned=is_currently_banned,
+        generated_for=generated_for, generated_password=generated_password,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Admin - Verification & Badge System
+# ---------------------------------------------------------------------------
+@app.route("/admin/verify")
+@login_required
+@admin_required
+def admin_verify():
+    db = get_db()
+    q = request.args.get("q", "").strip()
+    results = []
+    if q:
+        results = db.execute(
+            """SELECT id, username, full_name, is_verified, verified_until
+               FROM users WHERE username LIKE ? OR full_name LIKE ?
+               ORDER BY username LIMIT 25""",
+            (f"%{q}%", f"%{q}%"),
+        ).fetchall()
+    verified_users = db.execute(
+        """SELECT id, username, full_name, verified_until FROM users
+           WHERE is_verified = 1 ORDER BY verified_until DESC LIMIT 50"""
+    ).fetchall()
+    return render_template(
+        "admin_verify.html", q=q, results=results, verified_users=verified_users,
+        is_currently_verified=is_currently_verified,
+    )
+
+
+@app.route("/admin/user/<int:user_id>/grant-verified", methods=["POST"])
+@login_required
+@admin_required
+def grant_verified(user_id):
+    db = get_db()
+    target = db.execute("SELECT id FROM users WHERE id = ?", (user_id,)).fetchone()
+    try:
+        days = max(1, int(request.form.get("days", 30)))
+    except (TypeError, ValueError):
+        days = 30
+    if target:
+        until = datetime.datetime.utcnow() + datetime.timedelta(days=days)
+        db.execute(
+            "UPDATE users SET is_verified = 1, verified_until = ? WHERE id = ?",
+            (until.isoformat(), user_id),
+        )
+        add_notification(
+            db, user_id,
+            f"Congratulations! An admin has granted your account a Verified badge for {days} day(s).",
+            ntype="info",
+        )
+        db.commit()
+    return redirect(request.referrer or url_for("admin_verify"))
+
+
+@app.route("/admin/user/<int:user_id>/revoke-verified", methods=["POST"])
+@login_required
+@admin_required
+def revoke_verified(user_id):
+    db = get_db()
+    db.execute(
+        "UPDATE users SET is_verified = 0, verified_until = NULL WHERE id = ?",
+        (user_id,),
+    )
+    db.commit()
+    return redirect(request.referrer or url_for("admin_verify"))
+
+
+# ---------------------------------------------------------------------------
+# Admin - Content Moderation Center
+# ---------------------------------------------------------------------------
+@app.route("/admin/moderation")
+@login_required
+@admin_required
+def admin_moderation():
+    db = get_db()
+    reported = db.execute(
+        """SELECT reports.id as report_id, reports.reason, reports.target_type,
+                  reports.target_id, reports.created_at as reported_at,
+                  reporter.username as reporter,
+                  posts.id as post_id, posts.content as post_content,
+                  posts.photo as post_photo,
+                  author.username as post_author, author.id as author_id
+           FROM reports
+           JOIN users reporter ON reports.reporter_id = reporter.id
+           LEFT JOIN posts ON reports.target_type = 'post' AND reports.target_id = posts.id
+           LEFT JOIN users author ON posts.user_id = author.id
+           WHERE reports.status = 'pending'
+           ORDER BY reports.created_at DESC"""
+    ).fetchall()
+    return render_template("admin_moderation.html", reported=reported)
+
+
+@app.route("/admin/report/<int:report_id>/dismiss", methods=["POST"])
+@login_required
+@admin_required
+def dismiss_report(report_id):
+    db = get_db()
+    db.execute("UPDATE reports SET status = 'resolved' WHERE id = ?", (report_id,))
+    db.commit()
+    return redirect(request.referrer or url_for("admin_moderation"))
+
+
+@app.route("/admin/report/<int:report_id>/delete-post", methods=["POST"])
+@login_required
+@admin_required
+def delete_reported_post(report_id):
+    db = get_db()
+    report = db.execute("SELECT * FROM reports WHERE id = ?", (report_id,)).fetchone()
+    if report and report["target_type"] == "post":
+        db.execute("DELETE FROM posts WHERE id = ?", (report["target_id"],))
+    db.execute("UPDATE reports SET status = 'resolved' WHERE id = ?", (report_id,))
+    db.commit()
+    return redirect(request.referrer or url_for("admin_moderation"))
+
+
+# ---------------------------------------------------------------------------
+# Admin - Platform Revenue Analytics
+# ---------------------------------------------------------------------------
+@app.route("/admin/revenue")
+@login_required
+@admin_required
+def admin_revenue():
+    db = get_db()
+    subscription_revenue = db.execute(
+        "SELECT COALESCE(SUM(amount), 0) total FROM payments WHERE status = 'approved'"
+    ).fetchone()["total"]
+    cv_revenue = db.execute(
+        "SELECT COUNT(*) c FROM cv_documents"
+    ).fetchone()["c"] * CV_PREMIUM_PRICE
+    verification_revenue = db.execute(
+        "SELECT COALESCE(SUM(amount), 0) total FROM wallet_transactions WHERE tx_type = 'verification' AND status = 'approved'"
+    ).fetchone()["total"]
+    vip_revenue = db.execute(
+        "SELECT COALESCE(SUM(amount), 0) total FROM wallet_transactions WHERE tx_type = 'vip' AND status = 'approved'"
+    ).fetchone()["total"]
+    gift_earnings = db.execute(
+        "SELECT COALESCE(SUM(platform_cut), 0) total FROM gifts"
+    ).fetchone()["total"]
+    challenge_prize_pool_volume = db.execute(
+        "SELECT COALESCE(SUM(prize_pool), 0) total FROM challenge_pools"
+    ).fetchone()["total"]
+    deposit_volume = db.execute(
+        "SELECT COALESCE(SUM(amount), 0) total FROM wallet_transactions WHERE tx_type = 'deposit' AND status = 'approved'"
+    ).fetchone()["total"]
+    withdrawal_volume = db.execute(
+        "SELECT COALESCE(SUM(amount), 0) total FROM wallet_transactions WHERE tx_type = 'withdrawal' AND status = 'approved'"
+    ).fetchone()["total"]
+
+    premium_services_revenue = verification_revenue + vip_revenue
+    wallet_activity_revenue = gift_earnings
+    total_revenue = subscription_revenue + cv_revenue + premium_services_revenue + wallet_activity_revenue
+
+    return render_template(
+        "admin_revenue.html",
+        subscription_revenue=subscription_revenue,
+        cv_revenue=cv_revenue,
+        verification_revenue=verification_revenue,
+        vip_revenue=vip_revenue,
+        premium_services_revenue=premium_services_revenue,
+        gift_earnings=gift_earnings,
+        wallet_activity_revenue=wallet_activity_revenue,
+        deposit_volume=deposit_volume,
+        withdrawal_volume=withdrawal_volume,
+        challenge_prize_pool_volume=challenge_prize_pool_volume,
+        total_revenue=total_revenue,
+    )
+
+
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename)

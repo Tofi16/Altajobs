@@ -1,31 +1,100 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+  .aj-input {
+    border-radius: 12px;
+    border: 1px solid #d7dbe0;
+    padding: 12px 14px;
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 15px;
+    transition: border-color .18s ease, box-shadow .18s ease;
+    outline: none;
+  }
+  .aj-input:focus {
+    border-color: #00C853;
+    box-shadow: 0 0 0 4px rgba(0, 200, 83, 0.18);
+  }
+  .aj-password-wrap { position: relative; }
+  .aj-password-wrap .aj-input { padding-right: 42px; }
+  .aj-eye-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 4px;
+  }
+  .aj-type-cards {
+    display: flex;
+    gap: 12px;
+    margin: 6px 0 4px;
+  }
+  .aj-type-card {
+    flex: 1;
+    border: 2px solid #d7dbe0;
+    border-radius: 14px;
+    padding: 16px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s ease, background-color .15s ease, transform .1s ease;
+    user-select: none;
+  }
+  .aj-type-card:active { transform: scale(0.98); }
+  .aj-type-card .aj-type-icon { font-size: 28px; display: block; margin-bottom: 6px; }
+  .aj-type-card.selected {
+    border-color: #00C853;
+    background: rgba(0, 200, 83, 0.08);
+    box-shadow: 0 0 0 3px rgba(0, 200, 83, 0.15);
+  }
+  .aj-type-card.dimmed { opacity: 0.55; }
+</style>
+
 <div class="card auth-card">
   <h1>{{ t.app_name }}</h1>
   <p style="text-align:center;color:var(--gray)">{{ t.create_account }}</p>
 
-  <form method="POST">
+  <form method="POST" id="registerForm">
     <input type="hidden" name="ref_code" value="{{ ref_code }}">
+    <input type="hidden" name="user_type" id="user_type_input" value="worker">
+
     <label>{{ t.full_name }}</label>
-    <input type="text" name="full_name" required>
+    <input class="aj-input" type="text" name="full_name" required>
 
     <label>{{ t.username }}</label>
-    <input type="text" name="username" required>
+    <input class="aj-input" type="text" name="username" required>
 
     <label>{{ t.email }}</label>
-    <input type="email" name="email">
+    <input class="aj-input" type="email" name="email">
 
-    <label>{{ t.password }}</label>
-    <input type="password" name="password" required>
+    <label>Telegram username</label>
+    <input class="aj-input" type="text" name="telegram_username" placeholder="@yourusername">
+    <small style="color:var(--gray)">Used to send you a one-tap verification code via our Telegram bot.</small>
+
+    <label style="margin-top:10px;display:block;">{{ t.password }}</label>
+    <div class="aj-password-wrap">
+      <input class="aj-input" type="password" name="password" id="passwordField" required>
+      <button type="button" class="aj-eye-toggle" onclick="aj_togglePassword()">👁️</button>
+    </div>
 
     <label>{{ t.phone }}</label>
-    <input type="tel" name="phone" placeholder="09xxxxxxxx">
+    <input class="aj-input" type="tel" name="phone" placeholder="09xxxxxxxx">
 
     <label>{{ t.user_type }}</label>
-    <select name="user_type">
-      <option value="worker">{{ t.worker }}</option>
-      <option value="employer">{{ t.employer }}</option>
-    </select>
+    <div class="aj-type-cards">
+      <div class="aj-type-card selected" data-type="worker" onclick="aj_selectType('worker')">
+        <span class="aj-type-icon">🛠️</span>
+        <span>{{ t.worker }}</span>
+      </div>
+      <div class="aj-type-card dimmed" data-type="employer" onclick="aj_selectType('employer')">
+        <span class="aj-type-icon">💼</span>
+        <span>{{ t.employer }}</span>
+      </div>
+    </div>
 
     <button type="submit" class="btn btn-full">{{ t.create_account }}</button>
   </form>
@@ -38,4 +107,23 @@
     <a href="{{ url_for('set_language_route', lang='am') }}">አማርኛ</a>
   </p>
 </div>
+
+<script>
+  function aj_selectType(type) {
+    document.getElementById('user_type_input').value = type;
+    document.querySelectorAll('.aj-type-card').forEach(function (card) {
+      if (card.dataset.type === type) {
+        card.classList.add('selected');
+        card.classList.remove('dimmed');
+      } else {
+        card.classList.remove('selected');
+        card.classList.add('dimmed');
+      }
+    });
+  }
+  function aj_togglePassword() {
+    var field = document.getElementById('passwordField');
+    field.type = field.type === 'password' ? 'text' : 'password';
+  }
+</script>
 {% endblock %}

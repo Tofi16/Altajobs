@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+{% include "admin_nav.html" %}
 
 <a href="{{ url_for('admin_panel') }}" class="btn btn-outline btn-small">← {{ t.admin_panel }}</a>
 
@@ -52,7 +53,8 @@
           <form method="POST" action="{{ url_for('approve_deposit', tx_id=tx['id']) }}" style="display:inline">
             <button type="submit" class="btn btn-small">✅ Approve</button>
           </form>
-          <form method="POST" action="{{ url_for('reject_deposit', tx_id=tx['id']) }}" style="display:inline">
+          <form method="POST" action="{{ url_for('reject_deposit', tx_id=tx['id']) }}" style="display:inline-flex;gap:4px;align-items:center">
+            <input type="text" name="reason" placeholder="Rejection reason" style="margin:0;width:130px;font-size:0.8rem">
             <button type="submit" class="btn btn-small btn-outline">✕ Reject</button>
           </form>
         </td>
@@ -90,7 +92,8 @@
           <form method="POST" action="{{ url_for('approve_withdrawal', tx_id=tx['id']) }}" style="display:inline">
             <button type="submit" class="btn btn-small">✅ Approve</button>
           </form>
-          <form method="POST" action="{{ url_for('reject_withdrawal', tx_id=tx['id']) }}" style="display:inline">
+          <form method="POST" action="{{ url_for('reject_withdrawal', tx_id=tx['id']) }}" style="display:inline-flex;gap:4px;align-items:center">
+            <input type="text" name="reason" placeholder="Rejection reason" style="margin:0;width:130px;font-size:0.8rem">
             <button type="submit" class="btn btn-small btn-outline">✕ Reject</button>
           </form>
         </td>

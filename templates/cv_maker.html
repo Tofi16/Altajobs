@@ -17,18 +17,95 @@
     border: 1px solid rgba(0,0,0,0.08);
     flex-shrink: 0;
   }
-  .cv-price-note {
+
+  /* ---------- Tiered pricing cards ---------- */
+  .tier-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    margin: 10px 0 18px;
+  }
+  .tier-card {
+    position: relative;
+    border: 2px solid rgba(0,0,0,0.08);
+    border-radius: 14px;
+    padding: 14px;
+    cursor: pointer;
+    transition: border-color .15s ease, transform .15s ease;
+  }
+  .tier-card:hover { transform: translateY(-2px); }
+  .tier-card input { position: absolute; opacity: 0; pointer-events: none; }
+  .tier-card.selected { border-color: #00c853; box-shadow: 0 0 0 3px rgba(0,200,83,0.12); }
+  .tier-name { font-weight: 800; font-size: 1rem; margin-bottom: 2px; }
+  .tier-price { font-size: 1.3rem; font-weight: 800; color: #0a7a3c; margin-bottom: 8px; }
+  .tier-features { list-style: none; padding: 0; margin: 0; font-size: 0.78rem; opacity: .8; display: flex; flex-direction: column; gap: 4px; }
+  .tier-features li:before { content: "✓ "; color: #00c853; font-weight: 700; }
+  .tier-card.vip { border-color: rgba(255,176,32,0.4); }
+  .tier-card.vip.selected { border-color: #FFB020; box-shadow: 0 0 0 3px rgba(255,176,32,0.15); }
+
+  /* ---------- Live CV Strength Meter ---------- */
+  .strength-wrap { margin: 4px 0 18px; }
+  .strength-label-row { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 6px; }
+  .strength-track { height: 10px; border-radius: 6px; background: rgba(0,0,0,0.08); overflow: hidden; }
+  .strength-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #ff5252, #FFB020, #00c853); transition: width .25s ease; border-radius: 6px; }
+
+  /* ---------- Template swipe carousel ---------- */
+  .template-carousel {
     display: flex;
-    align-items: center;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 4px 2px 12px;
+    margin-bottom: 6px;
+    scroll-snap-type: x mandatory;
+  }
+  .template-option {
+    scroll-snap-align: start;
+    flex: 0 0 132px;
+    cursor: pointer;
+    border: 2px solid rgba(0,0,0,0.08);
+    border-radius: 14px;
+    padding: 8px;
+    text-align: center;
+  }
+  .template-option.selected { border-color: #00c853; box-shadow: 0 0 0 3px rgba(0,200,83,0.12); }
+  .template-option input { position: absolute; opacity: 0; pointer-events: none; }
+  .template-preview-swatch {
+    height: 80px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px;
+  }
+  .template-preview-swatch .bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.85); }
+  .template-preview-swatch .bar.short { width: 55%; }
+  .template-name { font-size: 0.8rem; font-weight: 700; }
+
+  /* ---------- AI Magic Refiner note ---------- */
+  .ai-refiner-note {
+    display: flex;
+    align-items: flex-start;
     gap: 8px;
     margin: 10px 0 14px;
     padding: 10px 14px;
     border-radius: 12px;
-    background: rgba(0, 200, 83, 0.08);
+    background: rgba(46, 204, 113, 0.08);
     color: #0a7a3c;
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.82rem;
+    line-height: 1.4;
   }
+  .ai-refiner-note.disabled { background: rgba(0,0,0,0.05); color: #777; }
+
+  /* ---------- Headshot Studio ---------- */
+  .headshot-studio {
+    border: 1px dashed rgba(0,0,0,0.15);
+    border-radius: 14px;
+    padding: 14px;
+    margin: 8px 0 18px;
+  }
+  .headshot-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .headshot-status { font-size: 0.78rem; opacity: .7; margin-top: 6px; }
 
   /* --- Premium CV header with passport photo --- */
   .cv-header {
@@ -66,6 +143,18 @@
     font-weight: 800;
     box-shadow: 0 4px 16px rgba(0,0,0,0.12);
   }
+  .cv-priority-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(135deg, #FFB020, #FFD666);
+    color: #4a3400;
+    font-weight: 800;
+    font-size: 0.72rem;
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-top: 4px;
+  }
 
   @media print {
     .card:not(.cv-preview-card) { display: none !important; }
@@ -76,62 +165,114 @@
 
 <div class="card">
   <h2 style="margin:0 0 6px">🍌 Banana AI Premium CV Maker</h2>
-  <p class="post-meta" style="margin:0 0 12px">Create a polished, premium-looking CV in minutes with a clear professional summary, a strong achievement-focused layout, and your portrait photo up top.</p>
+  <p class="post-meta" style="margin:0 0 12px">Create a polished, professional CV in minutes — pick a tier, a layout, and let the AI Magic Refiner ✨ do the writing.</p>
 
-  <div class="cv-price-note">
-    💳 Generating a premium CV costs <strong>{{ cv_price }} ETB</strong>, deducted from your wallet balance.
+  <div class="ai-refiner-note {{ '' if gemini_enabled else 'disabled' }}">
+    ✨ <span>
+      {% if gemini_enabled %}
+        <strong>AI Magic Refiner is active.</strong> Your rough notes below will be rewritten into polished, action-verb-heavy CV prose automatically when you generate.
+      {% else %}
+        <strong>AI Magic Refiner is not configured yet</strong> (missing GEMINI_API_KEY) — your CV will still generate using a built-in fallback writer.
+      {% endif %}
+    </span>
   </div>
 
-  <form method="POST" enctype="multipart/form-data">
-    <label>Passport / portrait photo</label>
-    <div class="cv-photo-input-row">
-      {% if payload and payload['photo'] %}
-        <img class="cv-photo-preview" src="{{ photo_url(payload['photo']) }}" alt="CV photo preview">
-      {% else %}
-        <div class="cv-photo-preview" style="display:flex;align-items:center;justify-content:center;color:#aaa;font-size:0.7rem;text-align:center">No photo yet</div>
-      {% endif %}
-      <input type="file" name="photo" accept="image/png,image/jpeg,image/jpg,image/webp" style="flex:1;min-width:0">
+  <form method="POST" enctype="multipart/form-data" id="cvForm">
+
+    <label>1. Choose your CV tier</label>
+    <div class="tier-grid">
+      {% for key, tinfo in cv_tiers.items() %}
+        <label class="tier-card {{ 'vip' if key == 'vip' }} {{ 'selected' if selected_tier == key }}" data-tier-card="{{ key }}">
+          <input type="radio" name="tier" value="{{ key }}" {{ 'checked' if selected_tier == key }} onchange="onTierChange()">
+          <div class="tier-name">{{ tinfo.label }}</div>
+          <div class="tier-price">{{ tinfo.price }} ETB</div>
+          <ul class="tier-features">
+            <li>AI CV generation</li>
+            <li>Photo adjustment</li>
+            {% if tinfo.cover_letter %}<li>AI-generated cover letter</li>{% endif %}
+            {% if tinfo.priority_badge %}<li>Priority job seeker badge</li>{% endif %}
+          </ul>
+        </label>
+      {% endfor %}
+    </div>
+
+    <label>2. Choose a layout template</label>
+    <div class="template-carousel" id="templateCarousel">
+      {% for key, tpl in cv_templates.items() %}
+        <label class="template-option {{ 'selected' if selected_template == key }}" data-template-card="{{ key }}">
+          <input type="radio" name="template_key" value="{{ key }}" {{ 'checked' if selected_template == key }} onchange="onTemplateChange()">
+          <div class="template-preview-swatch" style="background:{{ tpl.accent }}">
+            <div class="bar"></div>
+            <div class="bar short"></div>
+            <div class="bar"></div>
+          </div>
+          <div class="template-name">{{ tpl.label }}</div>
+        </label>
+      {% endfor %}
+    </div>
+
+    <label>3. AI Headshot Studio</label>
+    <div class="headshot-studio">
+      <div class="headshot-row">
+        <img class="cv-photo-preview" id="headshotPreview"
+             src="{% if payload and payload['photo'] %}{{ photo_url(payload['photo']) }}{% endif %}"
+             style="{{ '' if payload and payload['photo'] else 'display:none' }}">
+        <div style="flex:1;min-width:200px">
+          <input type="file" name="photo" id="headshotInput" accept="image/png,image/jpeg,image/jpg,image/webp" onchange="onHeadshotSelected(this)">
+          <input type="hidden" name="existing_photo" id="existingPhotoField" value="{{ payload['photo'] if payload else '' }}">
+          <div class="headshot-status" id="headshotStatus">Upload a portrait photo. Corporate background replacement is coming soon — for now it's used as-is.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="strength-wrap">
+      <div class="strength-label-row">
+        <span>CV Strength</span>
+        <span id="strengthPercentLabel">0%</span>
+      </div>
+      <div class="strength-track"><div class="strength-fill" id="strengthFill"></div></div>
     </div>
 
     <label>Full name</label>
-    <input type="text" name="full_name" placeholder="Your full name" value="{{ payload['full_name'] if payload else '' }}">
+    <input type="text" name="full_name" id="f_full_name" placeholder="Your full name" value="{{ payload['full_name'] if payload else '' }}" oninput="updateStrength()">
 
     <label>Target role</label>
-    <input type="text" name="target_role" placeholder="Example: Software Engineer" value="{{ payload['target_role'] if payload else '' }}">
+    <input type="text" name="target_role" id="f_target_role" placeholder="Example: Software Engineer" value="{{ payload['target_role'] if payload else '' }}" oninput="updateStrength()">
 
-    <label>Professional summary</label>
-    <textarea name="summary" rows="4" placeholder="Describe your expertise and value in a few sentences">{{ payload['summary'] if payload else '' }}</textarea>
+    <label>Professional summary (rough notes are fine — AI will polish it)</label>
+    <textarea name="summary" id="f_summary" rows="4" placeholder="Describe your expertise and value in a few sentences" oninput="updateStrength()">{{ payload['summary'] if payload else '' }}</textarea>
 
     <label>Experience</label>
-    <input type="text" name="experience" placeholder="Example: 4+ years of experience" value="{{ payload['experience'] if payload else '' }}">
+    <input type="text" name="experience" id="f_experience" placeholder="Example: 4+ years of experience" value="{{ payload['experience'] if payload else '' }}" oninput="updateStrength()">
 
     <label>Key achievements (one per line)</label>
-    <textarea name="achievements" rows="5" placeholder="Led team delivery&#10;Improved efficiency by 30%&#10;Managed high-impact clients">{% if payload %}{% for item in payload['achievements'] %}{{ item }}{% if not loop.last %}
+    <textarea name="achievements" id="f_achievements" rows="5" placeholder="Led team delivery&#10;Improved efficiency by 30%&#10;Managed high-impact clients" oninput="updateStrength()">{% if payload %}{% for item in payload['achievements'] %}{{ item }}{% if not loop.last %}
 {% endif %}{% endfor %}{% endif %}</textarea>
 
     <label>Skills (comma separated)</label>
-    <input type="text" name="skills" placeholder="Leadership, Communication, Project Management" value="{{ ', '.join(payload['skills']) if payload else '' }}">
+    <input type="text" name="skills" id="f_skills" placeholder="Leadership, Communication, Project Management" value="{{ ', '.join(payload['skills']) if payload else '' }}" oninput="updateStrength()">
 
-    <button type="submit" class="btn btn-full">Generate Premium CV ({{ cv_price }} ETB)</button>
+    <button type="submit" class="btn btn-full" id="generateBtn">Generate CV (<span id="priceLabel">{{ cv_tiers[selected_tier].price }}</span> ETB)</button>
   </form>
 </div>
 
 {% if payload %}
 <div class="card cv-preview-card">
-  <div class="cv-preview">
+  <div class="cv-preview" data-template="{{ payload.template_key }}" style="border-top:6px solid {{ cv_templates[payload.template_key].accent }}">
     <div class="cv-header">
       <div class="cv-header-left">
         {% if payload['photo'] %}
           <img class="cv-photo" src="{{ photo_url(payload['photo']) }}" alt="{{ payload['full_name'] }}">
         {% else %}
-          <div class="cv-photo-fallback">{{ (payload['full_name'] or "?")[0] }}</div>
+          <div class="cv-photo-fallback" style="background:linear-gradient(135deg, {{ cv_templates[payload.template_key].accent }}, #00e676)">{{ (payload['full_name'] or "?")[0] }}</div>
         {% endif %}
         <div style="min-width:0">
           <div class="cv-name">{{ payload['full_name'] }}</div>
           <div class="cv-role">{{ payload['target_role'] }}</div>
+          {% if payload['priority_badge'] %}<div class="cv-priority-badge">⭐ Priority Job Seeker</div>{% endif %}
         </div>
       </div>
-      <div class="cv-badge">Premium</div>
+      <div class="cv-badge">{{ payload['tier_label'] }}</div>
     </div>
 
     <div class="cv-section">
@@ -161,11 +302,75 @@
         {% endfor %}
       </div>
     </div>
+
+    {% if payload['cover_letter'] %}
+    <div class="cv-section">
+      <h3>Cover Letter</h3>
+      <p style="white-space:pre-line">{{ payload['cover_letter'] }}</p>
+    </div>
+    {% endif %}
   </div>
   <div style="text-align:center;margin-top:16px">
     <button onclick="window.print()" class="btn btn-outline btn-small">🖨️ Print / Save as PDF</button>
   </div>
 </div>
 {% endif %}
+
+<script>
+  var CV_TIER_PRICES = {{ (cv_tiers.items() | map('list') | list) | tojson }}.reduce(function(acc, pair){ acc[pair[0]] = pair[1].price; return acc; }, {});
+
+  function onTierChange() {
+    document.querySelectorAll('[data-tier-card]').forEach(function (el) {
+      var input = el.querySelector('input');
+      el.classList.toggle('selected', input.checked);
+      if (input.checked) {
+        document.getElementById('priceLabel').textContent = CV_TIER_PRICES[input.value];
+      }
+    });
+  }
+
+  function onTemplateChange() {
+    document.querySelectorAll('[data-template-card]').forEach(function (el) {
+      var input = el.querySelector('input');
+      el.classList.toggle('selected', input.checked);
+    });
+  }
+
+  function onHeadshotSelected(input) {
+    var status = document.getElementById('headshotStatus');
+    var preview = document.getElementById('headshotPreview');
+    if (!input.files || !input.files[0]) return;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      preview.src = e.target.result;
+      preview.style.display = 'block';
+    };
+    reader.readAsDataURL(input.files[0]);
+    status.textContent = 'Photo selected — it will be uploaded when you generate your CV.';
+    updateStrength();
+  }
+
+  function updateStrength() {
+    var fields = ['f_full_name', 'f_target_role', 'f_summary', 'f_experience', 'f_achievements', 'f_skills'];
+    var filled = 0;
+    fields.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el && el.value.trim().length > 0) filled++;
+    });
+    var hasPhoto = (document.getElementById('headshotInput').files.length > 0) ||
+                   (document.getElementById('existingPhotoField').value.trim().length > 0);
+    var total = fields.length + 1; // +1 for photo
+    var score = filled + (hasPhoto ? 1 : 0);
+    var pct = Math.round((score / total) * 100);
+    document.getElementById('strengthFill').style.width = pct + '%';
+    document.getElementById('strengthPercentLabel').textContent = pct + '%';
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    onTierChange();
+    onTemplateChange();
+    updateStrength();
+  });
+</script>
 
 {% endblock %}

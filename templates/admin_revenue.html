@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin_nav.html" %}
+
+<div class="card">
+  <h2 style="margin:0 0 6px">📈 Platform Revenue Analytics</h2>
+  <div class="price-tag">{{ total_revenue }} ETB</div>
+  <p class="post-meta" style="margin:4px 0 0">Total platform revenue across all sources</p>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+
+  <div class="card">
+    <h3 style="margin:0 0 4px">💳 Subscription Revenue</h3>
+    <div class="price-tag">{{ subscription_revenue }} ETB</div>
+    <p class="post-meta" style="margin:4px 0 0">Approved monthly/yearly plan payments</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 4px">📄 CV Generation Revenue</h3>
+    <div class="price-tag">{{ cv_revenue }} ETB</div>
+    <p class="post-meta" style="margin:4px 0 0">Premium CV documents generated</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 4px">👑 Premium Services Revenue</h3>
+    <div class="price-tag">{{ premium_services_revenue }} ETB</div>
+    <p class="post-meta" style="margin:4px 0 0">Blue Tick verification: {{ verification_revenue }} ETB &nbsp;•&nbsp; VIP: {{ vip_revenue }} ETB</p>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 4px">💬 Wallet Activity Revenue</h3>
+    <div class="price-tag">{{ wallet_activity_revenue }} ETB</div>
+    <p class="post-meta" style="margin:4px 0 0">Platform cut from animated gifts</p>
+  </div>
+
+</div>
+
+<div class="card">
+  <h3>Wallet Transaction Volume</h3>
+  <p class="post-meta" style="margin:0">Total approved deposits: <b>{{ deposit_volume }} ETB</b></p>
+  <p class="post-meta" style="margin:0">Total approved withdrawals: <b>{{ withdrawal_volume }} ETB</b></p>
+  <p class="post-meta" style="margin:0">Total Business Challenge prize pools: <b>{{ challenge_prize_pool_volume }} ETB</b></p>
+</div>
+
+{% endblock %}

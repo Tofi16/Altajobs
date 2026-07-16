@@ -2,7 +2,7 @@
 <html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ t.app_name }} - {{ t.tagline }}</title>
 {% if current_lang == 'ar' %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,11 +18,12 @@
   <div class="topbar-inner">
     <a href="{{ url_for('feed') }}" class="brand">AltaJobs<span class="brand-dot">.</span></a>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <div class="post-meta" style="padding:4px 8px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,0.85)">
-        <a href="{{ url_for('set_language_route', lang='en') }}" style="color:inherit;text-decoration:none;{{ 'font-weight:700' if current_lang=='en' else '' }}">English</a>
-        <span> · </span>
-        <a href="{{ url_for('set_language_route', lang='am') }}" style="color:inherit;text-decoration:none;{{ 'font-weight:700' if current_lang=='am' else '' }}">አማርኛ</a>
-      </div>
+      <a href="{{ url_for('coming_soon', feature='search') }}" class="topbar-icon-btn" aria-label="Search">
+        <i class='bx bx-search'></i>
+      </a>
+      <a href="{{ url_for('coming_soon', feature='notifications') }}" class="topbar-icon-btn" aria-label="Notifications">
+        <i class='bx bx-bell'></i>
+      </a>
       <a href="{{ url_for('tokens_page') }}" class="wallet-pill" style="color:var(--gold)">🪙 {{ current_user['alta_tokens'] }} Tokens</a>
       <a href="{{ url_for('wallet') }}" class="wallet-pill">💰 {{ current_user['wallet_balance'] }} ETB</a>
     </div>
@@ -68,6 +69,16 @@
       </div>
     {% endif %}
   {% endwith %}
+
+  {% if request.path.startswith('/profile/') %}
+  <div class="card lang-switch-card">
+    <h4 style="margin:0 0 8px">🌐 Language</h4>
+    <div class="lang-switch-row">
+      <a href="{{ url_for('set_language_route', lang='en') }}" class="lang-switch-pill {{ 'active' if current_lang=='en' }}">English</a>
+      <a href="{{ url_for('set_language_route', lang='am') }}" class="lang-switch-pill {{ 'active' if current_lang=='am' }}">አማርኛ</a>
+    </div>
+  </div>
+  {% endif %}
 
   {% block content %}{% endblock %}
 </main>

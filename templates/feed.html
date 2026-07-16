@@ -1,31 +1,73 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="card new-post-box" id="compose">
-  <form method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data">
-    <textarea name="content" placeholder="{{ t.post_placeholder }}"></textarea>
-    <div class="new-post-actions">
+<div class="card new-post-box compact" id="compose">
+  <form method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data" id="composeForm">
+    <div class="compose-row">
+      <div class="avatar compose-avatar">
+        {% if current_user['avatar'] %}
+          <img src="{{ photo_url(current_user['avatar']) }}">
+        {% else %}
+          {{ (current_user['full_name'] or current_user['username'])[0] }}
+        {% endif %}
+      </div>
+      <div class="compose-input-wrap">
+        <textarea name="content" id="composeTextarea" class="compose-textarea" rows="1"
+                  placeholder="Share a job or experience..."></textarea>
+        <label class="compose-media-icon" title="{{ t.add_photo }}">
+          <i class='bx bx-image-add'></i>
+          <input type="file" name="photo" accept="image/*" style="display:none" id="composePhotoInput">
+        </label>
+      </div>
+    </div>
+    <span class="compose-photo-name" id="composePhotoName"></span>
+    <div class="new-post-actions compose-actions-collapsed" id="composeActions">
       <select name="post_type" class="post-type-select">
         <option value="general">{{ t.feed }}</option>
         <option value="job">{{ t.post_job }}</option>
         <option value="skill">{{ t.job_seeker_post }}</option>
       </select>
-      <label class="file-label">
-        <i class='bx bx-image-add'></i> {{ t.add_photo }}
-        <input type="file" name="photo" accept="image/*" style="display:none">
-      </label>
       <button type="submit" class="btn">{{ t.post_button }}</button>
     </div>
   </form>
 </div>
 
+<div class="feed-filters" id="feedFilters">
+  <button type="button" class="filter-pill active" data-filter="all">All</button>
+  <button type="button" class="filter-pill" data-filter="job">Jobs Only 💼</button>
+  <button type="button" class="filter-pill" data-filter="general,skill">Experiences 💬</button>
+</div>
+
+<div class="card waitlist-banner" id="waitlistBanner" data-feature="ai_interview_practice">
+  <div class="waitlist-banner-glow"></div>
+  <div class="waitlist-banner-content">
+    <div class="waitlist-banner-icon">🤖</div>
+    <div class="waitlist-banner-text">
+      <div class="waitlist-banner-tag">Coming Soon</div>
+      <h3>AI Interview Practice</h3>
+      <p>Practice real interview questions with instant AI feedback before you apply.</p>
+    </div>
+    <button type="button" class="btn waitlist-notify-btn" id="waitlistNotifyBtn">
+      <i class='bx bx-bell-plus'></i> Notify Me
+    </button>
+  </div>
+</div>
+
 {% if not posts_data %}
-  <p style="text-align:center;color:var(--muted)">{{ t.no_posts }}</p>
+  <p style="text-align:center;color:var(--muted)" id="noPostsMsg">{{ t.no_posts }}</p>
 {% endif %}
+<p style="text-align:center;color:var(--muted);display:none" id="noFilterResultsMsg">No posts match this filter yet.</p>
 
 {% for item in posts_data %}
   {% set post = item.post %}
-  <div class="card post-card">
+  <div class="card post-card {{ 'post-card-job' if post['post_type'] == 'job' }}" data-post-type="{{ post['post_type'] }}">
+    <button type="button" class="post-menu-btn js-post-menu-btn"
+            data-post-id="{{ post['id'] }}"
+            data-can-delete="{{ '1' if (post['user_id'] == current_user['id'] or current_user['is_admin']) else '0' }}"
+            data-can-report="{{ '0' if post['user_id'] == current_user['id'] else '1' }}"
+            aria-label="More options">
+      <i class='bx bx-dots-vertical-rounded'></i>
+    </button>
     <div class="post-header">
       <a href="{{ url_for('profile', user_id=post['user_id']) }}" class="avatar">
         {% if post['avatar'] %}
@@ -62,7 +104,14 @@
       </div>
     </div>
 
-    {% if post['content'] %}
+    {% if post['post_type'] == 'job' and post['content'] %}
+      {% set job_lines = post['content'].split('\n') %}
+      <div class="job-eyebrow"><i class='bx bxs-briefcase'></i> Job Opportunity</div>
+      <h3 class="job-title">{{ job_lines[0] }}</h3>
+      {% if job_lines|length > 1 %}
+        <p class="post-content job-description">{{ job_lines[1:] | join('\n') | trim }}</p>
+      {% endif %}
+    {% elif post['content'] %}
       <p class="post-content">{{ post['content'] }}</p>
     {% endif %}
     {% if post['photo'] %}
@@ -127,16 +176,30 @@
       </div>
     {% endif %}
 
-    {% if post['user_id'] == current_user['id'] or current_user['is_admin'] %}
-      <form method="POST" action="{{ url_for('delete_post', post_id=post['id']) }}" style="margin-top:6px">
-        <button type="submit" class="action-btn btn-danger" style="color:white;flex-direction:row;width:auto;padding:6px 14px"><i class='bx bx-trash'></i> {{ t.delete }}</button>
-      </form>
-    {% endif %}
   </div>
 {% endfor %}
 
+<div class="bottom-sheet-overlay" id="bottomSheetOverlay"></div>
+<div class="bottom-sheet" id="postActionsSheet" role="dialog" aria-label="Post options">
+  <div class="bottom-sheet-handle"></div>
+  <form method="POST" id="sheetDeleteForm" action="">
+    <button type="submit" class="sheet-action sheet-action-danger">
+      <i class='bx bx-trash'></i> {{ t.delete }}
+    </button>
+  </form>
+  <form method="POST" id="sheetReportForm" action="{{ url_for('submit_report') }}">
+    <input type="hidden" name="target_type" value="post">
+    <input type="hidden" name="target_id" id="sheetReportTargetId" value="">
+    <input type="hidden" name="reason" value="inappropriate">
+    <button type="submit" class="sheet-action">
+      <i class='bx bx-flag'></i> Report
+    </button>
+  </form>
+  <button type="button" class="sheet-action sheet-cancel" id="sheetCancelBtn">Cancel</button>
+</div>
+
 <a href="#compose" class="fab" title="{{ t.post_a_job }}"
-   onclick="document.querySelector('select[name=post_type]').value='job';document.querySelector('.new-post-box textarea').focus();">
+   onclick="document.querySelector('select[name=post_type]').value='job';var ta=document.getElementById('composeTextarea');ta.focus();ta.dispatchEvent(new Event('focus'));">
   <i class='bx bxs-briefcase'></i>
 </a>
 

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card auth-card">
+  <h1>Verify with Telegram</h1>
+  <p style="text-align:center;color:var(--gray)">
+    You can keep browsing the Feed freely. To apply for jobs, post a job, or
+    use the Wallet, verify your account instantly via our Telegram bot.
+  </p>
+
+  <a href="{{ bot_link }}" target="_blank" rel="noopener"
+     class="btn btn-full" style="text-align:center;text-decoration:none;">
+    📲 Open Telegram Bot &amp; Get Code
+  </a>
+
+  <p style="text-align:center;color:var(--gray);margin-top:16px;">
+    Sent <b>/start</b> already? Enter the 6-digit code the bot sent you:
+  </p>
+
+  <form method="POST" action="{{ url_for('verify_telegram_confirm') }}">
+    <label>Verification code</label>
+    <input type="text" name="code" inputmode="numeric" maxlength="6"
+           pattern="[0-9]{6}" placeholder="123456" required autofocus>
+    <button type="submit" class="btn btn-full">Verify</button>
+  </form>
+
+  <p class="switch-link">
+    <a href="{{ url_for('feed') }}">Skip for now — back to Feed</a>
+  </p>
+</div>
+{% endblock %}

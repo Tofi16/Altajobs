@@ -81,6 +81,146 @@ document.addEventListener("click", async function (e) {
   }
 });
 
+// ---------- Compact compose box: expand on focus/typing ----------
+document.addEventListener("DOMContentLoaded", function () {
+  const textarea = document.getElementById("composeTextarea");
+  const actions = document.getElementById("composeActions");
+  const photoInput = document.getElementById("composePhotoInput");
+  const photoName = document.getElementById("composePhotoName");
+  if (!textarea || !actions) return;
+
+  const expand = function () {
+    actions.classList.remove("compose-actions-collapsed");
+    autoGrow();
+  };
+  const autoGrow = function () {
+    textarea.style.height = "auto";
+    textarea.style.height = Math.min(textarea.scrollHeight, 220) + "px";
+  };
+
+  textarea.addEventListener("focus", expand);
+  textarea.addEventListener("input", function () {
+    expand();
+    autoGrow();
+  });
+
+  if (photoInput && photoName) {
+    photoInput.addEventListener("change", function () {
+      expand();
+      photoName.textContent = photoInput.files && photoInput.files[0] ? photoInput.files[0].name : "";
+    });
+  }
+});
+
+// ---------- Quick feed filters (pill bar) ----------
+document.addEventListener("DOMContentLoaded", function () {
+  const bar = document.getElementById("feedFilters");
+  if (!bar) return;
+
+  const posts = document.querySelectorAll(".post-card[data-post-type]");
+  const emptyMsg = document.getElementById("noFilterResultsMsg");
+
+  bar.addEventListener("click", function (e) {
+    const pill = e.target.closest(".filter-pill");
+    if (!pill) return;
+
+    bar.querySelectorAll(".filter-pill").forEach((p) => p.classList.remove("active"));
+    pill.classList.add("active");
+
+    const filter = pill.dataset.filter;
+    const allowed = filter === "all" ? null : filter.split(",");
+
+    let visibleCount = 0;
+    posts.forEach((card) => {
+      const type = card.dataset.postType;
+      const show = !allowed || allowed.includes(type);
+      card.style.display = show ? "" : "none";
+      if (show) visibleCount++;
+    });
+
+    if (emptyMsg) {
+      emptyMsg.style.display = (posts.length > 0 && visibleCount === 0) ? "block" : "none";
+    }
+  });
+});
+
+// ---------- Waitlist "Notify Me" banner ----------
+document.addEventListener("DOMContentLoaded", function () {
+  const banner = document.getElementById("waitlistBanner");
+  const btn = document.getElementById("waitlistNotifyBtn");
+  if (!banner || !btn) return;
+
+  btn.addEventListener("click", async function () {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Joining...";
+
+    try {
+      const res = await fetch("/api/notify-me", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feature: banner.dataset.feature }),
+      });
+      const data = await res.json();
+      if (data && data.ok) {
+        btn.innerHTML = "<i class='bx bx-check'></i> You're on the list!";
+        btn.classList.add("waitlist-joined");
+      } else {
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+      }
+    } catch (err) {
+      console.error("Notify-me failed", err);
+      btn.innerHTML = originalHTML;
+      btn.disabled = false;
+    }
+  });
+});
+
+// ---------- Three-dot post menu -> animated bottom sheet ----------
+document.addEventListener("DOMContentLoaded", function () {
+  const overlay = document.getElementById("bottomSheetOverlay");
+  const sheet = document.getElementById("postActionsSheet");
+  const deleteForm = document.getElementById("sheetDeleteForm");
+  const reportForm = document.getElementById("sheetReportForm");
+  const reportTargetId = document.getElementById("sheetReportTargetId");
+  const cancelBtn = document.getElementById("sheetCancelBtn");
+  if (!overlay || !sheet) return;
+
+  const closeSheet = function () {
+    sheet.classList.remove("open");
+    overlay.classList.remove("open");
+  };
+
+  const openSheet = function (btn) {
+    const postId = btn.dataset.postId;
+    const canDelete = btn.dataset.canDelete === "1";
+    const canReport = btn.dataset.canReport === "1";
+
+    deleteForm.style.display = canDelete ? "block" : "none";
+    deleteForm.action = `/post/${postId}/delete`;
+
+    reportForm.style.display = canReport ? "block" : "none";
+    if (reportTargetId) reportTargetId.value = postId;
+
+    sheet.classList.add("open");
+    overlay.classList.add("open");
+  };
+
+  document.addEventListener("click", function (e) {
+    const trigger = e.target.closest(".js-post-menu-btn");
+    if (trigger) {
+      e.preventDefault();
+      openSheet(trigger);
+      return;
+    }
+    if (e.target === overlay || e.target === cancelBtn) {
+      closeSheet();
+    }
+  });
+});
+
 // ---------- Reels: view-once tracking + tap-to-unmute audio ----------
 function disableMediaSessionNotifications() {
   if ('mediaSession' in navigator) {

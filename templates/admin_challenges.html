@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+{% include "admin_nav.html" %}
 
 <a href="{{ url_for('admin_panel') }}" class="btn btn-outline btn-small">← {{ t.admin_panel }}</a>
 
