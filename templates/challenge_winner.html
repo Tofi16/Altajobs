@@ -31,7 +31,7 @@
 
   {% if trust['milestone1_released'] %}
     <div class="card">
-      <p>✅ {{ t.milestone1_released_msg }} ({{ trust['milestone1_amount'] }} ETB, {{ milestone1_percent }}%)</p>
+      <p>{{ t.milestone1_released_msg }} ({{ trust['milestone1_amount'] }} ETB, {{ milestone1_percent }}%)</p>
     </div>
 
     {% if not trust['milestone2_released'] %}

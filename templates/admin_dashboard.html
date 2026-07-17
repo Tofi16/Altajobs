@@ -6,11 +6,7 @@
 
 <div class="card" style="margin-top:14px">
   <h2 style="margin:0 0 4px;color:var(--accent)">🛠️ Admin Dashboard</h2>
-  <form method="POST" action="{{ url_for('admin_update_telebirr') }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
-    <label style="margin:0">Telebirr receiver</label>
-    <input type="text" name="telebirr_number" value="{{ telebirr_number }}" style="max-width:260px;margin:0">
-    <button type="submit" class="btn btn-small">Save</button>
-  </form>
+  <p class="post-meta" style="margin-top:8px">Pending Deposit Approvals</p>
   <p class="post-meta" style="margin-top:8px">Pending Deposit Approvals</p>
 </div>
 
@@ -51,7 +47,7 @@
         <td style="padding:12px 16px">{{ tx['created_at'][:16].replace('T',' ') }}</td>
         <td style="padding:12px 16px;white-space:nowrap">
           <form method="POST" action="{{ url_for('approve_deposit', tx_id=tx['id']) }}" style="display:inline">
-            <button type="submit" class="btn btn-small">✅ Approve</button>
+            <button type="submit" class="btn btn-small" style="background:var(--accent);color:white">Approve</button>
           </form>
           <form method="POST" action="{{ url_for('reject_deposit', tx_id=tx['id']) }}" style="display:inline-flex;gap:4px;align-items:center">
             <input type="text" name="reason" placeholder="Rejection reason" style="margin:0;width:130px;font-size:0.8rem">
@@ -90,7 +86,7 @@
         <td style="padding:12px 16px">{{ tx['created_at'][:16].replace('T',' ') }}</td>
         <td style="padding:12px 16px;white-space:nowrap">
           <form method="POST" action="{{ url_for('approve_withdrawal', tx_id=tx['id']) }}" style="display:inline">
-            <button type="submit" class="btn btn-small">✅ Approve</button>
+            <button type="submit" class="btn btn-small" style="background:var(--accent);color:white">Approve</button>
           </form>
           <form method="POST" action="{{ url_for('reject_withdrawal', tx_id=tx['id']) }}" style="display:inline-flex;gap:4px;align-items:center">
             <input type="text" name="reason" placeholder="Rejection reason" style="margin:0;width:130px;font-size:0.8rem">

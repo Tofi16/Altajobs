@@ -70,7 +70,7 @@ altajobs/
 - **Blue Tick (300 ብር/ወር) እና VIP (800 ብር/ወር)** — ከዋሌት ተቀናሽ፣ ✔️/👑 ምልክት
 - **Animated Gifts** 🌹❤️⭐👑💎 — 30% ለመድረኩ (ለ admin) ተቆርጦ ቀሪው ለተቀባዩ
 - **4 ቋንቋ** — አማርኛ/English/Afaan Oromoo/ትግርኛ
-- **Premium Dark Theme** — Deep Slate (#1E293B) + Mint Green (#10B981)
+- **Premium Dark Theme** — Deep Slate (#1E293B) + Royal Blue (#1D9BF0)
 - **ሞባይል ተስማሚ ንድፍ**
 
 ## 🏆 Monthly Business Challenge (NEW)

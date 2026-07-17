@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin_nav.html" %}
+
+<div class="card">
+  <h2 style="margin:0 0 6px">⚙️ Admin Quick Settings</h2>
+  <p class="post-meta" style="margin:0">Make quick changes to maintenance mode and dynamic pricing.</p>
+</div>
+
+<div class="card">
+  <form method="POST" action="{{ url_for('admin_settings') }}" style="display:flex;flex-direction:column;gap:12px">
+    <label style="display:flex;align-items:center;gap:12px">
+      <input type="checkbox" name="maintenance_mode" value="1" {% if maintenance_mode %}checked{% endif %}>
+      <span>Maintenance Mode</span>
+    </label>
+
+    <label>Blue Tick (verification) price</label>
+    <input type="number" step="1" min="0" name="verification_price" value="{{ verification_price }}">
+
+    <label>VIP monthly price</label>
+    <input type="number" step="1" min="0" name="vip_price" value="{{ vip_price }}">
+
+    <label>Extra product post fee</label>
+    <input type="number" step="0.01" min="0" name="extra_product_fee" value="{{ extra_product_fee }}">
+
+    <div>
+      <button type="submit" class="btn" style="background:var(--accent);color:white">Save Settings</button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

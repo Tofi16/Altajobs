@@ -28,7 +28,7 @@
       {% elif item.my_entry['status'] == 'not_selected' %}
         <p class="post-meta">{{ t.not_selected_msg }}</p>
       {% else %}
-        <p class="post-meta">✅ {{ t.entry_submitted }} — {{ t.your_score }}: {{ item.my_entry['ai_score'] }}/100</p>
+        <p class="post-meta">{{ t.entry_submitted }} — {{ t.your_score }}: {{ item.my_entry['ai_score'] }}/100</p>
       {% endif %}
     {% else %}
       {% if gate.unlocked %}

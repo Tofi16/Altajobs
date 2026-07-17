@@ -47,23 +47,25 @@ document.addEventListener("click", async function (e) {
 });
 
 // ---------- AJAX Like button (instant, no reload, no scroll jump) ----------
-document.addEventListener("click", async function (e) {
-  const btn = e.target.closest(".js-like-btn");
+async function togglePostLike(btn, options) {
   if (!btn) return;
-  e.preventDefault();
-
   const postId = btn.dataset.postId;
   const likeLabel = btn.dataset.likeLabel || "Like";
   const likedLabel = btn.dataset.likedLabel || "Liked";
   const icon = btn.querySelector(".bx");
   const countEl = btn.querySelector(".like-count");
   const textEl = btn.querySelector(".like-text");
+  const card = btn.closest(".post-card");
+  const socialCount = card ? card.querySelector(".social-proof-count") : null;
 
   btn.disabled = true;
   try {
     const res = await fetch(`/api/like/${postId}`, { method: "POST" });
     const data = await res.json();
     if (countEl) countEl.textContent = data.like_count;
+    if (socialCount && typeof data.like_count === "number") {
+      socialCount.textContent = `${Math.max(data.like_count - 1, 0)} others`;
+    }
     if (data.liked) {
       btn.classList.add("liked", "just-liked");
       if (icon) { icon.classList.remove("bx-heart"); icon.classList.add("bxs-heart"); }
@@ -74,15 +76,48 @@ document.addEventListener("click", async function (e) {
       if (icon) { icon.classList.remove("bxs-heart"); icon.classList.add("bx-heart"); }
       if (textEl) textEl.textContent = likeLabel;
     }
+    if (options && options.fromDoubleTap) {
+      const overlay = card ? card.querySelector(".double-tap-heart") : null;
+      if (overlay) {
+        overlay.classList.remove("active");
+        void overlay.offsetWidth;
+        overlay.classList.add("active");
+        setTimeout(() => overlay.classList.remove("active"), 420);
+      }
+    }
   } catch (err) {
     console.error("Like toggle failed", err);
   } finally {
     btn.disabled = false;
   }
+}
+
+document.addEventListener("click", function (e) {
+  const btn = e.target.closest(".js-like-btn");
+  if (!btn) return;
+  e.preventDefault();
+  togglePostLike(btn);
+});
+
+document.addEventListener("dblclick", function (e) {
+  const media = e.target.closest(".post-media");
+  if (!media) return;
+  const card = media.closest(".post-card");
+  const btn = card ? card.querySelector(".js-like-btn") : null;
+  if (!btn) return;
+  e.preventDefault();
+  togglePostLike(btn, { fromDoubleTap: true });
 });
 
 // ---------- Compact compose box: expand on focus/typing ----------
 document.addEventListener("DOMContentLoaded", function () {
+  const shell = document.getElementById("feedSkeletonShell");
+  if (shell) {
+    window.setTimeout(function () {
+      shell.classList.add("is-hidden");
+    }, 450);
+  }
+
   const textarea = document.getElementById("composeTextarea");
   const actions = document.getElementById("composeActions");
   const photoInput = document.getElementById("composePhotoInput");
@@ -144,38 +179,174 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
-// ---------- Waitlist "Notify Me" banner ----------
+// ---------- Premium header: search, notifications, and slide-in menu ----------
 document.addEventListener("DOMContentLoaded", function () {
-  const banner = document.getElementById("waitlistBanner");
-  const btn = document.getElementById("waitlistNotifyBtn");
-  if (!banner || !btn) return;
+  const searchToggle = document.getElementById("headerSearchToggle");
+  const searchPanel = document.getElementById("headerSearchPanel");
+  const searchInput = document.getElementById("headerSearchInput");
+  const searchClear = document.getElementById("headerSearchClear");
+  const searchStatus = document.getElementById("headerSearchStatus");
+  const bellToggle = document.getElementById("headerBellToggle");
+  const bellPopover = document.getElementById("headerNotifications");
+  const avatarToggle = document.getElementById("headerSidebarToggle");
+  const sidebarDrawer = document.getElementById("headerSidebarDrawer");
+  const sidebarOverlay = document.getElementById("headerSidebarOverlay");
 
-  btn.addEventListener("click", async function () {
-    if (btn.disabled) return;
-    btn.disabled = true;
-    const originalHTML = btn.innerHTML;
-    btn.innerHTML = "<i class='bx bx-loader-alt bx-spin'></i> Joining...";
+  const closeSearch = function () {
+    if (searchPanel) {
+      searchPanel.classList.remove("open");
+      searchPanel.setAttribute("aria-hidden", "true");
+    }
+  };
 
-    try {
-      const res = await fetch("/api/notify-me", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ feature: banner.dataset.feature }),
-      });
-      const data = await res.json();
-      if (data && data.ok) {
-        btn.innerHTML = "<i class='bx bx-check'></i> You're on the list!";
-        btn.classList.add("waitlist-joined");
-      } else {
-        btn.innerHTML = originalHTML;
-        btn.disabled = false;
+  const closePopover = function () {
+    if (bellPopover) bellPopover.classList.remove("open");
+  };
+
+  const closeSidebar = function () {
+    if (sidebarDrawer) {
+      sidebarDrawer.classList.remove("open");
+      sidebarDrawer.setAttribute("aria-hidden", "true");
+    }
+    if (sidebarOverlay) sidebarOverlay.classList.remove("open");
+    document.body.classList.remove("drawer-open");
+    document.body.classList.remove("no-scroll");
+  };
+
+  if (searchToggle && searchPanel) {
+    searchToggle.addEventListener("click", function () {
+      const isOpen = searchPanel.classList.toggle("open");
+      searchPanel.setAttribute("aria-hidden", isOpen ? "false" : "true");
+      if (isOpen && searchInput) { searchInput.focus(); }
+    });
+  }
+
+  if (bellToggle && bellPopover) {
+    bellToggle.addEventListener("click", function (e) {
+      e.stopPropagation();
+      const isOpen = bellPopover.classList.toggle("open");
+      if (isOpen) {
+        closeSearch();
+        closeSidebar();
       }
-    } catch (err) {
-      console.error("Notify-me failed", err);
-      btn.innerHTML = originalHTML;
-      btn.disabled = false;
+    });
+  }
+
+  if (avatarToggle && sidebarDrawer && sidebarOverlay) {
+    avatarToggle.addEventListener("click", function (e) {
+      e.stopPropagation();
+      const isOpen = sidebarDrawer.classList.toggle("open");
+      sidebarDrawer.setAttribute("aria-hidden", isOpen ? "false" : "true");
+      sidebarOverlay.classList.toggle("open", isOpen);
+      document.body.classList.toggle("drawer-open", isOpen);
+      document.body.classList.toggle("no-scroll", isOpen);
+      if (isOpen) {
+        closeSearch();
+        closePopover();
+      }
+    });
+  }
+
+  if (sidebarOverlay) {
+    sidebarOverlay.addEventListener("click", closeSidebar);
+  }
+
+  document.addEventListener("click", function (e) {
+    const clickedInsideSearch = searchPanel && searchPanel.contains(e.target);
+    const clickedSearchToggle = searchToggle && searchToggle.contains(e.target);
+    const clickedBell = bellPopover && bellPopover.contains(e.target);
+    const clickedBellToggle = bellToggle && bellToggle.contains(e.target);
+    const clickedDrawer = sidebarDrawer && sidebarDrawer.contains(e.target);
+    const clickedAvatar = avatarToggle && avatarToggle.contains(e.target);
+
+    if (!clickedInsideSearch && !clickedSearchToggle) closeSearch();
+    if (!clickedBell && !clickedBellToggle) closePopover();
+    if (!clickedDrawer && !clickedAvatar) closeSidebar();
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      closeSearch();
+      closePopover();
+      closeSidebar();
     }
   });
+
+  // Modal helpers: open/close and scroll lock
+  window.openModal = function (id) {
+    const backdrop = document.getElementById('modalBackdrop');
+    const modal = document.getElementById(id);
+    if (backdrop) backdrop.classList.add('open');
+    if (modal) modal.classList.add('open');
+    document.body.classList.add('no-scroll');
+  }
+  window.closeModal = function (id) {
+    const backdrop = document.getElementById('modalBackdrop');
+    const modal = document.getElementById(id);
+    if (backdrop) backdrop.classList.remove('open');
+    if (modal) modal.classList.remove('open');
+    document.body.classList.remove('no-scroll');
+  }
+
+  // Wallet: animate balance count on wallet page
+  try {
+    const balEl = document.querySelector('.wallet-balance');
+    if (balEl) {
+      const raw = balEl.textContent.replace(/[^0-9\.\-]/g, '') || '0';
+      const target = parseFloat(raw);
+      if (!isNaN(target)) {
+        let start = 0;
+        const duration = 900;
+        const startTime = performance.now();
+        const step = (now) => {
+          const t = Math.min(1, (now - startTime) / duration);
+          const eased = t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t; // easeInOutQuad-like
+          const current = Math.floor(start + (target - start) * eased);
+          balEl.textContent = current + ' ETB';
+          if (t < 1) requestAnimationFrame(step);
+        };
+        // Start from 0
+        balEl.textContent = '0 ETB';
+        requestAnimationFrame(step);
+      }
+    }
+  } catch (e) {}
+
+  if (searchInput) {
+    let debounceTimer = null;
+    const filterFeedCards = function () {
+      const query = (searchInput.value || "").trim().toLowerCase();
+      const cards = document.querySelectorAll(".post-card[data-post-type]");
+      let visibleCount = 0;
+      cards.forEach(function (card) {
+        const text = (card.textContent || "").toLowerCase();
+        const show = !query || text.includes(query);
+        card.style.display = show ? "" : "none";
+        if (show) visibleCount++;
+      });
+
+      if (searchStatus) {
+        if (!query) {
+          searchStatus.textContent = "Search products in the feed";
+        } else if (visibleCount > 0) {
+          searchStatus.textContent = visibleCount + " product" + (visibleCount === 1 ? "" : "s") + " match your search";
+        } else {
+          searchStatus.textContent = "No products match this search yet";
+        }
+      }
+    };
+
+    searchInput.addEventListener("input", function () {
+      clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(filterFeedCards, 180);
+    });
+
+    searchClear.addEventListener("click", function () {
+      searchInput.value = "";
+      filterFeedCards();
+      searchInput.focus();
+    });
+  }
 });
 
 // ---------- Three-dot post menu -> animated bottom sheet ----------

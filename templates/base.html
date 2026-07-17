@@ -16,19 +16,57 @@
 {% if current_user %}
 <header class="topbar">
   <div class="topbar-inner">
-    <a href="{{ url_for('feed') }}" class="brand">AltaJobs<span class="brand-dot">.</span></a>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <a href="{{ url_for('coming_soon', feature='search') }}" class="topbar-icon-btn" aria-label="Search">
+    <a href="{{ url_for('feed') }}" class="brand">
+      <span class="brand-mark">A</span>
+      <span>AltaMarket</span>
+      <span class="brand-dot">.</span>
+    </a>
+
+    <div class="topbar-actions">
+      <button type="button" class="topbar-icon-btn" id="headerSearchToggle" aria-label="Search">
         <i class='bx bx-search'></i>
-      </a>
-      <a href="{{ url_for('coming_soon', feature='notifications') }}" class="topbar-icon-btn" aria-label="Notifications">
-        <i class='bx bx-bell'></i>
-      </a>
-      <a id="tokensPill" href="{{ url_for('tokens_page') }}" class="wallet-pill" style="color:var(--accent)">🪙 {{ current_user['alta_tokens'] }} Tokens</a>
-      <a id="walletPill" href="{{ url_for('wallet') }}" class="wallet-pill">💰 {{ current_user['wallet_balance'] }} ETB</a>
-        <a id="tokensPill" href="{{ url_for('tokens_page') }}" class="wallet-pill" style="color:var(--accent)"><i class='bx bx-coin-stack'></i> <span class="pill-text">{{ current_user['alta_tokens'] }} Tokens</span></a>
-        <a id="walletPill" href="{{ url_for('wallet') }}" class="wallet-pill"><i class='bx bx-wallet'></i> <span class="pill-text">{{ current_user['wallet_balance'] }} ETB</span></a>
+      </button>
+
+      <div class="topbar-icon-wrap">
+        <button type="button" class="topbar-icon-btn" id="headerBellToggle" aria-label="Notifications">
+          <i class='bx bx-bell'></i>
+          {% set alert_count = unread_message_count if unread_message_count else 3 %}
+          <span class="topbar-badge {{ 'pulse' if alert_count > 0 else '' }}">{{ alert_count if alert_count < 10 else '9+' }}</span>
+        </button>
+        <div class="topbar-popover" id="headerNotifications" role="dialog" aria-label="Recent notifications">
+          <div class="popover-head">Recent activity</div>
+          <a class="popover-item" href="{{ url_for('chat_inbox') }}">
+            <i class='bx bx-message-rounded-dots'></i>
+            <span>New message from Amina</span>
+          </a>
+          <a class="popover-item" href="{{ url_for('wallet') }}">
+            <i class='bx bx-wallet'></i>
+            <span>Wallet balance updated</span>
+          </a>
+          <a class="popover-item" href="{{ url_for('profile', user_id=current_user['id']) }}">
+            <i class='bx bx-user-circle'></i>
+            <span>Your profile now has a stronger signal</span>
+          </a>
+        </div>
+      </div>
+
+      <button type="button" class="topbar-avatar-btn" id="headerSidebarToggle" aria-label="Open menu">
+        {% if current_user['avatar'] %}
+          <img src="{{ photo_url(current_user['avatar']) }}" alt="Profile picture">
+        {% else %}
+          {{ (current_user['full_name'] or current_user['username'])[0] }}
+        {% endif %}
+      </button>
     </div>
+  </div>
+
+  <div class="topbar-search-panel" id="headerSearchPanel" aria-hidden="true">
+    <div class="topbar-search-shell">
+      <i class='bx bx-search'></i>
+      <input type="text" id="headerSearchInput" placeholder="Search products, jobs, and people..." autocomplete="off">
+      <button type="button" class="topbar-search-clear" id="headerSearchClear">Clear</button>
+    </div>
+    <div class="topbar-search-status" id="headerSearchStatus">Search products in the feed</div>
   </div>
 </header>
 {% endif %}
@@ -47,7 +85,7 @@
 
   <div class="sidebar-card">
     <a href="{{ url_for('wallet') }}" class="sidebar-link"><i class='bx bx-wallet'></i> {{ t.wallet }}</a>
-    <a href="{{ url_for('cv_maker') }}" class="sidebar-link"><i class='bx bx-file'></i> CV Maker</a>
+    <a href="{{ url_for('marketplace') }}" class="sidebar-link"><i class='bx bx-store'></i> Marketplace</a>
     <a href="{{ url_for('tokens_page') }}" class="sidebar-link"><i class='bx bx-coin-stack'></i> {{ t.alta_tokens }}</a>
     <a href="{{ url_for('challenges') }}" class="sidebar-link"><i class='bx bx-trophy'></i> {{ t.monthly_challenge_title }}</a>
     <a href="{{ url_for('settings_page') }}" class="sidebar-link"><i class='bx bx-cog'></i> {{ t.tab_settings }}</a>
@@ -121,6 +159,52 @@
 </div>
 
 {% if current_user %}
+<div class="sidebar-overlay" id="headerSidebarOverlay"></div>
+<aside class="header-sidebar-drawer" id="headerSidebarDrawer" aria-hidden="true">
+  <div class="drawer-head">
+    <div class="drawer-avatar">
+      {% if current_user['avatar'] %}
+        <img src="{{ photo_url(current_user['avatar']) }}" alt="Profile picture">
+      {% else %}
+        {{ (current_user['full_name'] or current_user['username'])[0] }}
+      {% endif %}
+    </div>
+    <div>
+      <div class="drawer-name">{{ current_user['full_name'] or current_user['username'] }}</div>
+      <div class="drawer-handle">@{{ current_user['username'] }}</div>
+    </div>
+  </div>
+
+  <nav class="drawer-nav">
+    <a href="{{ url_for('profile', user_id=current_user['id']) }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="var(--accent)" stroke-width="1.6"><path d="M12 12c2.5 0 4.5-2 4.5-4.5S14.5 3 12 3 7.5 5 7.5 7.5 9.5 12 12 12z"/><path d="M4.5 20.25c0-3.3 2.7-6 7.5-6s7.5 2.7 7.5 6"/></g></svg>
+      <div class="drawer-label">Profile</div>
+    </a>
+    <a href="{{ url_for('wallet') }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7h14v10H3z" stroke="var(--accent)" stroke-width="1.6" fill="none"/><path d="M21 9v6" stroke="var(--accent)" stroke-width="1.6"/></svg>
+      <div class="drawer-label">Wallet</div>
+    </a>
+    <a href="{{ url_for('tokens_page') }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="6" stroke="var(--accent)" stroke-width="1.6" fill="none"/><path d="M12 8v8" stroke="var(--accent)" stroke-width="1.6"/></svg>
+      <div class="drawer-label">Alta Tokens</div>
+    </a>
+    <a href="{{ url_for('marketplace') }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7h18v10H3z" stroke="var(--accent)" stroke-width="1.6" fill="none"/><path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2" stroke="var(--accent)" stroke-width="1.6"/></svg>
+      <div class="drawer-label">Marketplace</div>
+    </a>
+    <a href="{{ url_for('settings_page') }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" stroke="var(--accent)" stroke-width="1.6" fill="none"/><path d="M19.4 15a1.8 1.8 0 0 0 .3 2l.1.1a1 1 0 0 1-1.1 1.6l-.1-.05-.1-.05a1.8 1.8 0 0 0-2 .3l-.1.1a1 1 0 0 1-1.4 0l-.1-.1a1.8 1.8 0 0 0-2-.3l-.1.06a1 1 0 0 1-1.1-.2l-.08-.09" stroke="var(--accent)" stroke-width="1.4" fill="none"/></svg>
+      <div class="drawer-label">Settings</div>
+    </a>
+    <a href="{{ url_for('logout') }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M16 17l5-5-5-5" stroke="var(--accent)" stroke-width="1.6" fill="none"/><path d="M21 12H9" stroke="var(--accent)" stroke-width="1.6"/><path d="M7 5v14" stroke="var(--accent)" stroke-width="1.6" fill="none"/></svg>
+      <div class="drawer-label">Logout</div>
+    </a>
+  </nav>
+</aside>
+{% endif %}
+
+{% if current_user %}
 <!-- Bottom nav styles are centralized in static/css/style.css -->
 <nav class="app-nav">
   <a href="{{ url_for('feed') }}" class="nav-tab {{ 'active' if request.path == '/' or request.path.startswith('/post/') or request.path.startswith('/saved') }}">
@@ -134,9 +218,9 @@
       <span class="nav-badge">{{ unread_message_count if unread_message_count < 10 else '9+' }}</span>
     {% endif %}
   </a>
-  <a href="{{ url_for('cv_maker') }}" class="nav-tab {{ 'active' if request.path.startswith('/cv-maker') }}">
-    <i class='bx {{ "bxs-file" if request.path.startswith("/cv-maker") else "bx-file" }}'></i>
-    <span>CV</span>
+  <a href="{{ url_for('marketplace') }}" class="nav-tab {{ 'active' if request.path.startswith('/marketplace') }}">
+    <i class='bx {{ "bxs-store" if request.path.startswith("/marketplace") else "bx-store" }}'></i>
+    <span>Market</span>
   </a>
   <a href="{{ url_for('wallet') }}" class="nav-tab {{ 'active' if request.path.startswith('/wallet') }}">
     <i class='bx {{ "bxs-wallet" if request.path.startswith("/wallet") else "bx-wallet" }}'></i>

@@ -15,7 +15,7 @@
   <p>{{ t.message_request_notice }}</p>
   <div class="actions">
     <form method="POST" action="{{ url_for('chat_accept', conversation_id=convo['id']) }}">
-      <button type="submit" class="btn btn-full">✅ {{ t.accept }}</button>
+      <button type="submit" class="btn btn-full" style="background:var(--accent);color:white">{{ t.accept }}</button>
     </form>
     <form method="POST" action="{{ url_for('chat_decline', conversation_id=convo['id']) }}">
       <button type="submit" class="btn btn-outline btn-full">✕ {{ t.decline }}</button>

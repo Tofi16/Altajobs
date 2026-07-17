@@ -1,63 +1,101 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
+  .auth-shell {
+    min-height: calc(100vh - 90px);
+    display: grid;
+    place-items: center;
+    padding: 18px 12px 30px;
+    background:
+      radial-gradient(circle at top left, rgba(59,130,246,0.28), transparent 38%),
+      radial-gradient(circle at bottom right, rgba(37,99,235,0.24), transparent 36%),
+      linear-gradient(135deg, #07111f 0%, #0b1729 100%);
+  }
+  .aj-card {
+    width: min(100%, 440px);
+    background: rgba(7, 19, 36, 0.72);
+    border: 1px solid rgba(125, 211, 252, 0.16);
+    border-radius: 24px;
+    padding: 24px 20px 20px;
+    box-shadow: 0 20px 60px rgba(2, 10, 25, 0.34);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+  .aj-brand {
+    display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px;
+  }
+  .aj-logo {
+    width:46px;height:46px;border-radius:14px;display:grid;place-items:center;
+    background: linear-gradient(135deg, rgba(59,130,246,0.9), rgba(37,99,235,0.95));
+    box-shadow:0 0 24px rgba(59,130,246,0.34);
+    color:#fff;font-weight:800;font-size:1rem;letter-spacing:0.06em;
+  }
+  .aj-brand-text h1 { margin:0;font-size:1.05rem;font-weight:700;letter-spacing:0.02em; }
+  .aj-brand-text span { font-size:0.78rem;color:var(--muted);letter-spacing:0.16em;text-transform:uppercase; }
+  .aj-welcome { text-align:center;color:var(--text);font-size:1rem;margin:4px 0 14px; }
   .aj-input {
-    border-radius: 12px;
-    border: 1px solid var(--border);
+    border-radius: 14px;
+    border: 1px solid rgba(125, 211, 252, 0.16);
     padding: 12px 14px;
     width: 100%;
     box-sizing: border-box;
     font-size: 15px;
-    transition: border-color .18s ease, box-shadow .18s ease;
+    color: var(--text);
+    background: rgba(255,255,255,0.05);
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
     outline: none;
   }
   .aj-input:focus {
     border-color: var(--accent);
+    background: rgba(255,255,255,0.08);
     box-shadow: 0 0 0 4px rgba(29, 155, 240, 0.18);
   }
   .aj-password-wrap { position: relative; }
   .aj-password-wrap .aj-input { padding-right: 42px; }
   .aj-eye-toggle {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 18px;
-    line-height: 1;
-    padding: 4px;
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer; font-size: 18px; line-height: 1; padding: 4px;
   }
+  .aj-btn-full { width:100%;margin-top:10px; }
+  .aj-link-row { text-align:center;font-size:0.9rem;color:var(--muted);margin-top:10px; }
+  .aj-link-row a { color:var(--accent);font-weight:700; }
 </style>
 
-<div class="card auth-card">
-  <h1>{{ t.app_name }}</h1>
-  <p style="text-align:center;color:var(--gray)">{{ t.tagline }}</p>
-
-  <form method="POST">
-    <label>{{ t.username }}</label>
-    <input class="aj-input" type="text" name="username" required>
-
-    <label>{{ t.password }}</label>
-    <div class="aj-password-wrap">
-      <input class="aj-input" type="password" name="password" id="passwordField" required>
-      <button type="button" class="aj-eye-toggle" onclick="aj_togglePassword()">👁️</button>
+<div class="auth-shell">
+  <div class="aj-card">
+    <div class="aj-brand">
+      <div class="aj-logo">AJ</div>
+      <div class="aj-brand-text">
+        <h1>AltaMarket</h1>
+        <span>Secure access</span>
+      </div>
     </div>
+    <p class="aj-welcome">Welcome back to your trusted market.</p>
 
-    <button type="submit" class="btn btn-full">{{ t.login }}</button>
-  </form>
+    <form method="POST">
+      <label>{{ t.username }}</label>
+      <input class="aj-input" type="text" name="username" required>
 
-  <p class="switch-link">
-    {{ t.no_account }} <a href="{{ url_for('register') }}"><b>{{ t.register }}</b></a>
-  </p>
-  <p class="switch-link">
-    <a href="{{ url_for('forgot_password') }}"><b>{{ t.password_reset_sent }}</b></a>
-  </p>
-  <p class="switch-link">
-    <a href="{{ url_for('set_language_route', lang='en') }}">English</a> ·
-    <a href="{{ url_for('set_language_route', lang='am') }}">አማርኛ</a>
-  </p>
+      <label>{{ t.password }}</label>
+      <div class="aj-password-wrap">
+        <input class="aj-input" type="password" name="password" id="passwordField" required>
+        <button type="button" class="aj-eye-toggle" onclick="aj_togglePassword()">👁️</button>
+      </div>
+
+      <button type="submit" class="btn aj-btn-full">{{ t.login }}</button>
+    </form>
+
+    <p class="aj-link-row">
+      {{ t.no_account }} <a href="{{ url_for('register') }}">{{ t.register }}</a>
+    </p>
+    <p class="aj-link-row">
+      <a href="{{ url_for('forgot_password') }}">{{ t.password_reset_sent }}</a>
+    </p>
+    <p class="aj-link-row">
+      <a href="{{ url_for('set_language_route', lang='en') }}">English</a> ·
+      <a href="{{ url_for('set_language_route', lang='am') }}">አማርኛ</a>
+    </p>
+  </div>
 </div>
 
 <script>

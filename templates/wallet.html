@@ -17,15 +17,15 @@
   </div>
 
   <div class="wallet-quick-actions">
-    <button class="wallet-action-btn" onclick="location.href='#deposit-form'">
+    <button class="wallet-action-btn" type="button" onclick="openModal('depositModal')">
       <div class="circle">⬇️</div>
       <div class="wallet-action-label">Deposit</div>
     </button>
-    <button class="wallet-action-btn" onclick="location.href='#withdraw-form'">
-      <div class="circle" style="background:rgba(29,155,240,0.12);color:var(--text)">⬆️</div>
+    <button class="wallet-action-btn" type="button" onclick="openModal('withdrawModal')">
+      <div class="circle">⬆️</div>
       <div class="wallet-action-label">Withdraw</div>
     </button>
-    <button class="wallet-action-btn" onclick="location.href='#transfer-form'">
+    <button class="wallet-action-btn" type="button" onclick="openModal('transferModal')">
       <div class="circle">🔁</div>
       <div class="wallet-action-label">Send</div>
     </button>
@@ -34,6 +34,31 @@
       <div class="wallet-action-label">Challenge</div>
     </button>
   </div>
+</div>
+
+<!-- Recent Transactions -->
+<div class="transactions-card">
+  <h3>Recent Transactions</h3>
+  {% set txs = transactions if transactions is defined else history if history is defined else [] %}
+  {% if txs and txs|length > 0 %}
+    <div class="transactions-list">
+      {% for t in txs[:12] %}
+        {% set is_in = (t['amount']|float) > 0 %}
+        <div class="tx-item">
+          <div class="tx-left">
+            <div class="tx-type">{{ t['tx_type']|capitalize }}</div>
+            <div class="tx-date">{{ (t['created_at'][:16] if t['created_at'] else '')|replace('T',' ') }}</div>
+          </div>
+          <div class="tx-amount {{ 'tx-in' if is_in else 'tx-out' }}">{{ '+' if is_in else '-' }}{{ (t['amount']|abs) }} ETB</div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="tx-empty">
+      <p style="font-weight:800;color:var(--text)">No transactions yet</p>
+      <p class="post-meta">Your activity will show up here once you send or receive funds.</p>
+    </div>
+  {% endif %}
 </div>
 
 <div class="wallet-grid">
@@ -79,32 +104,10 @@
   </div>
 </div>
 
+<!-- Manual deposit methods have been removed; deposits are handled externally -->
 <div class="card glass-card" style="margin-top:16px;padding:18px">
-  <h3>Accepted Payment Methods</h3>
-  <p class="post-meta" style="margin:4px 0 12px">Send your deposit to one of the accounts below, then submit the ticket with your reference and a receipt screenshot.</p>
-
-  {% if not banks %}
-    <p class="post-meta">No payment methods have been set up yet — please check back soon.</p>
-  {% else %}
-    <div style="display:flex;flex-direction:column;gap:10px">
-      {% for b in banks %}
-      <div class="bank-row">
-        <div style="min-width:0;display:flex;flex-direction:column;gap:6px">
-          <div style="font-weight:700">{{ b['bank_name'] }}</div>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <div class="post-meta" style="margin:0" data-copy-text="{{ b['account_number'] }}">Acc #: {{ b['account_number'] }}</div>
-            <button type="button" class="btn btn-outline btn-small copy-bank-btn" data-copy-value="{{ b['account_number'] }}">📋 Copy</button>
-          </div>
-          <div class="post-meta">Holder: {{ b['account_holder_name'] }}</div>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-  {% endif %}
-
-  {% if telebirr_number %}
-    <p class="post-meta" style="margin-top:12px">Telebirr: <strong>{{ telebirr_number }}</strong></p>
-  {% endif %}
+  <h3>Deposits Disabled</h3>
+  <p class="post-meta" style="margin:4px 0 12px">Manual bank/Telebirr deposit setup and receipt uploads have been removed. Please contact support for alternative deposit methods.</p>
 </div>
 
 <script>
@@ -113,7 +116,7 @@
       var value = btn.getAttribute('data-copy-value');
       var done = function () {
         var original = btn.textContent;
-        btn.textContent = '✅ Copied';
+        btn.textContent = 'Copied';
         setTimeout(function () { btn.textContent = original; }, 1500);
       };
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -127,111 +130,75 @@
   });
 </script>
 
-<div class="card glass-card" id="transfer-form" style="margin-top:16px;padding:18px">
-  <h3>Send Money to Another User</h3>
-  <form method="POST" action="{{ url_for('wallet_transfer') }}">
-    <label>Recipient username / email / phone</label>
-    <input type="text" name="recipient_identifier" placeholder="Enter username, email, or phone" required>
-    <label>Amount (ETB)</label>
-    <input type="number" name="amount" min="1" required>
-    <button type="submit" class="btn btn-full">Send Transfer</button>
-  </form>
-</div>
+<!-- Transfer modal markup (moved to modal) -->
 
-<div class="card glass-card" style="margin-top:16px;padding:18px">
-  <h3>Transaction Tickets</h3>
-  {% if not history %}
-    <p class="post-meta">No deposit or withdrawal tickets yet.</p>
-  {% else %}
-    <table class="wallet-table" style="margin-top:10px">
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Amount</th>
-          <th>Bank</th>
-          <th>Status</th>
-          <th>Date</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for h in history %}
-        <tr>
-          <td>{{ t.deposit if h['tx_type']=='deposit' else t.withdraw }}</td>
-          <td>{{ h['amount'] }} ETB</td>
-          <td>{{ h['bank'] or '—' }}</td>
-          <td>
-            <span class="badge badge-{{ 'general' if h['status']=='approved' else ('job' if h['status']=='rejected' else 'skill') }}">
-              {{ t.pending if h['status']=='pending' else (t.approved if h['status']=='approved' else t.rejected) }}
-            </span>
-          </td>
-          <td>{{ h['created_at'][:16].replace('T',' ') }}</td>
-        </tr>
-        {% if h['note'] or h['receipt_photo'] %}
-        <tr>
-          <td colspan="5" class="post-meta" style="padding:10px 10px 10px 30px">
-            {% if h['note'] %}Note: {{ h['note'] }}{% endif %}
-            {% if h['receipt_photo'] %}<br><a href="{{ url_for('uploaded_file', filename=h['receipt_photo']) }}" target="_blank">View receipt</a>{% endif %}
-          </td>
-        </tr>
-        {% endif %}
-        {% endfor %}
-      </tbody>
-    </table>
-  {% endif %}
-</div>
+<!-- legacy transaction tickets removed; use Recent Transactions above -->
 
-<div class="card glass-card" id="deposit-form" style="margin-top:16px;padding:18px">
-  <h3>Deposit Money</h3>
-  <form method="POST" action="{{ url_for('wallet_deposit') }}" enctype="multipart/form-data">
-    <label>Bank / Payment Method</label>
-    <select name="bank" required>
-      <option value="">Select bank</option>
-      {% for b in banks %}
-      <option value="{{ b['bank_name'] }}">{{ b['bank_name'] }}</option>
-      {% endfor %}
-    </select>
-    <label>{{ t.amount }}</label>
-    <input type="number" name="amount" min="1" required>
-    <label>{{ t.transaction_ref }}</label>
-    <input type="text" name="transaction_ref" required>
-    <label>Receipt Screenshot</label>
-    <input type="file" name="receipt_photo" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
-    <label>Note</label>
-    <textarea name="note" rows="3" placeholder="Enter transaction reference or note"></textarea>
-    <button type="submit" class="btn btn-full">Submit Deposit Ticket</button>
-  </form>
-</div>
+<!-- Deposit form removed per policy change -->
 
 <div class="card glass-card" id="withdraw-form" style="margin-top:16px;padding:18px">
-  <div class="withdraw-container">
-    <h3>Withdraw Funds</h3>
-    <form id="withdrawForm" method="POST" action="{{ url_for('withdraw_request') }}">
-      <div class="form-group">
-        <label>Bank Name</label>
-        <select name="bankName" required>
-          <option value="">-- Choose a bank --</option>
-          <option value="CBE">Commercial Bank of Ethiopia (CBE)</option>
-          <option value="Abyssinia">Abyssinia Bank</option>
-          <option value="Awash">Awash Bank</option>
-          <option value="Dashen">Dashen Bank</option>
-          <option value="Telebirr">Telebirr</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Account Number</label>
-        <input type="number" name="accountNumber" placeholder="Enter your account number" required>
-      </div>
-      <div class="form-group">
-        <label>Bank Account Holder Name</label>
-        <input type="text" name="accountName" placeholder="Enter the full account holder name" required>
-      </div>
-      <div class="form-group">
-        <label>Amount (ETB)</label>
-        <input type="number" name="amount" min="10" max="{{ current_user['wallet_balance'] }}" placeholder="Enter the amount to withdraw" required>
-      </div>
-      <button type="submit" class="submit-withdraw-btn">Submit Withdrawal Request</button>
-    </form>
-  </div>
+</div>
+<!-- Withdraw form moved to modal -->
 </div>
 
 {% endblock %}
+
+<!-- Modal backdrops and modals -->
+<div id="modalBackdrop" class="modal-backdrop"></div>
+
+<div id="depositModal" class="modal" role="dialog" aria-hidden="true">
+  <h3>Deposit Funds</h3>
+  <p class="post-meta">Deposits are handled via external payment providers. Use the reference below to complete a deposit.</p>
+  <div class="form-group">
+    <label>Amount (ETB)</label>
+    <input type="number" id="depositAmount" min="1" step="1" placeholder="Amount to deposit">
+  </div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+    <button type="button" class="btn btn-outline" onclick="closeModal('depositModal')">Cancel</button>
+    <button type="button" class="btn" onclick="(function(){alert('Deposit flow triggered');closeModal('depositModal');})()" style="background:var(--accent);color:#fff">Proceed</button>
+  </div>
+</div>
+
+<div id="withdrawModal" class="modal" role="dialog" aria-hidden="true">
+  <h3>Withdraw Funds</h3>
+  <form id="withdrawModalForm" method="POST" action="{{ url_for('withdraw_request') }}">
+    <div class="form-group">
+      <label>Amount (ETB)</label>
+      <input type="number" name="amount" min="10" max="{{ current_user['wallet_balance'] }}" required>
+    </div>
+    <div class="form-group">
+      <label>Bank / Destination</label>
+      <input type="text" name="destination" placeholder="Bank or destination" required>
+    </div>
+    <div class="form-group">
+      <label>Enter Password / PIN</label>
+      <input type="password" name="auth_pin" placeholder="Password or PIN" required>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button type="button" class="btn btn-outline" onclick="closeModal('withdrawModal')">Cancel</button>
+      <button type="submit" class="btn" style="background:var(--accent);color:#fff">Submit Withdrawal</button>
+    </div>
+  </form>
+</div>
+
+<div id="transferModal" class="modal" role="dialog" aria-hidden="true">
+  <h3>Send Funds</h3>
+  <form id="transferModalForm" method="POST" action="{{ url_for('wallet_transfer') }}">
+    <div class="form-group">
+      <label>Recipient</label>
+      <input type="text" name="recipient_identifier" placeholder="Username, email, or phone" required>
+    </div>
+    <div class="form-group">
+      <label>Amount (ETB)</label>
+      <input type="number" name="amount" min="1" required>
+    </div>
+    <div class="form-group">
+      <label>Enter Password / PIN</label>
+      <input type="password" name="auth_pin" placeholder="Password or PIN" required>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button type="button" class="btn btn-outline" onclick="closeModal('transferModal')">Cancel</button>
+      <button type="submit" class="btn" style="background:var(--accent);color:#fff">Send</button>
+    </div>
+  </form>
+</div>

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card" style="margin-bottom:14px; background:linear-gradient(135deg, rgba(29,155,240,0.16), rgba(15,23,42,0.96)); border:1px solid rgba(125,211,252,0.2);">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+    <div>
+      <h2 style="margin:0 0 6px">🛍️ Altajobs Marketplace</h2>
+      <p class="post-meta" style="margin:0">List trusted products, discover local offers, and keep the experience fully inside Altajobs.</p>
+    </div>
+    <div class="badge" style="background:rgba(29,155,240,0.14);color:var(--accent)">Premium blue</div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <h3 style="margin:0 0 10px">List a product</h3>
+  <form method="POST" enctype="multipart/form-data">
+    <input type="text" name="title" placeholder="Product title" required style="margin-bottom:10px">
+    <textarea name="description" rows="4" placeholder="Describe your product" style="margin-bottom:10px"></textarea>
+    <input type="number" step="0.01" name="price" placeholder="Price" required style="margin-bottom:10px">
+    <input type="text" name="location" placeholder="Location" value="Addis Ababa" style="margin-bottom:10px">
+    <input type="file" name="photo" accept="image/*" style="margin-bottom:10px">
+    <button type="submit" class="btn">Publish listing</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3 style="margin:0 0 10px">Recent listings</h3>
+  {% if not listings %}
+    <p class="post-meta">No listings yet. Be the first to publish one.</p>
+  {% else %}
+    {% for item in listings %}
+      <div class="card marketplace-card" style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+          <div>
+            <div style="font-weight:800">{{ item['title'] }}</div>
+            <div class="post-meta">{{ item['full_name'] or item['username'] }} • {{ item['location'] or 'Addis Ababa' }}</div>
+          </div>
+          <div style="font-weight:800;color:var(--accent)">{{ item['price'] }} ETB</div>
+        </div>
+        {% if item['description'] %}<p style="margin:10px 0 0;color:var(--text)">{{ item['description'] }}</p>{% endif %}
+        <div class="post-meta" style="margin-top:8px">Status: {{ item['status'] }}</div>
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

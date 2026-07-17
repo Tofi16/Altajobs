@@ -3,17 +3,25 @@
 
 <style>
   :root{
-    --alta-bg:#161b22;
-    --alta-card:rgba(255,255,255,0.04);
-    --alta-border:rgba(255,255,255,0.08);
-    --alta-radius:16px;
+    --alta-bg:#07111f;
+    --alta-card:rgba(7, 19, 36, 0.82);
+    --alta-border:rgba(125, 211, 252, 0.16);
+    --alta-radius:22px;
+    --alta-accent:#3b82f6;
+    --alta-accent-strong:#2563eb;
+    --alta-accent-soft:rgba(59, 130, 246, 0.16);
+    --alta-text:#e8f1ff;
+    --alta-muted:#8fb2d6;
   }
 
-  /* ---------- Hamburger menu ---------- */
+  .profile-page-shell {
+    padding-top: 4px;
+  }
+
   .profile-header{
-    display:flex;align-items:center;justify-content:space-between;
+    display:flex;align-items:center;justify-content:flex-end;
     gap:10px;
-    padding:6px 2px;margin-bottom:10px;
+    padding:2px 2px 10px;
   }
   .profile-header-actions{
     display:flex;align-items:center;gap:8px;
@@ -21,41 +29,12 @@
   .hamburger-btn{
     background:var(--alta-card);
     border:1px solid var(--alta-border);
-    border-radius:12px;
+    border-radius:999px;
     width:42px;height:42px;
     display:flex;align-items:center;justify-content:center;
-    font-size:1.2rem;cursor:pointer;color:inherit;
+    font-size:1.2rem;cursor:pointer;color:var(--alta-text);
+    box-shadow:0 0 0 1px rgba(59,130,246,0.16);
   }
-
-  /* ---------- Language switcher (relocated from Feed header) ---------- */
-  .lang-switcher{
-    position:relative;
-    display:flex;align-items:center;
-  }
-  .lang-switcher select{
-    appearance:none;-webkit-appearance:none;-moz-appearance:none;
-    background:var(--alta-card);
-    border:1px solid var(--alta-border);
-    border-radius:12px;
-    color:inherit;
-    font-size:0.85rem;
-    font-weight:600;
-    padding:10px 30px 10px 14px;
-    height:42px;
-    cursor:pointer;
-    outline:none;
-  }
-  .lang-switcher::after{
-    content:"▾";
-    position:absolute;
-    right:10px;
-    top:50%;
-    transform:translateY(-50%);
-    font-size:0.7rem;
-    opacity:.6;
-    pointer-events:none;
-  }
-  .lang-switcher select:focus{border-color:var(--gold, #2ECC71)}
 
   .hamburger-overlay{
     position:fixed;inset:0;background:rgba(0,0,0,0.45);
@@ -98,45 +77,82 @@
     border-radius:var(--alta-radius);
     backdrop-filter:blur(14px);
     -webkit-backdrop-filter:blur(14px);
+    box-shadow:0 18px 40px rgba(2, 10, 25, 0.28);
   }
 
   /* ---------- Centered profile summary ---------- */
   .profile-summary{
     display:flex;flex-direction:column;align-items:center;text-align:center;
-    gap:6px;padding:24px 16px;
+    gap:8px;padding:28px 18px 22px;
   }
-  .profile-summary .avatar{margin:0 auto 6px}
-  .profile-name{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}
+  .profile-summary .avatar{
+    margin:0 auto 8px;
+    width:92px;height:92px;
+    border:2px solid rgba(255,255,255,0.12);
+    box-shadow:0 0 0 6px rgba(59,130,246,0.12), 0 0 26px rgba(59,130,246,0.3);
+  }
+  .profile-name{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;font-size:1.12rem;font-weight:700}
+  .profile-type{color:var(--alta-muted);font-size:0.92rem}
 
-  /* ---------- Professional Stats Grid ---------- */
+  .stats-shell{
+    width:100%;
+    max-width:460px;
+    margin:12px auto 4px;
+    padding:10px 12px;
+    border:1px solid rgba(125, 211, 252, 0.14);
+    border-radius:18px;
+    background:linear-gradient(135deg, rgba(59,130,246,0.12), rgba(37,99,235,0.06));
+  }
   .stats-grid{
     display:grid;
-    grid-template-columns:1fr 1fr 1fr;
+    grid-template-columns:repeat(3, minmax(0, 1fr));
     width:100%;
-    max-width:420px;
-    margin:16px auto 4px;
-    border:1px solid var(--alta-border);
-    border-radius:14px;
-    overflow:hidden;
+    gap:0;
   }
   .stat-cell{
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     gap:2px;
-    padding:12px 6px;
-    background:var(--alta-card);
-    border-right:1px solid var(--alta-border);
+    padding:10px 6px;
+    position:relative;
   }
-  .stat-cell:last-child{border-right:none}
+  .stat-cell + .stat-cell::before{
+    content:"";
+    position:absolute;
+    inset:8px auto 8px 0;
+    width:1px;
+    background:rgba(125,211,252,0.14);
+  }
   .stat-value{
-    font-size:1.15rem;
+    font-size:1.05rem;
     font-weight:700;
     line-height:1.1;
+    color:var(--alta-text);
   }
   .stat-label{
     font-size:0.72rem;
-    opacity:.65;
+    color:var(--alta-muted);
     text-transform:uppercase;
-    letter-spacing:.03em;
+    letter-spacing:.05em;
+  }
+  .stat-link {
+    display:block;
+    color:inherit;
+    text-decoration:none;
+    cursor:default;
+  }
+  .stat-link:hover { color:inherit; }
+
+  .profile-action-row{margin-top:10px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .profile-action-btn{
+    display:inline-flex;align-items:center;justify-content:center;
+    gap:8px;padding:10px 16px;border-radius:999px;border:1px solid rgba(125,211,252,0.2);
+    color:var(--alta-text);background:transparent;transition:all .2s ease;
+    font-weight:700;text-decoration:none;
+  }
+  .profile-action-btn:hover{
+    background:linear-gradient(135deg, var(--alta-accent) 0%, var(--alta-accent-strong) 100%);
+    color:#fff;border-color:transparent;
+    box-shadow:0 10px 24px rgba(59,130,246,0.26);
   }
 
   /* ---------- Visual Star Rating System ---------- */
@@ -197,17 +213,7 @@
 </svg>
 
 <div class="profile-header">
-  <span class="user-title">{{ t.profile }}</span>
   <div class="profile-header-actions">
-    <div class="lang-switcher">
-      <select id="profileLangSwitcher" onchange="if(this.value) window.location.href=this.value;" aria-label="{{ t.language if t.language is defined else 'Language' }}">
-        <option value="{{ url_for('set_language_route', lang='am') }}" {{ 'selected' if current_lang == 'am' }}>አማርኛ</option>
-        <option value="{{ url_for('set_language_route', lang='en') }}" {{ 'selected' if current_lang == 'en' }}>English</option>
-        <option value="{{ url_for('set_language_route', lang='om') }}" {{ 'selected' if current_lang == 'om' }}>Afaan Oromoo</option>
-        <option value="{{ url_for('set_language_route', lang='ti') }}" {{ 'selected' if current_lang == 'ti' }}>ትግርኛ</option>
-        <option value="{{ url_for('set_language_route', lang='ar') }}" {{ 'selected' if current_lang == 'ar' }}>العربية</option>
-      </select>
-    </div>
     <button class="hamburger-btn" id="profileMenuBtn" aria-label="{{ t.more }}" aria-expanded="false" aria-controls="profileDrawer">☰</button>
   </div>
 </div>
@@ -237,7 +243,7 @@
   <a href="{{ url_for('logout') }}" class="drawer-item danger">🚪 {{ t.logout if t.logout is defined else 'Logout' }}</a>
 </nav>
 
-<div id="posts" class="tab-content">
+<div id="posts" class="tab-content profile-page-shell">
 <div class="card glass-card profile-summary">
   <div class="avatar">
     {% if profile_user['avatar'] %}
@@ -257,32 +263,33 @@
   </div>
   <div class="profile-type">{{ t.worker if profile_user['user_type']=='worker' else t.employer }}</div>
 
-  <!-- Professional Stats Grid (replaces plain-text follower/following/post line) -->
-  <div class="stats-grid">
-    <div class="stat-cell">
-      <span class="stat-value">{{ followers_count }}</span>
-      <span class="stat-label">{{ t.followers }}</span>
-    </div>
-    <div class="stat-cell">
-      <span class="stat-value">{{ following_count }}</span>
-      <span class="stat-label">{{ t.follow }}</span>
-    </div>
-    <div class="stat-cell">
-      <span class="stat-value">{{ posts_count }}</span>
-      <span class="stat-label">{{ t.feed }}</span>
+  <div class="stats-shell">
+    <div class="stats-grid">
+      <div class="stat-cell">
+        <span class="stat-value">{{ followers_count }}</span>
+        <span class="stat-label">{{ t.followers }}</span>
+      </div>
+      <div class="stat-cell">
+        <span class="stat-value">{{ following_count }}</span>
+        <span class="stat-label">{{ t.follow }}</span>
+      </div>
+      <div class="stat-cell">
+        <span class="stat-value">{{ posts_count }}</span>
+        <span class="stat-label">{{ t.feed }}</span>
+      </div>
     </div>
   </div>
 
   {% if profile_user['phone'] %}<div class="post-meta">📞 {{ profile_user['phone'] }}</div>{% endif %}
 
   {% if current_user and current_user['id'] != profile_user['id'] %}
-    <div style="margin-top:8px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-      <button type="button" class="follow-btn js-follow-btn {{ 'following' if is_following }}"
+    <div class="profile-action-row">
+      <button type="button" class="profile-action-btn js-follow-btn {{ 'following' if is_following }}"
               data-user-id="{{ profile_user['id'] }}"
               data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
         {{ t.unfollow if is_following else t.follow }}
       </button>
-      <a href="{{ url_for('chat_start', user_id=profile_user['id']) }}" class="btn btn-outline btn-small">💬 {{ t.messages }}</a>
+      <a href="{{ url_for('chat_start', user_id=profile_user['id']) }}" class="profile-action-btn">💬 {{ t.messages }}</a>
     </div>
   {% endif %}
 
@@ -298,8 +305,8 @@
   {% endif %}
 
   {% if current_user and current_user['id'] == profile_user['id'] %}
-    <div style="margin-top:12px">
-      <a href="{{ url_for('edit_profile') }}" class="btn btn-outline btn-small"><i class='bx bx-edit'></i> {{ t.edit_profile }}</a>
+    <div class="profile-action-row">
+      <a href="{{ url_for('edit_profile') }}" class="profile-action-btn"><i class='bx bx-edit'></i> {{ t.edit_profile }}</a>
     </div>
   {% endif %}
 

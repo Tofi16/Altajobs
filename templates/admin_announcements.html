@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin_nav.html" %}
+
+<div class="card" style="margin-bottom:14px; background:linear-gradient(135deg, rgba(29,155,240,0.14), rgba(15,23,42,0.9)); border:1px solid rgba(125,211,252,0.2);">
+  <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
+    <div>
+      <h2 style="margin:0 0 6px;color:var(--text)">📣 Announcement Board</h2>
+      <p class="post-meta" style="margin:0">Broadcast policy updates, promotions, and governance notices to all users.</p>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:1.35rem;font-weight:800;color:var(--accent)">{{ announcement_count }}</div>
+      <div class="post-meta">active broadcasts</div>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <h3 style="margin:0 0 10px">Create announcement</h3>
+  <form method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="action" value="create">
+    <input type="text" name="title" placeholder="Title" required style="margin-bottom:10px">
+    <textarea name="content" rows="5" placeholder="Announcement content" required style="margin-bottom:10px"></textarea>
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <input type="checkbox" name="is_pinned">
+      <span>Pin to the top of user feeds</span>
+    </label>
+    <input type="file" name="image" accept="image/*" style="margin-bottom:10px">
+    <button type="submit" class="btn">Publish broadcast</button>
+  </form>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <h3 style="margin:0 0 10px">Restricted words</h3>
+  <form method="POST" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+    <input type="hidden" name="action" value="add-word">
+    <input type="text" name="word" placeholder="Add a restricted word" required>
+    <button type="submit" class="btn btn-small">Add word</button>
+  </form>
+  {% if restricted_words %}
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      {% for word in restricted_words %}
+        <form method="POST" style="display:inline">
+          <input type="hidden" name="action" value="delete-word">
+          <input type="hidden" name="word_id" value="{{ word['id'] }}">
+          <button type="submit" class="btn btn-small btn-outline">{{ word['word'] }} ×</button>
+        </form>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="post-meta">No restricted words configured yet.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+    <h3 style="margin:0">Recent broadcasts</h3>
+    <div class="post-meta">Seen by {{ total_views }} users</div>
+  </div>
+  {% if not announcements %}
+    <p class="post-meta">No announcements published yet.</p>
+  {% else %}
+    {% for item in announcements %}
+      <div class="card" style="margin-bottom:10px; background:rgba(255,255,255,0.03); border:1px solid rgba(125,211,252,0.16);">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:8px;flex-wrap:wrap">
+          <div>
+            <div style="font-weight:800; margin-bottom:4px">{{ item['title'] }}</div>
+            <div class="post-meta">{{ item['created_at'][:16].replace('T',' ') }}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            {% if item['is_pinned'] %}<span class="badge" style="background:rgba(29,155,240,0.15);color:var(--accent)">Pinned</span>{% endif %}
+            <form method="POST" action="{{ url_for('delete_announcement', announcement_id=item['id']) }}">
+              <button type="submit" class="btn btn-small btn-outline">Delete</button>
+            </form>
+          </div>
+        </div>
+        <p style="margin:10px 0 0; color:var(--text)">{{ item['content'] }}</p>
+        {% if item['image_url'] %}
+          <img src="{{ photo_url(item['image_url']) }}" alt="Announcement banner" style="max-width:240px;border-radius:12px;margin-top:10px;border:1px solid rgba(125,211,252,0.16)">
+        {% endif %}
+        <div class="post-meta" style="margin-top:10px">Seen by {{ item['view_count'] }} users</div>
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

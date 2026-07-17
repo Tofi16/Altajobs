@@ -38,20 +38,52 @@
   <button type="button" class="filter-pill" data-filter="general,skill">Experiences 💬</button>
 </div>
 
-<div class="card waitlist-banner" id="waitlistBanner" data-feature="ai_interview_practice">
+<div class="card waitlist-banner" id="waitlistBanner">
   <div class="waitlist-banner-glow"></div>
   <div class="waitlist-banner-content">
-    <div class="waitlist-banner-icon">🤖</div>
+    <div class="waitlist-banner-icon"><i class='bx bx-search-alt-2'></i></div>
     <div class="waitlist-banner-text">
-      <div class="waitlist-banner-tag">Coming Soon</div>
-      <h3>AI Interview Practice</h3>
-      <p>Practice real interview questions with instant AI feedback before you apply.</p>
+      <div class="waitlist-banner-tag">Smart discovery</div>
+      <h3>Find the right opportunity faster</h3>
+      <p>Use the new search bar to filter jobs, experiences, and trusted creators instantly.</p>
     </div>
-    <button type="button" class="btn waitlist-notify-btn" id="waitlistNotifyBtn">
-      <i class='bx bx-bell-plus'></i> Notify Me
-    </button>
+    <a href="{{ url_for('wallet') }}" class="btn waitlist-notify-btn">
+      <i class='bx bx-wallet'></i> Boost visibility
+    </a>
   </div>
 </div>
+
+<div class="feed-skeleton-shell" id="feedSkeletonShell" aria-hidden="true">
+  <div class="feed-skeleton-card">
+    <div class="feed-skeleton-row"></div>
+    <div class="feed-skeleton-row short"></div>
+    <div class="feed-skeleton-media"></div>
+    <div class="feed-skeleton-row"></div>
+    <div class="feed-skeleton-row short"></div>
+  </div>
+  <div class="feed-skeleton-card">
+    <div class="feed-skeleton-row"></div>
+    <div class="feed-skeleton-row short"></div>
+    <div class="feed-skeleton-media"></div>
+    <div class="feed-skeleton-row"></div>
+  </div>
+</div>
+
+{% if active_announcement %}
+<div class="announcement-banner" id="announcementBanner">
+  <div class="announcement-banner-gradient"></div>
+  <div class="announcement-banner-content">
+    <div>
+      <div class="announcement-banner-tag">Live update</div>
+      <h3>{{ active_announcement['title'] }}</h3>
+      <p>{{ active_announcement['content'] }}</p>
+    </div>
+    <form method="POST" action="{{ url_for('dismiss_announcement', announcement_id=active_announcement['id']) }}" class="announcement-dismiss-form">
+      <button type="submit" class="announcement-dismiss-btn">Dismiss</button>
+    </form>
+  </div>
+</div>
+{% endif %}
 
 {% if not posts_data %}
   <p style="text-align:center;color:var(--muted)" id="noPostsMsg">{{ t.no_posts }}</p>
@@ -115,8 +147,61 @@
       <p class="post-content">{{ post['content'] }}</p>
     {% endif %}
     {% if post['photo'] %}
-      <img class="post-photo" src="{{ photo_url(post['photo']) }}">
+      <div class="post-media" data-post-id="{{ post['id'] }}">
+        <img class="post-photo" src="{{ photo_url(post['photo']) }}" alt="Product preview">
+        <div class="double-tap-heart" aria-hidden="true"><i class='bx bxs-heart'></i></div>
+      </div>
     {% endif %}
+
+    <div class="product-engagement-card">
+      <div class="social-proof-row">
+        <div class="social-proof-avatars">
+          <span class="social-proof-avatar social-proof-avatar-main">
+            {% if post['avatar'] %}
+              <img src="{{ photo_url(post['avatar']) }}" alt="">
+            {% else %}
+              {{ (item.author_name or 'U')[0] }}
+            {% endif %}
+          </span>
+          <span class="social-proof-avatar social-proof-avatar-secondary">J</span>
+          <span class="social-proof-avatar social-proof-avatar-tertiary">A</span>
+        </div>
+        <div class="social-proof-text">
+          {% if item.like_count > 0 %}
+            {% if item.like_count == 1 %}
+              Liked by <a href="{{ url_for('profile', user_id=post['user_id']) }}" class="social-proof-link">{{ item.author_name }}</a>
+            {% else %}
+              Liked by <a href="{{ url_for('profile', user_id=post['user_id']) }}" class="social-proof-link">{{ item.author_name }}</a> and <span class="social-proof-count">{{ item.like_count - 1 }} others</span>
+            {% endif %}
+          {% else %}
+            <span>Be the first to spark a like</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="engagement-bar">
+        <div class="engagement-group">
+          <button type="button" class="action-btn action-btn-pill js-like-btn {{ 'liked' if item.liked }}"
+                  data-post-id="{{ post['id'] }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}">
+            <i class='bx {{ "bxs-heart" if item.liked else "bx-heart" }}'></i>
+            <span class="like-count">{{ item.like_count }}</span>
+          </button>
+          <a href="{{ url_for('post_detail', post_id=post['id']) }}#comments" class="action-btn action-btn-pill">
+            <i class='bx bx-comment'></i><span class="action-count">{{ item.comment_count }}</span>
+          </a>
+          <form method="POST" action="{{ url_for('share_post', post_id=post['id']) }}">
+            <button type="submit" class="action-btn action-btn-pill">
+              <i class='bx bx-share-alt'></i>
+            </button>
+          </form>
+        </div>
+        <form method="POST" action="{{ url_for('save_post', post_id=post['id']) }}" class="engagement-save">
+          <button type="submit" class="action-btn action-btn-pill {{ 'liked' if item.saved }}">
+            <i class='bx {{ "bxs-bookmark" if item.saved else "bx-bookmark" }}'></i>
+          </button>
+        </form>
+      </div>
+    </div>
 
     {% if post['post_type'] == 'job' %}
       <div class="job-actions">
@@ -136,42 +221,6 @@
         </form>
         <form method="POST" action="{{ url_for('share_post', post_id=post['id']) }}">
           <button type="submit" class="btn-share"><i class='bx bx-share-alt'></i></button>
-        </form>
-      </div>
-      <div class="post-actions" style="border-top:none;padding-top:6px">
-        <button type="button" class="action-btn js-like-btn {{ 'liked' if item.liked }}" style="flex:none;width:auto;padding:6px 16px;flex-direction:row;gap:6px"
-                data-post-id="{{ post['id'] }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}">
-          <i class='bx {{ "bxs-heart" if item.liked else "bx-heart" }}'></i>
-          <span class="like-count">{{ item.like_count }}</span>
-        </button>
-        <a href="{{ url_for('post_detail', post_id=post['id']) }}" class="action-btn" style="flex:none;width:auto;padding:6px 16px;flex-direction:row;gap:6px">
-          <i class='bx bx-comment'></i><span class="action-count">{{ item.comment_count }}</span>
-        </a>
-      </div>
-    {% else %}
-      <div class="post-actions">
-        <button type="button" class="action-btn js-like-btn {{ 'liked' if item.liked }}"
-                data-post-id="{{ post['id'] }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}">
-          <i class='bx {{ "bxs-heart" if item.liked else "bx-heart" }}'></i>
-          <span class="like-count">{{ item.like_count }}</span>
-        </button>
-        <a href="{{ url_for('post_detail', post_id=post['id']) }}" class="action-btn">
-          <i class='bx bx-comment'></i><span class="action-count">{{ item.comment_count }}</span>
-        </a>
-        <form method="POST" action="{{ url_for('share_post', post_id=post['id']) }}">
-          <button type="submit" class="action-btn">
-            <i class='bx bx-share-alt'></i><span class="action-count">{{ post['share_count'] }}</span>
-          </button>
-        </form>
-        {% if post['user_id'] != current_user['id'] %}
-        <a href="{{ url_for('post_detail', post_id=post['id']) }}#gift" class="action-btn">
-          <i class='bx bx-gift'></i>
-        </a>
-        {% endif %}
-        <form method="POST" action="{{ url_for('save_post', post_id=post['id']) }}">
-          <button type="submit" class="action-btn {{ 'liked' if item.saved }}">
-            <i class='bx {{ "bxs-bookmark" if item.saved else "bx-bookmark" }}'></i>
-          </button>
         </form>
       </div>
     {% endif %}

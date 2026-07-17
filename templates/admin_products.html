@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "admin_nav.html" %}
+
+<div class="card">
+  <h2 style="margin:0 0 6px">🛍️ Product Approval Queue</h2>
+  <p class="post-meta" style="margin:0">New marketplace items awaiting admin review. Approve to make them visible publicly.</p>
+</div>
+
+{% if not listings %}
+<div class="card"><p class="post-meta">No pending listings right now.</p></div>
+{% else %}
+  <div style="display:flex;flex-direction:column;gap:12px">
+  {% for p in listings %}
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+        <div style="min-width:0">
+          <div style="font-weight:700;color:var(--accent)">{{ p['title'] }}</div>
+          <div class="post-meta">By <a href="{{ url_for('profile', user_id=p['user_id']) }}">{{ p['username'] }}</a> · {{ p['location'] }}</div>
+          <p style="margin:8px 0 0">{{ p['description'] }}</p>
+        </div>
+        <div style="text-align:right;white-space:nowrap">
+          <div style="font-weight:700;color:var(--accent)">{{ p['price'] }} ETB</div>
+          <div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end">
+            <form method="POST" action="{{ url_for('admin_approve_product', product_id=p['id']) }}">
+              <button type="submit" class="btn btn-small" style="background:var(--accent);color:white">Approve</button>
+            </form>
+            <form method="POST" action="{{ url_for('admin_reject_product', product_id=p['id']) }}" onsubmit="return confirm('Reject this listing?');">
+              <button type="submit" class="btn btn-small btn-outline">Reject</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+  </div>
+{% endif %}
+
+{% endblock %}

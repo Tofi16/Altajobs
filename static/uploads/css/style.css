@@ -2,9 +2,9 @@
   --bg: #18191A;           /* Deep Dark - page background */
   --surface: #242526;      /* card / surface background */
   --surface-2: #2e2f30;    /* inputs, hover states */
-  --accent: #2ECC71;       /* Soft Mint Green - primary accent */
-  --accent-dark: #25a85c;
-  --accent-light: rgba(46,204,113,0.15);
+  --accent: #1D9BF0;       /* Royal Blue - primary accent */
+  --accent-dark: #1676c6;
+  --accent-light: rgba(29,155,240,0.15);
   --gold: #e6b800;
   --gold-gradient: linear-gradient(135deg, #fdeb9e 0%, #f7c948 35%, #d4a017 70%, #b8860b 100%);
   --text: #FFFFFF;
@@ -16,9 +16,9 @@
   --topbar-height: 56px;
 
   /* legacy variable names kept so nothing else in the codebase breaks */
-  --green-dark: var(--accent-dark);
-  --green: var(--accent);
-  --green-light: var(--accent-light);
+  --blue-dark: var(--accent-dark);
+  --blue: var(--accent);
+  --blue-light: var(--accent-light);
   --gray: var(--muted);
   --white: var(--surface);
 }

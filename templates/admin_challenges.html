@@ -21,12 +21,12 @@
       <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
         {% if w['disbursement_status'] == 'pending_admin_review' %}
           <form method="POST" action="{{ url_for('approve_guarantor', entry_id=w['entry_id']) }}">
-            <button type="submit" class="btn btn-small">✅ {{ t.approve }} {{ t.guarantor_name }} ({{ milestone1_percent }}%)</button>
+            <button type="submit" class="btn btn-small" style="background:var(--accent);color:white">{{ t.approve }} {{ t.guarantor_name }} ({{ milestone1_percent }}%)</button>
           </form>
         {% endif %}
         {% if w['disbursement_status'] == 'pending_proof_review' %}
           <form method="POST" action="{{ url_for('approve_proof', entry_id=w['entry_id']) }}">
-            <button type="submit" class="btn btn-small">✅ {{ t.approve }} {{ t.submit_proof }}</button>
+            <button type="submit" class="btn btn-small" style="background:var(--accent);color:white">{{ t.approve }} {{ t.submit_proof }}</button>
           </form>
         {% endif %}
         {% if w['disbursement_status'] == 'pending_confirmation' %}

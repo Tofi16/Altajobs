@@ -45,7 +45,7 @@
       {% if post['user_id'] == current_user['id'] %}
         <a href="{{ url_for('view_applicants', post_id=post['id']) }}" class="btn-apply" style="text-decoration:none;display:block">👥 {{ t.applicants }}</a>
       {% elif applied %}
-        <button class="btn-apply" disabled style="opacity:0.6">✅ {{ t.applied }}</button>
+        <button class="btn-apply" disabled style="opacity:0.6">{{ t.applied }}</button>
       {% else %}
         <form method="POST" action="{{ url_for('apply_to_job', post_id=post['id']) }}" style="flex:1.4">
           <textarea name="message" placeholder="{{ t.apply_message_placeholder }}" style="margin-bottom:8px"></textarea>
@@ -98,12 +98,12 @@
   </div>
 </div>
 
-<div class="card">
+<div class="card" id="comments">
   <h3>{{ t.comments }} ({{ comments|length }})</h3>
 
   {% for c in comments %}
     <div class="comment">
-      <div class="comment-author">{{ c['full_name'] or c['username'] }}</div>
+      <a href="{{ url_for('profile', user_id=c['user_id']) }}" class="comment-author">{{ c['full_name'] or c['username'] }}</a>
       <div class="comment-content">{{ c['content'] }}</div>
     </div>
   {% endfor %}

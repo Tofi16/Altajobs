@@ -38,7 +38,7 @@
 
 <div class="card" style="text-align:center">
   {% if gate.unlocked %}
-    <p style="color:var(--accent);font-weight:700">✅ {{ t.gate_unlocked }}</p>
+    <p style="color:var(--accent);font-weight:700">{{ t.gate_unlocked }}</p>
     <a href="{{ url_for('challenges') }}" class="btn btn-gold">{{ t.go_to_challenges }}</a>
   {% else %}
     <p class="post-meta">{{ t.gate_locked_note }}</p>

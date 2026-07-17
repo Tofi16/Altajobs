@@ -500,6 +500,66 @@ def init_db():
             value TEXT NOT NULL,
             updated_at TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS wallets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL UNIQUE,
+            balance REAL DEFAULT 0.00,
+            escrow_balance REAL DEFAULT 0.00,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            price REAL NOT NULL,
+            location TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            wallet_id INTEGER NOT NULL,
+            type TEXT NOT NULL,
+            amount REAL NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(wallet_id) REFERENCES wallets(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS offers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            buyer_id INTEGER NOT NULL,
+            seller_id INTEGER NOT NULL,
+            offered_price REAL NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE,
+            FOREIGN KEY(buyer_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(seller_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS announcements (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            image_url TEXT,
+            is_pinned INTEGER DEFAULT 0,
+            view_count INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS restricted_words (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            word TEXT NOT NULL UNIQUE,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
         """
     )
     db.commit()
@@ -510,6 +570,39 @@ def init_db():
 def migrate_db():
     """አስቀድሞ ለተፈጠረ altajobs.db አዲስ columns በደህና ይጨምራል (idempotent)."""
     db = sqlite3.connect(DATABASE)
+
+    # Seed / update the admin account safely without overwriting existing data.
+    try:
+        user_cols = {row[1] for row in db.execute("PRAGMA table_info(users)")}
+        existing_admin = db.execute("SELECT id, username, is_admin FROM users WHERE username = ?", ("Tofik",)).fetchone()
+        if existing_admin is None:
+            insert_cols = ["username", "password_hash", "is_admin", "created_at"]
+            insert_values = ["Tofik", "$2b$10$PlaceholderHashForTofikSecuredPassword123", 1, datetime.datetime.utcnow().isoformat()]
+            if "role" in user_cols:
+                insert_cols.append("role")
+                insert_values.append("admin")
+            db.execute(
+                f"INSERT INTO users ({', '.join(insert_cols)}) VALUES ({', '.join('?' for _ in insert_cols)})",
+                insert_values,
+            )
+        else:
+            if "role" in user_cols:
+                db.execute("UPDATE users SET role = ?, is_admin = 1 WHERE username = ?", ("admin", "Tofik"))
+            else:
+                db.execute("UPDATE users SET is_admin = 1 WHERE username = ?", ("Tofik",))
+        db.commit()
+    except Exception as exc:
+        print(f"Warning: could not seed admin user: {exc}")
+
+    try:
+        admin_user = db.execute("SELECT id FROM users WHERE username = ?", ("Tofik",)).fetchone()
+        if admin_user:
+            wallet_exists = db.execute("SELECT id FROM wallets WHERE user_id = ?", (admin_user[0],)).fetchone()
+            if not wallet_exists:
+                db.execute("INSERT INTO wallets (user_id, balance, escrow_balance, created_at) VALUES (?, 0.00, 0.00, ?)", (admin_user[0], datetime.datetime.utcnow().isoformat()))
+                db.commit()
+    except Exception as exc:
+        print(f"Warning: could not initialize admin wallet: {exc}")
     existing_cols = {row[1] for row in db.execute("PRAGMA table_info(users)")}
     new_columns = {
         "wallet_balance": "INTEGER DEFAULT 0",
@@ -564,7 +657,7 @@ def migrate_db():
     """)
     db.commit()
 
-    db.execute("""
+    db.executescript("""
         CREATE TABLE IF NOT EXISTS notifications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -573,7 +666,17 @@ def migrate_db():
             is_read INTEGER DEFAULT 0,
             created_at TEXT NOT NULL,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
+        );
+
+        CREATE TABLE IF NOT EXISTS announcement_views (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            announcement_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(announcement_id, user_id),
+            FOREIGN KEY(announcement_id) REFERENCES announcements(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
     """)
     db.commit()
 
@@ -616,9 +719,19 @@ def migrate_db():
         "password_reset_code": "TEXT DEFAULT NULL",
         "password_reset_expires": "TEXT DEFAULT NULL",
         "email_verified_at": "TEXT DEFAULT NULL",
+        "strikes": "INTEGER DEFAULT 0",
+        "trust_score": "INTEGER DEFAULT 0",
+        "is_suspended": "INTEGER DEFAULT 0",
+        "is_trusted_seller": "INTEGER DEFAULT 0",
     }.items():
         if col not in user_cols:
             db.execute(f"ALTER TABLE users ADD COLUMN {col} {coltype}")
+    db.commit()
+
+    post_cols = {row[1] for row in db.execute("PRAGMA table_info(posts)")}
+    for col, coltype in {"status": "TEXT DEFAULT 'approved'"}.items():
+        if col not in post_cols:
+            db.execute(f"ALTER TABLE posts ADD COLUMN {col} {coltype}")
     db.commit()
 
     try:
@@ -724,6 +837,29 @@ def get_current_user():
         return None
     db = get_db()
     return db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+
+
+@app.before_request
+def enforce_maintenance_mode():
+    # Allow static assets and admin settings to be reachable for admins.
+    path = request.path or ""
+    if path.startswith("/static/"):
+        return
+    # Skip enforcement for the admin settings endpoints so admins can toggle it.
+    if request.endpoint in ("admin_settings", "admin_panel", "admin_login", "static"):
+        return
+    try:
+        if get_setting("maintenance_mode", "0") == "1":
+            user = None
+            try:
+                user = get_current_user()
+            except Exception:
+                user = None
+            if not user or not user.get("is_admin"):
+                return render_template("maintenance.html"), 503
+    except Exception:
+        # On any error, fail open (don't block requests)
+        return
 
 
 # Endpoints a signed-in-but-not-yet-verified user is still allowed to reach.
@@ -861,6 +997,84 @@ def add_notification(db, user_id, message, ntype="info"):
     )
 
 
+def get_restricted_words(db):
+    rows = db.execute("SELECT word FROM restricted_words ORDER BY word").fetchall()
+    return [row["word"] for row in rows]
+
+
+def contains_restricted_word(text, db=None):
+    if not text:
+        return None
+    if db is None:
+        db = get_db()
+    words = get_restricted_words(db)
+    lowered = (text or "").casefold()
+    for word in words:
+        if word and word.casefold() in lowered:
+            return word
+    return None
+
+
+def add_strike(db, user_id, reason="policy_violation"):
+    user = db.execute("SELECT id, strikes, is_suspended FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user:
+        return None
+    new_strikes = (user["strikes"] or 0) + 1
+    db.execute("UPDATE users SET strikes = ? WHERE id = ?", (new_strikes, user_id))
+    if new_strikes >= 3:
+        db.execute("UPDATE users SET is_suspended = 1 WHERE id = ?", (user_id,))
+        add_notification(db, user_id, "Your account has been suspended after repeated policy violations.", ntype="ban")
+    else:
+        add_notification(db, user_id, f"A post was removed for violating community rules. Strike {new_strikes}/3.", ntype="warning")
+    return new_strikes
+
+
+def refresh_trust_status(db, user_id):
+    user = db.execute("SELECT id, strikes, is_suspended FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user:
+        return None
+    approved_count = db.execute(
+        "SELECT COUNT(*) c FROM posts WHERE user_id = ? AND status = 'approved'",
+        (user_id,),
+    ).fetchone()["c"]
+    trusted = approved_count >= 3 and (user["strikes"] or 0) == 0 and not user["is_suspended"]
+    db.execute(
+        "UPDATE users SET trust_score = ?, is_trusted_seller = ? WHERE id = ?",
+        (100 if trusted else 0, 1 if trusted else 0, user_id),
+    )
+    return trusted
+
+
+def review_listing(db, user_id, title, description):
+    blocked_word = contains_restricted_word((title or "") + " " + (description or ""), db)
+    if blocked_word:
+        add_strike(db, user_id, reason=f"blocked_word:{blocked_word}")
+        return "rejected"
+    user = db.execute("SELECT strikes, is_suspended, is_trusted_seller FROM users WHERE id = ?", (user_id,)).fetchone()
+    if user and user["is_suspended"]:
+        return "rejected"
+    if user and user["is_trusted_seller"]:
+        return "approved"
+    return "pending"
+
+
+def record_announcement_view(db, user_id, announcement_id):
+    if not user_id or not announcement_id:
+        return False
+    existing = db.execute(
+        "SELECT id FROM announcement_views WHERE announcement_id = ? AND user_id = ?",
+        (announcement_id, user_id),
+    ).fetchone()
+    if existing:
+        return False
+    db.execute(
+        "INSERT INTO announcement_views (announcement_id, user_id, created_at) VALUES (?, ?, ?)",
+        (announcement_id, user_id, datetime.datetime.utcnow().isoformat()),
+    )
+    db.execute("UPDATE announcements SET view_count = view_count + 1 WHERE id = ?", (announcement_id,))
+    return True
+
+
 def is_currently_verified(user):
     """ተጠቃሚው አሁን ላይ Blue Tick አለው ወይስ የለውም የሚለውን ይመልሳል"""
     if not user or not user["is_verified"]:
@@ -913,6 +1127,25 @@ def inject_gift_catalog():
         "channel_verification_days_left": channel_verification_days_left,
         "channel_verification_expiring_soon": channel_verification_expiring_soon,
     }
+
+
+@app.context_processor
+def inject_announcements():
+    user = get_current_user()
+    announcement = None
+    dismissed_ids = set(session.get("dismissed_announcements", [])) if session else set()
+    if user:
+        db = get_db()
+        rows = db.execute(
+            "SELECT * FROM announcements WHERE is_pinned = 1 OR id IN (SELECT id FROM announcements ORDER BY created_at DESC LIMIT 10) ORDER BY is_pinned DESC, created_at DESC"
+        ).fetchall()
+        for row in rows:
+            if row["id"] in dismissed_ids:
+                continue
+            record_announcement_view(db, user["id"], row["id"])
+            announcement = row
+            break
+    return {"active_announcement": announcement}
 
 
 def allowed_file(filename):
@@ -1266,6 +1499,18 @@ def _normalize_username(username):
     return (username or "").strip().casefold()
 
 
+def _password_meets_policy(password):
+    if not password or len(password) < 8:
+        return False
+    if not re.search(r"[A-Z]", password):
+        return False
+    if not re.search(r"\d", password):
+        return False
+    if not re.search(r"[^A-Za-z0-9]", password):
+        return False
+    return True
+
+
 def _send_email(subject, recipient, body):
     if not recipient:
         return False
@@ -1294,17 +1539,38 @@ def _send_email(subject, recipient, body):
         return False
 
 
+@app.route("/api/check-username")
+def check_username():
+    username = request.args.get("username", "").strip()
+    if not username:
+        return jsonify({"available": False, "message": "Username is required."})
+    normalized_username = _normalize_username(username)
+    db = get_db()
+    existing = db.execute(
+        "SELECT id FROM users WHERE lower(username) = ?", (normalized_username,)
+    ).fetchone()
+    available = existing is None
+    return jsonify({"available": available, "message": "Username is available." if available else "Username is already taken."})
+
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         normalized_username = _normalize_username(username)
         password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
         full_name = request.form.get("full_name", "").strip()
         user_type = request.form.get("user_type", "worker")
 
         if not username or not password:
             flash("Please enter both a username and password.")
+            return redirect(url_for("register"))
+        if not _password_meets_policy(password):
+            flash("Password must be at least 8 characters, include an uppercase letter, a number, and a special character.")
+            return redirect(url_for("register"))
+        if password != confirm_password:
+            flash("Passwords do not match.")
             return redirect(url_for("register"))
 
         db = get_db()
@@ -1614,12 +1880,29 @@ def new_post():
         return redirect(url_for("feed"))
 
     db = get_db()
+    user = get_current_user()
+    blocked_word = contains_restricted_word(content, db)
+    if blocked_word:
+        db.execute(
+            "INSERT INTO reports (reporter_id, target_type, target_id, reason, status, created_at) VALUES (?, 'post', 0, ?, 'pending', ?)",
+            (user["id"], f"Blocked: contains restricted word '{blocked_word}'", datetime.datetime.utcnow().isoformat()),
+        )
+        add_notification(db, user["id"], f"Your post was blocked because it contains the restricted word '{blocked_word}'.", ntype="warning")
+        for admin in db.execute("SELECT id FROM users WHERE is_admin = 1").fetchall():
+            add_notification(db, admin["id"], f"New post by {user['username']} was blocked for policy review.", ntype="warning")
+        db.commit()
+        flash("Your post was blocked for policy review.")
+        return redirect(url_for("feed"))
+
+    status = "approved"
     db.execute(
-        """INSERT INTO posts (user_id, content, photo, post_type, created_at)
-           VALUES (?, ?, ?, ?, ?)""",
-        (session["user_id"], content, photo, post_type,
+        """INSERT INTO posts (user_id, content, photo, post_type, status, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (session["user_id"], content, photo, post_type, status,
          datetime.datetime.utcnow().isoformat()),
     )
+    db.commit()
+    refresh_trust_status(db, user["id"])
     db.commit()
     return redirect(url_for("feed"))
 
@@ -2562,57 +2845,75 @@ def api_complete_task():
 
 
 # ---------------------------------------------------------------------------
-# AI-Assisted CV Maker
+# Marketplace
 # ---------------------------------------------------------------------------
 @app.route("/cv-maker", methods=["GET", "POST"])
 @login_required
 def cv_maker():
-    payload = None
+    """Legacy CV route repurposed: accepts the old form POSTs and creates
+    a marketplace listing so existing links and tests continue to work.
+    GET requests render the lightweight marketplace message template.
+    """
     user = get_current_user()
+    db = get_db()
 
     if request.method == "POST":
-        if user["wallet_balance"] < CV_PREMIUM_PRICE:
-            flash(f"Insufficient wallet balance - generating a premium CV costs {CV_PREMIUM_PRICE} ETB.")
-            return redirect(url_for("wallet"))
-
-        photo = save_cv_photo(request.files.get("photo"))
-        payload = _generate_cv_payload(request.form, photo=photo)
-
-        db = get_db()
-        db.execute("BEGIN IMMEDIATE")
-        try:
-            # Conditional UPDATE (balance >= price) makes this atomic and
-            # race-safe - the same pattern used by buy_verification/buy_vip -
-            # so the CV can never be charged for twice or charged past zero.
-            cur = db.execute(
-                "UPDATE users SET wallet_balance = wallet_balance - ? "
-                "WHERE id = ? AND wallet_balance >= ?",
-                (CV_PREMIUM_PRICE, user["id"], CV_PREMIUM_PRICE),
-            )
-            if cur.rowcount == 0:
-                db.rollback()
-                flash(f"Insufficient wallet balance - generating a premium CV costs {CV_PREMIUM_PRICE} ETB.")
-                return redirect(url_for("wallet"))
-
+        title = (request.form.get("title") or "").strip()
+        description = (request.form.get("description") or "").strip()
+        price = request.form.get("price", "0").strip()
+        location = (request.form.get("location") or "Addis Ababa").strip()
+        photo = save_photo(request.files.get("photo"))
+        if title and price:
+            try:
+                price_value = float(price)
+            except ValueError:
+                price_value = 0.0
+            status = review_listing(db, user["id"], title, description)
             db.execute(
-                """INSERT INTO cv_documents
-                   (user_id, full_name, target_role, summary, experience,
-                    achievements, skills, photo, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    user["id"], payload["full_name"], payload["target_role"],
-                    payload["summary"], payload["experience"],
-                    "\n".join(payload["achievements"]), ", ".join(payload["skills"]),
-                    photo, datetime.datetime.utcnow().isoformat(),
-                ),
+                """INSERT INTO products (user_id, title, description, price, location, status, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (user["id"], title, description, price_value, location, status, datetime.datetime.utcnow().isoformat()),
             )
             db.commit()
-            flash("Premium CV generated! Your wallet balance has been updated.")
-        except Exception:
-            db.rollback()
-            raise
+            flash("Your marketplace listing has been submitted.")
+            return redirect(url_for("marketplace"))
 
-    return render_template("cv_maker.html", payload=payload, cv_price=CV_PREMIUM_PRICE)
+    return render_template("cv_maker.html")
+
+@app.route("/marketplace", methods=["GET", "POST"])
+@login_required
+def marketplace():
+    user = get_current_user()
+    db = get_db()
+    listings = db.execute(
+        """SELECT p.*, u.username, u.full_name, u.avatar
+           FROM products p
+           JOIN users u ON p.user_id = u.id
+           ORDER BY p.created_at DESC LIMIT 50"""
+    ).fetchall()
+
+    if request.method == "POST":
+        title = (request.form.get("title") or "").strip()
+        description = (request.form.get("description") or "").strip()
+        price = request.form.get("price", "0").strip()
+        location = (request.form.get("location") or "Addis Ababa").strip()
+        photo = save_photo(request.files.get("photo"))
+        if title and price:
+            try:
+                price_value = float(price)
+            except ValueError:
+                price_value = 0.0
+            status = review_listing(db, user["id"], title, description)
+            db.execute(
+                """INSERT INTO products (user_id, title, description, price, location, status, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (user["id"], title, description, price_value, location, status, datetime.datetime.utcnow().isoformat()),
+            )
+            db.commit()
+            flash("Your marketplace listing has been submitted.")
+            return redirect(url_for("marketplace"))
+
+    return render_template("marketplace.html", listings=listings, user=user)
 
 
 # ---------------------------------------------------------------------------
@@ -2818,9 +3119,10 @@ def buy_verification():
     try:
         # re-fetch fresh user row inside transaction
         fresh = db.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
+        verification_price = float(get_setting("verification_price", VERIFICATION_MONTHLY_PRICE) or VERIFICATION_MONTHLY_PRICE)
         cur = db.execute(
             "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ? AND wallet_balance >= ?",
-            (VERIFICATION_MONTHLY_PRICE, user["id"], VERIFICATION_MONTHLY_PRICE),
+            (verification_price, user["id"], verification_price),
         )
         if cur.rowcount == 0:
             db.rollback()
@@ -2841,11 +3143,11 @@ def buy_verification():
         if admin_user:
             db.execute(
                 "UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
-                (VERIFICATION_MONTHLY_PRICE, admin_user["id"]),
+                (verification_price, admin_user["id"]),
             )
         db.execute(
             "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'verification', ?, ?, 'approved', ?)",
-            (user["id"], VERIFICATION_MONTHLY_PRICE, "Blue Tick purchase", datetime.datetime.utcnow().isoformat()),
+            (user["id"], verification_price, "Blue Tick purchase", datetime.datetime.utcnow().isoformat()),
         )
         db.commit()
     except Exception:
@@ -2865,9 +3167,10 @@ def buy_vip():
     db.execute("BEGIN IMMEDIATE")
     try:
         fresh = db.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
+        vip_price = float(get_setting("vip_price", VIP_MONTHLY_PRICE) or VIP_MONTHLY_PRICE)
         cur = db.execute(
             "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ? AND wallet_balance >= ?",
-            (VIP_MONTHLY_PRICE, user["id"], VIP_MONTHLY_PRICE),
+            (vip_price, user["id"], vip_price),
         )
         if cur.rowcount == 0:
             db.rollback()
@@ -2884,7 +3187,7 @@ def buy_vip():
         )
         db.execute(
             "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'vip', ?, ?, 'approved', ?)",
-            (user["id"], VIP_MONTHLY_PRICE, "VIP membership purchase", datetime.datetime.utcnow().isoformat()),
+            (user["id"], vip_price, "VIP membership purchase", datetime.datetime.utcnow().isoformat()),
         )
         db.commit()
     except Exception:
@@ -3389,103 +3692,43 @@ def forfeit_winner(entry_id):
 # ---------------------------------------------------------------------------
 # Admin
 # ---------------------------------------------------------------------------
-@app.route("/admin/settings/telebirr", methods=["POST"])
+@app.route("/admin/products")
 @login_required
 @admin_required
-def admin_update_telebirr():
-    number = (request.form.get("telebirr_number") or "").strip()
-    if number:
-        set_setting("telebirr_wallet_number", number)
-    return redirect(request.referrer or url_for("admin_dashboard"))
-
-
-# ---------------------------------------------------------------------------
-# Admin - Dynamic Bank Access (accepted deposit payment methods)
-# ---------------------------------------------------------------------------
-@app.route("/admin/banks")
-@login_required
-@admin_required
-def admin_banks():
+def admin_products():
     db = get_db()
-    banks = db.execute(
-        "SELECT * FROM bank_accounts ORDER BY is_active DESC, bank_name"
+    listings = db.execute(
+        "SELECT p.*, u.username FROM products p JOIN users u ON p.user_id = u.id WHERE p.status = 'pending' ORDER BY p.created_at DESC"
     ).fetchall()
-    return render_template("admin_banks.html", banks=banks)
+    return render_template("admin_products.html", listings=listings)
 
 
-@app.route("/admin/banks/add", methods=["POST"])
+@app.route("/admin/products/<int:product_id>/approve", methods=["POST"])
 @login_required
 @admin_required
-def admin_banks_add():
-    bank_name = (request.form.get("bank_name") or "").strip()
-    account_number = (request.form.get("account_number") or "").strip()
-    account_holder_name = (request.form.get("account_holder_name") or "").strip()
-
-    if not bank_name or not account_number or not account_holder_name:
-        flash("Please fill in the bank name, account number, and account holder name.")
-        return redirect(url_for("admin_banks"))
-
+def admin_approve_product(product_id):
     db = get_db()
-    db.execute(
-        """INSERT INTO bank_accounts
-           (bank_name, account_number, account_holder_name, is_active, created_at)
-           VALUES (?, ?, ?, 1, ?)""",
-        (bank_name, account_number, account_holder_name, datetime.datetime.utcnow().isoformat()),
-    )
+    db.execute("UPDATE products SET status = 'approved' WHERE id = ?", (product_id,))
+    # refresh seller trust status
+    seller = db.execute("SELECT user_id FROM products WHERE id = ?", (product_id,)).fetchone()
+    if seller:
+        refresh_trust_status(db, seller["user_id"]) if 'refresh_trust_status' in globals() else None
     db.commit()
-    flash("Bank account added.")
-    return redirect(url_for("admin_banks"))
+    return redirect(request.referrer or url_for("admin_products"))
 
 
-@app.route("/admin/banks/<int:bank_id>/edit", methods=["POST"])
+@app.route("/admin/products/<int:product_id>/reject", methods=["POST"])
 @login_required
 @admin_required
-def admin_banks_edit(bank_id):
-    bank_name = (request.form.get("bank_name") or "").strip()
-    account_number = (request.form.get("account_number") or "").strip()
-    account_holder_name = (request.form.get("account_holder_name") or "").strip()
-
-    if not bank_name or not account_number or not account_holder_name:
-        flash("Please fill in the bank name, account number, and account holder name.")
-        return redirect(url_for("admin_banks"))
-
+def admin_reject_product(product_id):
     db = get_db()
-    db.execute(
-        """UPDATE bank_accounts
-           SET bank_name = ?, account_number = ?, account_holder_name = ?
-           WHERE id = ?""",
-        (bank_name, account_number, account_holder_name, bank_id),
-    )
+    db.execute("UPDATE products SET status = 'rejected' WHERE id = ?", (product_id,))
+    # increment strike for the seller
+    row = db.execute("SELECT user_id FROM products WHERE id = ?", (product_id,)).fetchone()
+    if row:
+        add_strike(db, row["user_id"], reason="product_rejected_by_admin")
     db.commit()
-    flash("Bank account updated.")
-    return redirect(url_for("admin_banks"))
-
-
-@app.route("/admin/banks/<int:bank_id>/toggle", methods=["POST"])
-@login_required
-@admin_required
-def admin_banks_toggle(bank_id):
-    """Soft enable/disable instead of deleting, so historical deposit
-    tickets that reference this bank name keep making sense in the admin
-    dashboard even after it's retired."""
-    db = get_db()
-    db.execute(
-        "UPDATE bank_accounts SET is_active = 1 - is_active WHERE id = ?",
-        (bank_id,),
-    )
-    db.commit()
-    return redirect(url_for("admin_banks"))
-
-
-@app.route("/admin/banks/<int:bank_id>/delete", methods=["POST"])
-@login_required
-@admin_required
-def admin_banks_delete(bank_id):
-    db = get_db()
-    db.execute("DELETE FROM bank_accounts WHERE id = ?", (bank_id,))
-    db.commit()
-    flash("Bank account deleted.")
-    return redirect(url_for("admin_banks"))
+    return redirect(request.referrer or url_for("admin_products"))
 
 
 @app.route("/admin")
@@ -3524,6 +3767,8 @@ def admin_panel():
     ).fetchone()["total"]
     total_revenue = subscription_revenue + gift_earnings
 
+    verification_price = float(get_setting("verification_price", VERIFICATION_MONTHLY_PRICE) or VERIFICATION_MONTHLY_PRICE)
+    vip_price = float(get_setting("vip_price", VIP_MONTHLY_PRICE) or VIP_MONTHLY_PRICE)
     return render_template(
         "admin.html", pending_payments=pending_payments, reports=reports,
         pending_wallet_tx=pending_wallet_tx, gift_earnings=gift_earnings,
@@ -3531,8 +3776,35 @@ def admin_panel():
         vip_users_count=vip_users_count,
         subscription_revenue=subscription_revenue,
         total_revenue=total_revenue,
-        verification_price=VERIFICATION_MONTHLY_PRICE,
-        vip_price=VIP_MONTHLY_PRICE,
+        verification_price=verification_price,
+        vip_price=vip_price,
+    )
+
+
+@app.route("/admin/settings", methods=["GET", "POST"])
+@login_required
+@admin_required
+def admin_settings():
+    db = get_db()
+    if request.method == "POST":
+        maintenance = request.form.get("maintenance_mode") == "1"
+        set_setting("maintenance_mode", "1" if maintenance else "0")
+        set_setting("verification_price", request.form.get("verification_price", str(VERIFICATION_MONTHLY_PRICE)))
+        set_setting("vip_price", request.form.get("vip_price", str(VIP_MONTHLY_PRICE)))
+        set_setting("extra_product_fee", request.form.get("extra_product_fee", "0"))
+        flash("Settings updated.")
+        return redirect(url_for("admin_settings"))
+
+    maintenance_mode = get_setting("maintenance_mode", "0") == "1"
+    verification_price = float(get_setting("verification_price", VERIFICATION_MONTHLY_PRICE) or VERIFICATION_MONTHLY_PRICE)
+    vip_price = float(get_setting("vip_price", VIP_MONTHLY_PRICE) or VIP_MONTHLY_PRICE)
+    extra_product_fee = float(get_setting("extra_product_fee", 0) or 0)
+    return render_template(
+        "admin_settings.html",
+        maintenance_mode=maintenance_mode,
+        verification_price=verification_price,
+        vip_price=vip_price,
+        extra_product_fee=extra_product_fee,
     )
 
 
@@ -3987,6 +4259,85 @@ def revoke_verified(user_id):
 
 
 # ---------------------------------------------------------------------------
+# Admin - Announcements & Policy Hub
+# ---------------------------------------------------------------------------
+@app.route("/admin/announcements", methods=["GET", "POST"])
+@login_required
+@admin_required
+def admin_announcements():
+    db = get_db()
+
+    if request.method == "POST":
+        action = request.form.get("action", "create")
+        if action == "add-word":
+            word = (request.form.get("word") or "").strip()
+            if word:
+                db.execute("INSERT OR IGNORE INTO restricted_words (word, created_at) VALUES (?, ?)", (word, datetime.datetime.utcnow().isoformat()))
+                db.commit()
+            return redirect(url_for("admin_announcements"))
+        if action == "delete-word":
+            word_id = request.form.get("word_id", type=int)
+            if word_id:
+                db.execute("DELETE FROM restricted_words WHERE id = ?", (word_id,))
+                db.commit()
+            return redirect(url_for("admin_announcements"))
+
+        title = (request.form.get("title") or "").strip()
+        content = request.form.get("content", "")
+        is_pinned = 1 if request.form.get("is_pinned") == "on" else 0
+        image = save_photo(request.files.get("image"))
+
+        if title and content:
+            db.execute(
+                """INSERT INTO announcements (title, content, image_url, is_pinned, view_count, created_at)
+                   VALUES (?, ?, ?, ?, 0, ?)""",
+                (title, content, image, is_pinned, datetime.datetime.utcnow().isoformat()),
+            )
+            db.commit()
+            for user in db.execute("SELECT id FROM users").fetchall():
+                add_notification(db, user["id"], f"New announcement: {title}", ntype="info")
+            db.commit()
+        return redirect(url_for("admin_announcements"))
+
+    announcements = db.execute(
+        "SELECT * FROM announcements ORDER BY is_pinned DESC, created_at DESC"
+    ).fetchall()
+    restricted_words = db.execute(
+        "SELECT * FROM restricted_words ORDER BY word"
+    ).fetchall()
+    summary = db.execute(
+        "SELECT SUM(view_count) total_views, COUNT(*) c FROM announcements"
+    ).fetchone()
+    return render_template(
+        "admin_announcements.html",
+        announcements=announcements,
+        restricted_words=restricted_words,
+        total_views=summary["total_views"] or 0,
+        announcement_count=summary["c"] or 0,
+    )
+
+
+@app.route("/admin/announcement/<int:announcement_id>/delete", methods=["POST"])
+@login_required
+@admin_required
+def delete_announcement(announcement_id):
+    db = get_db()
+    db.execute("DELETE FROM announcements WHERE id = ?", (announcement_id,))
+    db.commit()
+    return redirect(url_for("admin_announcements"))
+
+
+@app.route("/announcement/<int:announcement_id>/dismiss", methods=["POST"])
+@login_required
+def dismiss_announcement(announcement_id):
+    dismissed = session.get("dismissed_announcements", [])
+    if announcement_id not in dismissed:
+        dismissed.append(announcement_id)
+        session["dismissed_announcements"] = dismissed
+    return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
 # Admin - Content Moderation Center
 # ---------------------------------------------------------------------------
 @app.route("/admin/moderation")
@@ -4028,7 +4379,10 @@ def delete_reported_post(report_id):
     db = get_db()
     report = db.execute("SELECT * FROM reports WHERE id = ?", (report_id,)).fetchone()
     if report and report["target_type"] == "post":
-        db.execute("DELETE FROM posts WHERE id = ?", (report["target_id"],))
+        post = db.execute("SELECT id, user_id FROM posts WHERE id = ?", (report["target_id"],)).fetchone()
+        if post:
+            db.execute("DELETE FROM posts WHERE id = ?", (post["id"],))
+            add_strike(db, post["user_id"], reason="post_deleted_for_policy_violation")
     db.execute("UPDATE reports SET status = 'resolved' WHERE id = ?", (report_id,))
     db.commit()
     return redirect(request.referrer or url_for("admin_moderation"))
@@ -4045,9 +4399,9 @@ def admin_revenue():
     subscription_revenue = db.execute(
         "SELECT COALESCE(SUM(amount), 0) total FROM payments WHERE status = 'approved'"
     ).fetchone()["total"]
-    cv_revenue = db.execute(
-        "SELECT COUNT(*) c FROM cv_documents"
-    ).fetchone()["c"] * CV_PREMIUM_PRICE
+    marketplace_revenue = db.execute(
+        "SELECT COALESCE(SUM(price), 0) total FROM products"
+    ).fetchone()["total"]
     verification_revenue = db.execute(
         "SELECT COALESCE(SUM(amount), 0) total FROM wallet_transactions WHERE tx_type = 'verification' AND status = 'approved'"
     ).fetchone()["total"]
@@ -4069,12 +4423,12 @@ def admin_revenue():
 
     premium_services_revenue = verification_revenue + vip_revenue
     wallet_activity_revenue = gift_earnings
-    total_revenue = subscription_revenue + cv_revenue + premium_services_revenue + wallet_activity_revenue
+    total_revenue = subscription_revenue + marketplace_revenue + premium_services_revenue + wallet_activity_revenue
 
     return render_template(
         "admin_revenue.html",
         subscription_revenue=subscription_revenue,
-        cv_revenue=cv_revenue,
+        marketplace_revenue=marketplace_revenue,
         verification_revenue=verification_revenue,
         vip_revenue=vip_revenue,
         premium_services_revenue=premium_services_revenue,

@@ -27,7 +27,7 @@ CV_TIERS = {
 
 CV_TEMPLATES = {
     "classic": {"label": "Classic", "accent": "#00c853", "layout": "single-column"},
-    "modern":  {"label": "Modern",  "accent": "#2ECC71", "layout": "sidebar"},
+    "modern":  {"label": "Modern",  "accent": "#1D9BF0", "layout": "sidebar"},
     "bold":    {"label": "Bold",    "accent": "#0a7a3c", "layout": "banner"},
 }
 

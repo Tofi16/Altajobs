@@ -78,7 +78,7 @@
 
             {% if u['is_banned'] or is_currently_banned(u) %}
             <form method="POST" action="{{ url_for('unban_user', user_id=u['id']) }}">
-              <button type="submit" class="btn btn-small">✅ Unban</button>
+              <button type="submit" class="btn btn-small" style="background:var(--accent);color:white">Unban</button>
             </form>
             {% else %}
             <form method="POST" action="{{ url_for('ban_user', user_id=u['id']) }}" onsubmit="return confirm('Permanently ban this user? This blocks their account and phone number from logging in.');">
