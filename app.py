@@ -2035,16 +2035,12 @@ def register():
 
             db.execute(
                 """INSERT INTO users
-                   (username, password_hash, full_name, user_type, created_at, referral_code,
-                    email_verified, email_verification_code, email_verified_at)
-                   VALUES (?, ?, ?, ?, ?, ?, 1, NULL, ?)""",
+                   (username, password_hash, full_name, created_at, email_verified)
+                   VALUES (?, ?, ?, ?, 0)""",
                 (
                     username,
                     generate_password_hash(password),
                     full_name,
-                    user_type,
-                    _now_iso(),
-                    f"{username[:6].upper()}{secrets.token_hex(3).upper()}",
                     _now_iso(),
                 ),
             )
@@ -2075,13 +2071,13 @@ def register():
             return redirect(url_for("feed"))
         except (sqlite3.IntegrityError, PG_INTEGRITY_ERROR) as exc:
             db.rollback()
-            print(f"[auth] registration failed due to integrity error: {exc}")
+            print(f"[auth] registration integrity error: {exc}", flush=True)
             flash("Registration failed. Username might be taken.")
             return redirect(url_for("register"))
         except Exception as exc:
             db.rollback()
-            print(f"[auth] registration failed: {exc}")
-            flash("Registration failed. Username might be taken.")
+            print(f"[auth] registration INSERT error: {type(exc).__name__}: {exc}", flush=True)
+            flash("Registration failed. Please try again.")
             return redirect(url_for("register"))
 
     ref_code = request.args.get("ref", "")
