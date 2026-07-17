@@ -38,8 +38,11 @@ def main():
     conn.autocommit = True
     cur = conn.cursor()
     try:
-        print("Applying migration: add referral_code if missing...")
-        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code VARCHAR(255);")
+        print("Adding is_banned column if missing...")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE;")
+
+        print("Adding banned_until column if missing...")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_until TIMESTAMP NULL;")
 
         print("Migration completed successfully.")
     except Exception as exc:

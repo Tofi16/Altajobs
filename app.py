@@ -1226,13 +1226,19 @@ def set_language():
 def check_banned():
     uid = session.get("user_id")
     if uid:
-        db = get_db()
-        row = db.execute(
-            "SELECT is_banned, banned_until FROM users WHERE id = ?", (uid,)
-        ).fetchone()
-        if row and is_currently_banned(row):
-            session.pop("user_id", None)
-            flash("account_banned")
+        try:
+            db = get_db()
+            row = db.execute(
+                "SELECT is_banned, banned_until FROM users WHERE id = ?", (uid,)
+            ).fetchone()
+            if row and is_currently_banned(row):
+                session.pop("user_id", None)
+                flash("account_banned")
+        except Exception as exc:
+            # Gracefully handle missing columns or database errors
+            print(f"[check_banned] error checking user ban status: {exc}", flush=True)
+            # Allow request to continue; don't crash the app
+            pass
 
 
 @app.route("/set_language/<lang>")
