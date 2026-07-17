@@ -1574,7 +1574,8 @@ def register():
             return redirect(url_for("register"))
 
         db = get_db()
-        db.execute("BEGIN IMMEDIATE")
+        # SQLite-only locking syntax removed for PostgreSQL compatibility.
+        # db.execute("BEGIN IMMEDIATE")
         try:
             existing = db.execute(
                 "SELECT id FROM users WHERE lower(username) = ?", (normalized_username,)
