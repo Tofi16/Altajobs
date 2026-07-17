@@ -1158,12 +1158,8 @@ def ensure_database_schema():
         else:
             init_postgres_db()
     except Exception as exc:
-        print(f"Warning: database schema initialization failed: {exc}")
-        if is_sqlite_database():
-            try:
-                migrate_db()
-            except Exception as migrate_exc:
-                print(f"Warning: database schema migration fallback failed: {migrate_exc}")
+        print(f"Database schema initialization failed: {exc}")
+        raise
 
 
 def ensure_postgres_admin_user():
