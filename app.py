@@ -1520,18 +1520,18 @@ def record_announcement_view(db, user_id, announcement_id):
 
 def is_currently_verified(user):
     """ተጠቃሚው አሁን ላይ Blue Tick አለው ወይስ የለውም የሚለውን ይመልሳል"""
-    if not user or not user["is_verified"]:
+    if not user or not user.get("is_verified", False):
         return False
-    if not user["verified_until"]:
+    if not user.get("verified_until"):
         return False
     return datetime.datetime.utcnow() <= datetime.datetime.fromisoformat(user["verified_until"])
 
 
 def is_currently_vip(user):
     """ተጠቃሚው አሁን ላይ VIP ነው ወይስ አይደለም የሚለውን ይመልሳል"""
-    if not user or not user["is_vip"]:
+    if not user or not user.get("is_vip", False):
         return False
-    if not user["vip_until"]:
+    if not user.get("vip_until"):
         return False
     return datetime.datetime.utcnow() <= datetime.datetime.fromisoformat(user["vip_until"])
 
@@ -1540,13 +1540,13 @@ def channel_is_verified(channel):
     """ቻናሉ/ቡድኑ አሁን ላይ Blue Tick አለው ወይስ የለውም የሚለውን ይመልሳል።
     ይህ በራሱ ጊዜው ካለፈ በኋላ Blue Tick ን በራስሰር 'ያነሳል' - cron ሳያስፈልግ፣
     ልክ እንደ ተጠቃሚ verification ተመሳሳይ በሆነ መንገድ በእያንዳንዱ ጭነት ላይ ይሰላል።"""
-    if not channel or not channel["is_verified"] or not channel["verified_until"]:
+    if not channel or not channel.get("is_verified", False) or not channel.get("verified_until"):
         return False
     return datetime.datetime.utcnow() <= datetime.datetime.fromisoformat(channel["verified_until"])
 
 
 def channel_verification_days_left(channel):
-    if not channel or not channel["verified_until"]:
+    if not channel or not channel.get("verified_until"):
         return None
     delta = datetime.datetime.fromisoformat(channel["verified_until"]) - datetime.datetime.utcnow()
     return max(0, delta.days)
