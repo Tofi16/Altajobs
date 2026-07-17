@@ -567,6 +567,411 @@ def init_db():
     migrate_db()
 
 
+def init_postgres_db():
+    if psycopg2 is None:
+        raise RuntimeError("psycopg2-binary is required for PostgreSQL DATABASE_URL support")
+
+    conn = psycopg2.connect(DATABASE, cursor_factory=psycopg2.extras.RealDictCursor)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT,
+            password_hash TEXT NOT NULL,
+            full_name TEXT,
+            user_type TEXT NOT NULL DEFAULT 'worker',
+            phone TEXT,
+            skills TEXT,
+            experience TEXT,
+            bio TEXT,
+            avatar TEXT,
+            is_admin INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            plan TEXT DEFAULT NULL,
+            paid_until TEXT DEFAULT NULL,
+            email_verified INTEGER DEFAULT 0,
+            email_verification_code TEXT DEFAULT NULL,
+            password_reset_code TEXT DEFAULT NULL,
+            password_reset_expires TEXT DEFAULT NULL,
+            email_verified_at TEXT DEFAULT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS posts (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            content TEXT,
+            photo TEXT,
+            post_type TEXT DEFAULT 'general',
+            share_count INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS comments (
+            id SERIAL PRIMARY KEY,
+            post_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS likes (
+            id SERIAL PRIMARY KEY,
+            post_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            UNIQUE(post_id, user_id),
+            FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS ratings (
+            id SERIAL PRIMARY KEY,
+            worker_id INTEGER NOT NULL,
+            employer_id INTEGER NOT NULL,
+            stars INTEGER NOT NULL,
+            comment TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(worker_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(employer_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS reports (
+            id SERIAL PRIMARY KEY,
+            reporter_id INTEGER NOT NULL,
+            target_type TEXT NOT NULL,
+            target_id INTEGER NOT NULL,
+            reason TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(reporter_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS saved_posts (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            post_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(user_id, post_id),
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS job_applications (
+            id SERIAL PRIMARY KEY,
+            post_id INTEGER NOT NULL,
+            applicant_id INTEGER NOT NULL,
+            message TEXT,
+            status TEXT DEFAULT 'submitted',
+            created_at TEXT NOT NULL,
+            UNIQUE(post_id, applicant_id),
+            FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
+            FOREIGN KEY(applicant_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS conversations (
+            id SERIAL PRIMARY KEY,
+            user1_id INTEGER NOT NULL,
+            user2_id INTEGER NOT NULL,
+            initiated_by INTEGER NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            UNIQUE(user1_id, user2_id),
+            FOREIGN KEY(user1_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(user2_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS messages (
+            id SERIAL PRIMARY KEY,
+            conversation_id INTEGER NOT NULL,
+            sender_id INTEGER NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            seen_at TEXT,
+            FOREIGN KEY(conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+            FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS post_views (
+            id SERIAL PRIMARY KEY,
+            post_id INTEGER NOT NULL,
+            user_id INTEGER,
+            created_at TEXT NOT NULL,
+            UNIQUE(post_id, user_id),
+            FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS token_transactions (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            kind TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            streak_day INTEGER,
+            post_id INTEGER,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS channels (
+            id SERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            channel_type TEXT NOT NULL DEFAULT 'group',
+            creator_id INTEGER NOT NULL,
+            avatar TEXT,
+            is_verified INTEGER DEFAULT 0,
+            verified_until TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(creator_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS channel_members (
+            id SERIAL PRIMARY KEY,
+            channel_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            role TEXT NOT NULL DEFAULT 'member',
+            joined_at TEXT NOT NULL,
+            UNIQUE(channel_id, user_id),
+            FOREIGN KEY(channel_id) REFERENCES channels(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS channel_messages (
+            id SERIAL PRIMARY KEY,
+            channel_id INTEGER NOT NULL,
+            sender_id INTEGER NOT NULL,
+            content TEXT,
+            photo TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(channel_id) REFERENCES channels(id) ON DELETE CASCADE,
+            FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS channel_message_reactions (
+            id SERIAL PRIMARY KEY,
+            message_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            emoji TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(message_id, user_id, emoji),
+            FOREIGN KEY(message_id) REFERENCES channel_messages(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS follows (
+            id SERIAL PRIMARY KEY,
+            follower_id INTEGER NOT NULL,
+            followed_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(follower_id, followed_id),
+            FOREIGN KEY(follower_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(followed_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS referrals (
+            id SERIAL PRIMARY KEY,
+            referrer_id INTEGER NOT NULL,
+            referred_id INTEGER NOT NULL UNIQUE,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(referrer_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(referred_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS challenge_shares (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            platform TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS challenge_pools (
+            id SERIAL PRIMARY KEY,
+            tier_amount INTEGER NOT NULL,
+            month TEXT NOT NULL,
+            status TEXT DEFAULT 'open',
+            platform_fee_percent INTEGER DEFAULT 10,
+            prize_pool INTEGER DEFAULT 0,
+            winner_entry_id INTEGER,
+            created_at TEXT NOT NULL,
+            UNIQUE(tier_amount, month)
+        );
+
+        CREATE TABLE IF NOT EXISTS challenge_entries (
+            id SERIAL PRIMARY KEY,
+            pool_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            amount_paid INTEGER NOT NULL,
+            pitch_text TEXT NOT NULL,
+            ai_score REAL,
+            admin_score REAL,
+            engagement_bonus REAL DEFAULT 0,
+            final_score REAL,
+            status TEXT DEFAULT 'submitted',
+            created_at TEXT NOT NULL,
+            UNIQUE(pool_id, user_id),
+            FOREIGN KEY(pool_id) REFERENCES challenge_pools(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS winner_trust (
+            id SERIAL PRIMARY KEY,
+            entry_id INTEGER NOT NULL UNIQUE,
+            confirm_deadline TEXT NOT NULL,
+            confirmed_at TEXT,
+            guarantor_name TEXT,
+            guarantor_id_number TEXT,
+            guarantor_photo TEXT,
+            milestone1_amount INTEGER,
+            milestone1_released INTEGER DEFAULT 0,
+            proof_photo TEXT,
+            proof_submitted_at TEXT,
+            milestone2_amount INTEGER,
+            milestone2_released INTEGER DEFAULT 0,
+            disbursement_status TEXT DEFAULT 'pending_confirmation',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(entry_id) REFERENCES challenge_entries(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS payments (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            plan TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            transaction_ref TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS wallet_transactions (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            tx_type TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            transaction_ref TEXT,
+            bank TEXT DEFAULT NULL,
+            note TEXT DEFAULT NULL,
+            receipt_photo TEXT DEFAULT NULL,
+            account_number TEXT DEFAULT NULL,
+            account_name TEXT DEFAULT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS bank_accounts (
+            id SERIAL PRIMARY KEY,
+            bank_name TEXT NOT NULL,
+            account_number TEXT NOT NULL,
+            account_holder_name TEXT NOT NULL,
+            is_active INTEGER DEFAULT 1,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS cv_documents (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            full_name TEXT,
+            target_role TEXT,
+            summary TEXT,
+            experience TEXT,
+            achievements TEXT,
+            skills TEXT,
+            photo TEXT DEFAULT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS gifts (
+            id SERIAL PRIMARY KEY,
+            sender_id INTEGER NOT NULL,
+            receiver_id INTEGER NOT NULL,
+            gift_key TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            platform_cut INTEGER NOT NULL,
+            post_id INTEGER,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(receiver_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS app_settings (
+            id SERIAL PRIMARY KEY,
+            key TEXT UNIQUE NOT NULL,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS wallets (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL UNIQUE,
+            balance REAL DEFAULT 0.00,
+            escrow_balance REAL DEFAULT 0.00,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS products (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            price REAL NOT NULL,
+            location TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS transactions (
+            id SERIAL PRIMARY KEY,
+            wallet_id INTEGER NOT NULL,
+            type TEXT NOT NULL,
+            amount REAL NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(wallet_id) REFERENCES wallets(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS offers (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER NOT NULL,
+            buyer_id INTEGER NOT NULL,
+            seller_id INTEGER NOT NULL,
+            offered_price REAL NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE,
+            FOREIGN KEY(buyer_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(seller_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS announcements (
+            id SERIAL PRIMARY KEY,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            image_url TEXT,
+            is_pinned INTEGER DEFAULT 0,
+            view_count INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS restricted_words (
+            id SERIAL PRIMARY KEY,
+            word TEXT NOT NULL UNIQUE,
+            created_at TEXT NOT NULL
+        );
+        """
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
 def migrate_db():
     """አስቀድሞ ለተፈጠረ altajobs.db አዲስ columns በደህና ይጨምራል (idempotent)."""
     db = sqlite3.connect(DATABASE)
@@ -743,7 +1148,7 @@ def migrate_db():
 
 
 def ensure_database_schema():
-    """Ensure the SQLite schema exists and is upgraded safely on startup."""
+    """Ensure the database schema exists and is upgraded safely on startup."""
     try:
         if hasattr(app, "extensions") and "sqlalchemy" in app.extensions:
             db = app.extensions["sqlalchemy"]
@@ -751,7 +1156,7 @@ def ensure_database_schema():
         elif is_sqlite_database():
             init_db()
         else:
-            print("Skipping SQLite schema initialization for non-SQLite DATABASE_URL. Ensure PostgreSQL schema exists separately.")
+            init_postgres_db()
     except Exception as exc:
         print(f"Warning: database schema initialization failed: {exc}")
         if is_sqlite_database():
