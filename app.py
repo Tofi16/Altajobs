@@ -162,6 +162,11 @@ class DatabaseConnection:
         self.conn.close()
 
 
+def _validate_postgres_url():
+    if not DATABASE_URL or DATABASE_URL.startswith("sqlite:///"):
+        raise RuntimeError("PostgreSQL DATABASE_URL is not configured or resolves to SQLite.")
+
+
 def get_db():
     db = getattr(g, "_database", None)
     if db is None:
@@ -171,419 +176,55 @@ def get_db():
             conn.execute("PRAGMA foreign_keys = ON")
             db = g._database = DatabaseConnection(conn, is_sqlite=True)
         else:
+            _validate_postgres_url()
             if psycopg2 is None:
                 raise RuntimeError("psycopg2-binary is required for PostgreSQL DATABASE_URL support")
             conn = psycopg2.connect(DATABASE, cursor_factory=psycopg2.extras.RealDictCursor)
             db = g._database = DatabaseConnection(conn, is_sqlite=False)
+    try:
+        # Run each statement independently so a failing one doesn't abort the whole sequence
+        stmts = [
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS balance REAL DEFAULT 0.0",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_id TEXT UNIQUE DEFAULT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_balance INTEGER DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS alta_tokens INTEGER DEFAULT 0",
+            "ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS receipt_image_path TEXT DEFAULT NULL",
+            "ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS recipient_wallet_id TEXT DEFAULT NULL",
+            "ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS account_name TEXT DEFAULT NULL",
+            "ALTER TABLE posts ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0",
+            "ALTER TABLE posts ADD COLUMN IF NOT EXISTS virality_score REAL DEFAULT 0.0",
+        ]
+        for s in stmts:
+            try:
+                db.execute(s)
+                db.commit()
+            except Exception:
+                # ignore individual failures, continue with others
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+
+        # Initialize/fill sensible defaults for existing rows (individually)
+        try:
+            db.execute("UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0), alta_tokens = COALESCE(alta_tokens, 0)")
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+        try:
+            db.execute("UPDATE posts SET view_count = COALESCE(view_count, 0), virality_score = COALESCE(virality_score, 0.0)")
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+    except Exception as exc:
+        print(f"Warning: could not ensure PostgreSQL wallet columns: {exc}")
     return db
-
-
-@app.teardown_appcontext
-def close_connection(exception):
-    db = getattr(g, "_database", None)
-    if db is not None:
-        db.close()
-
-
-def init_db():
-    db = sqlite3.connect(DATABASE)
-    db.executescript(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT,
-            password_hash TEXT NOT NULL,
-            full_name TEXT,
-            user_type TEXT NOT NULL DEFAULT 'worker',  -- 'worker' or 'employer'
-            phone TEXT,
-            skills TEXT,
-            experience TEXT,
-            bio TEXT,
-            avatar TEXT,
-            is_admin INTEGER DEFAULT 0,
-            created_at TEXT NOT NULL,
-            plan TEXT DEFAULT NULL,          -- 'monthly' / 'yearly' / NULL
-            paid_until TEXT DEFAULT NULL,
-            email_verified INTEGER DEFAULT 0,
-            email_verification_code TEXT DEFAULT NULL,
-            password_reset_code TEXT DEFAULT NULL,
-            password_reset_expires TEXT DEFAULT NULL,
-            email_verified_at TEXT DEFAULT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            content TEXT,
-            photo TEXT,
-            post_type TEXT DEFAULT 'general',  -- 'general' / 'job' / 'skill'
-            share_count INTEGER DEFAULT 0,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS comments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            post_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            content TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS likes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            post_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            UNIQUE(post_id, user_id),
-            FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS ratings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            worker_id INTEGER NOT NULL,
-            employer_id INTEGER NOT NULL,
-            stars INTEGER NOT NULL,
-            comment TEXT,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(worker_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY(employer_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS reports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            reporter_id INTEGER NOT NULL,
-            target_type TEXT NOT NULL,   -- 'post' or 'user'
-            target_id INTEGER NOT NULL,
-            reason TEXT NOT NULL,
-            status TEXT DEFAULT 'pending',
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(reporter_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS saved_posts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            post_id INTEGER NOT NULL,
-            created_at TEXT NOT NULL,
-            UNIQUE(user_id, post_id),
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS job_applications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            post_id INTEGER NOT NULL,
-            applicant_id INTEGER NOT NULL,
-            message TEXT,
-            status TEXT DEFAULT 'submitted',   -- submitted / reviewed
-            created_at TEXT NOT NULL,
-            UNIQUE(post_id, applicant_id),
-            FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
-            FOREIGN KEY(applicant_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS conversations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user1_id INTEGER NOT NULL,
-            user2_id INTEGER NOT NULL,
-            initiated_by INTEGER NOT NULL,
-            status TEXT DEFAULT 'pending',     -- pending / accepted / blocked
-            created_at TEXT NOT NULL,
-            UNIQUE(user1_id, user2_id),
-            FOREIGN KEY(user1_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY(user2_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            conversation_id INTEGER NOT NULL,
-            sender_id INTEGER NOT NULL,
-            content TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            seen_at TEXT,
-            FOREIGN KEY(conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
-            FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS post_views (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            post_id INTEGER NOT NULL,
-            user_id INTEGER,
-            created_at TEXT NOT NULL,
-            UNIQUE(post_id, user_id),
-            FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS token_transactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            kind TEXT NOT NULL,          -- 'checkin' / 'profile_completion' / 'share_job'
-            amount INTEGER NOT NULL,
-            streak_day INTEGER,          -- only set for kind='checkin'
-            post_id INTEGER,             -- only set for kind='share_job' (1 reward per post)
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS channels (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            description TEXT,
-            channel_type TEXT NOT NULL DEFAULT 'group',  -- 'group' or 'channel'
-            creator_id INTEGER NOT NULL,
-            avatar TEXT,
-            is_verified INTEGER DEFAULT 0,
-            verified_until TEXT,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(creator_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS channel_members (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            channel_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            role TEXT NOT NULL DEFAULT 'member',  -- 'owner' or 'member'
-            joined_at TEXT NOT NULL,
-            UNIQUE(channel_id, user_id),
-            FOREIGN KEY(channel_id) REFERENCES channels(id) ON DELETE CASCADE,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS channel_messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            channel_id INTEGER NOT NULL,
-            sender_id INTEGER NOT NULL,
-            content TEXT,
-            photo TEXT,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(channel_id) REFERENCES channels(id) ON DELETE CASCADE,
-            FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS channel_message_reactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            message_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            emoji TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            UNIQUE(message_id, user_id, emoji),
-            FOREIGN KEY(message_id) REFERENCES channel_messages(id) ON DELETE CASCADE,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS follows (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            follower_id INTEGER NOT NULL,
-            followed_id INTEGER NOT NULL,
-            created_at TEXT NOT NULL,
-            UNIQUE(follower_id, followed_id),
-            FOREIGN KEY(follower_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY(followed_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS referrals (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            referrer_id INTEGER NOT NULL,
-            referred_id INTEGER NOT NULL UNIQUE,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(referrer_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY(referred_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS challenge_shares (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            platform TEXT NOT NULL,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS challenge_pools (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tier_amount INTEGER NOT NULL,
-            month TEXT NOT NULL,               -- 'YYYY-MM'
-            status TEXT DEFAULT 'open',        -- open / judging / closed
-            platform_fee_percent INTEGER DEFAULT 10,
-            prize_pool INTEGER DEFAULT 0,
-            winner_entry_id INTEGER,
-            created_at TEXT NOT NULL,
-            UNIQUE(tier_amount, month)
-        );
-
-        CREATE TABLE IF NOT EXISTS challenge_entries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            pool_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            amount_paid INTEGER NOT NULL,
-            pitch_text TEXT NOT NULL,
-            ai_score REAL,
-            admin_score REAL,
-            engagement_bonus REAL DEFAULT 0,
-            final_score REAL,
-            status TEXT DEFAULT 'submitted',   -- submitted / winner / not_selected
-            created_at TEXT NOT NULL,
-            UNIQUE(pool_id, user_id),
-            FOREIGN KEY(pool_id) REFERENCES challenge_pools(id) ON DELETE CASCADE,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS winner_trust (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            entry_id INTEGER NOT NULL UNIQUE,
-            confirm_deadline TEXT NOT NULL,
-            confirmed_at TEXT,
-            guarantor_name TEXT,
-            guarantor_id_number TEXT,
-            guarantor_photo TEXT,
-            milestone1_amount INTEGER,
-            milestone1_released INTEGER DEFAULT 0,
-            proof_photo TEXT,
-            proof_submitted_at TEXT,
-            milestone2_amount INTEGER,
-            milestone2_released INTEGER DEFAULT 0,
-            disbursement_status TEXT DEFAULT 'pending_confirmation',
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(entry_id) REFERENCES challenge_entries(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS payments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            plan TEXT NOT NULL,
-            amount INTEGER NOT NULL,
-            transaction_ref TEXT NOT NULL,
-            status TEXT DEFAULT 'pending', -- pending / approved / rejected
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS wallet_transactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            tx_type TEXT NOT NULL,          -- 'deposit' or 'withdrawal'
-            amount INTEGER NOT NULL,
-            transaction_ref TEXT,
-            bank TEXT DEFAULT NULL,
-            note TEXT DEFAULT NULL,
-            receipt_photo TEXT DEFAULT NULL,
-            account_number TEXT DEFAULT NULL,
-            account_name TEXT DEFAULT NULL,
-            status TEXT DEFAULT 'pending',  -- pending / approved / rejected
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS bank_accounts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            bank_name TEXT NOT NULL,
-            account_number TEXT NOT NULL,
-            account_holder_name TEXT NOT NULL,
-            is_active INTEGER DEFAULT 1,
-            created_at TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS cv_documents (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            full_name TEXT,
-            target_role TEXT,
-            summary TEXT,
-            experience TEXT,
-            achievements TEXT,      -- newline-joined list
-            skills TEXT,            -- comma-joined list
-            photo TEXT DEFAULT NULL,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS gifts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sender_id INTEGER NOT NULL,
-            receiver_id INTEGER NOT NULL,
-            gift_key TEXT NOT NULL,
-            amount INTEGER NOT NULL,
-            platform_cut INTEGER NOT NULL,
-            post_id INTEGER,
-            created_at TEXT NOT NULL,
-            FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY(receiver_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS app_settings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            key TEXT UNIQUE NOT NULL,
-            value TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS wallets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL UNIQUE,
-            balance REAL DEFAULT 0.00,
-            escrow_balance REAL DEFAULT 0.00,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            description TEXT,
-            price REAL NOT NULL,
-            location TEXT NOT NULL,
-            status TEXT DEFAULT 'pending',
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS transactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            wallet_id INTEGER NOT NULL,
-            type TEXT NOT NULL,
-            amount REAL NOT NULL,
-            status TEXT DEFAULT 'pending',
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(wallet_id) REFERENCES wallets(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS offers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            product_id INTEGER NOT NULL,
-            buyer_id INTEGER NOT NULL,
-            seller_id INTEGER NOT NULL,
-            offered_price REAL NOT NULL,
-            status TEXT DEFAULT 'pending',
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE,
-            FOREIGN KEY(buyer_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY(seller_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS announcements (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            content TEXT NOT NULL,
-            image_url TEXT,
-            is_pinned INTEGER DEFAULT 0,
-            view_count INTEGER DEFAULT 0,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS restricted_words (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            word TEXT NOT NULL UNIQUE,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-        """
-    )
-    db.commit()
-    db.close()
-    migrate_db()
 
 
 def init_postgres_db():
@@ -606,6 +247,10 @@ def init_postgres_db():
             experience TEXT,
             bio TEXT,
             avatar TEXT,
+            balance REAL DEFAULT 0.0,
+            points INTEGER DEFAULT 0,
+            activity_badge TEXT DEFAULT 'Bronze Member',
+            wallet_id TEXT UNIQUE DEFAULT NULL,
             referral_code TEXT DEFAULT NULL,
             is_admin BOOLEAN DEFAULT FALSE,
             created_at TEXT NOT NULL,
@@ -947,6 +592,17 @@ def init_postgres_db():
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         );
 
+        CREATE TABLE IF NOT EXISTS portfolio_items (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            project_url TEXT DEFAULT NULL,
+            image_path TEXT DEFAULT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
         CREATE TABLE IF NOT EXISTS transactions (
             id SERIAL PRIMARY KEY,
             wallet_id INTEGER NOT NULL,
@@ -988,8 +644,34 @@ def init_postgres_db():
         """
     )
     conn.commit()
-    cur.close()
-    conn.close()
+
+    try:
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts (created_at)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts (user_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_likes_post_id ON likes (post_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_likes_user_id ON likes (user_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments (post_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_saved_posts_user_post ON saved_posts (user_id, post_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_job_applications_applicant_post ON job_applications (applicant_id, post_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_follows_follower_id ON follows (follower_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_follows_followed_id ON follows (followed_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_wallet_transactions_status_type_created_at ON wallet_transactions (status, tx_type, created_at)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_wallet_transactions_user_id ON wallet_transactions (user_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_payments_status_created_at ON payments (status, created_at)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_reports_status_created_at ON reports (status, created_at)")
+        conn.commit()
+    except Exception as exc:
+        print(f"Warning: could not create PostgreSQL indexes: {exc}")
+    finally:
+        cur.close()
+        conn.close()
+
+
+def init_db():
+    """Initialize local SQLite database schema."""
+    if not is_sqlite_database():
+        raise RuntimeError("init_db() is only supported for local SQLite databases.")
+    migrate_db()
 
 
 def migrate_db():
@@ -1034,6 +716,8 @@ def migrate_db():
     existing_cols = {row[1] for row in db.execute("PRAGMA table_info(users)")}
     new_columns = {
         "wallet_balance": "INTEGER DEFAULT 0",
+        "balance": "REAL DEFAULT 0.0",
+        "wallet_id": "TEXT DEFAULT NULL",
         "is_verified": "INTEGER DEFAULT 0",
         "verified_until": "TEXT DEFAULT NULL",
         "is_vip": "INTEGER DEFAULT 0",
@@ -1045,11 +729,38 @@ def migrate_db():
         "current_streak": "INTEGER DEFAULT 0",
         "banned_until": "TEXT DEFAULT NULL",
         "ban_reason": "TEXT DEFAULT NULL",
+        "points": "INTEGER DEFAULT 0",
+        "activity_badge": "TEXT DEFAULT 'Bronze Member'",
     }
     for col, coltype in new_columns.items():
         if col not in existing_cols:
             db.execute(f"ALTER TABLE users ADD COLUMN {col} {coltype}")
     db.commit()
+
+    wallet_tx_cols = {row[1] for row in db.execute("PRAGMA table_info(wallet_transactions)")}
+    for col, coltype in {
+        "receipt_image_path": "TEXT DEFAULT NULL",
+        "recipient_wallet_id": "TEXT DEFAULT NULL",
+    }.items():
+        if col not in wallet_tx_cols:
+            db.execute(f"ALTER TABLE wallet_transactions ADD COLUMN {col} {coltype}")
+    db.commit()
+
+    bank_cols = {row[1] for row in db.execute("PRAGMA table_info(bank_accounts)")}
+    if "account_name" not in bank_cols:
+        db.execute("ALTER TABLE bank_accounts ADD COLUMN account_name TEXT DEFAULT NULL")
+    db.commit()
+
+    try:
+        db.execute("UPDATE users SET balance = COALESCE(balance, wallet_balance, 0.0)")
+        db.execute("UPDATE users SET wallet_balance = COALESCE(wallet_balance, balance, 0)")
+        rows = db.execute("SELECT id FROM users WHERE wallet_id IS NULL OR wallet_id = ''").fetchall()
+        for (uid,) in rows:
+            wallet_id = _generate_wallet_id(db)
+            db.execute("UPDATE users SET wallet_id = ? WHERE id = ?", (wallet_id, uid))
+        db.commit()
+    except Exception as exc:
+        print(f"Warning: could not backfill wallet data: {exc}")
 
     # posts table: view_count backs the generic per-post unique-view counter
     # (record_unique_view / log_post_view). The old "video" and "mentions"
@@ -1108,6 +819,24 @@ def migrate_db():
     """)
     db.commit()
 
+    try:
+        db.execute("CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts (created_at)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts (user_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_likes_post_id ON likes (post_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_likes_user_id ON likes (user_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments (post_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_saved_posts_user_post ON saved_posts (user_id, post_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_job_applications_applicant_post ON job_applications (applicant_id, post_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_follows_follower_id ON follows (follower_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_follows_followed_id ON follows (followed_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_wallet_transactions_status_type_created_at ON wallet_transactions (status, tx_type, created_at)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_wallet_transactions_user_id ON wallet_transactions (user_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_payments_status_created_at ON payments (status, created_at)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_reports_status_created_at ON reports (status, created_at)")
+        db.commit()
+    except Exception as exc:
+        print(f"Warning: could not create SQLite indexes: {exc}")
+
     settings_existing = {row[0] for row in db.execute("SELECT key FROM app_settings")}
     if "telebirr_wallet_number" not in settings_existing:
         db.execute(
@@ -1162,6 +891,30 @@ def migrate_db():
             db.execute(f"ALTER TABLE posts ADD COLUMN {col} {coltype}")
     db.commit()
 
+    product_cols = {row[1] for row in db.execute("PRAGMA table_info(products)")}
+    for col, coltype in {
+        "location": "TEXT DEFAULT 'Addis Ababa'",
+        "status": "TEXT DEFAULT 'pending'",
+        "photo": "TEXT DEFAULT NULL",
+    }.items():
+        if col not in product_cols:
+            db.execute(f"ALTER TABLE products ADD COLUMN {col} {coltype}")
+    db.commit()
+
+    db.executescript("""
+        CREATE TABLE IF NOT EXISTS portfolio_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            project_url TEXT DEFAULT NULL,
+            image_path TEXT DEFAULT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+    """)
+    db.commit()
+
     try:
         db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_ci ON users (lower(username))")
         db.commit()
@@ -1204,9 +957,50 @@ def ensure_postgres_admin_user():
         print(f"Warning: could not set Tofik as admin in PostgreSQL: {exc}")
 
 
+def ensure_postgres_wallet_columns():
+    if is_sqlite_database():
+        return
+    try:
+        db = get_db()
+        # Ensure wallet-related columns exist
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS balance REAL DEFAULT 0.0")
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_id TEXT UNIQUE DEFAULT NULL")
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_balance INTEGER DEFAULT 0")
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS alta_tokens INTEGER DEFAULT 0")
+        db.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS receipt_image_path TEXT DEFAULT NULL")
+        db.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS recipient_wallet_id TEXT DEFAULT NULL")
+        db.execute("ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS account_name TEXT DEFAULT NULL")
+        # Add posts engagement columns
+        db.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0")
+        db.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS virality_score REAL DEFAULT 0.0")
+        # Initialize/fill sensible defaults for existing rows
+        try:
+            db.execute("UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0), alta_tokens = COALESCE(alta_tokens, 0)")
+            db.execute("UPDATE posts SET view_count = COALESCE(view_count, 0), virality_score = COALESCE(virality_score, 0.0)")
+        except Exception:
+            # If the update fails for any reason, ignore to avoid aborting startup
+            pass
+        db.commit()
+    except Exception as exc:
+        print(f"Warning: could not ensure PostgreSQL wallet columns: {exc}")
+
+    try:
+        db = get_db()
+        db.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS photo TEXT DEFAULT NULL")
+        db.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS location TEXT DEFAULT 'Addis Ababa'")
+        db.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'")
+        db.execute("CREATE TABLE IF NOT EXISTS portfolio_items (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL, title TEXT NOT NULL, description TEXT, project_url TEXT DEFAULT NULL, image_path TEXT DEFAULT NULL, created_at TEXT NOT NULL, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE)")
+        db.commit()
+    except Exception as exc:
+        print(f"Warning: could not ensure PostgreSQL product columns: {exc}")
+
+
 with app.app_context():
+    print(f"Resolved DATABASE_URL={DATABASE_URL}")
+    print(f"Using SQLite={USE_SQLITE} DATABASE={DATABASE}")
     ensure_database_schema()
     ensure_postgres_admin_user()
+    ensure_postgres_wallet_columns()
 
 
 # ---------------------------------------------------------------------------
@@ -1228,19 +1022,13 @@ def check_banned():
     if uid:
         try:
             db = get_db()
-            row = db.execute(
-                "SELECT is_banned, banned_until FROM users WHERE id = ?", (uid,)
-            ).fetchone()
-            if row and is_currently_banned(row):
-                session.pop("user_id", None)
-                flash("account_banned")
-        except Exception as exc:
-            # Gracefully handle missing columns or database errors
-            print(f"[check_banned] error checking user ban status: {exc}", flush=True)
-            # Allow request to continue; don't crash the app
+            row = db.execute("SELECT is_banned, banned_until FROM users WHERE id = ?", (uid,)).fetchone()
+            if row and row.get("is_banned"):
+                banned_until = row.get("banned_until")
+                return render_template("banned.html", banned_until=banned_until), 403
+        except Exception:
+            # If DB check fails, don't block the request.
             pass
-
-
 @app.route("/set_language/<lang>")
 def set_language_route(lang):
     if lang in TRANSLATIONS:
@@ -1286,7 +1074,8 @@ def get_current_user():
     if not uid:
         return None
     db = get_db()
-    return db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+    row = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+    return dict(row) if row is not None else None
 
 
 @app.before_request
@@ -1386,8 +1175,8 @@ DAILY_POST_LIMIT = 1   # standard posts per day once the free trial has ended
 
 
 def _daily_post_count(db, user_id, kind="standard"):
-    """kind is always 'standard' now that Reels has been removed; the
-    parameter is kept so any remaining callers don't need to change."""
+    # kind is always 'standard' now that Reels has been removed; the
+    # parameter is kept so any remaining callers don't need to change.
     today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
     row = db.execute(
         """SELECT COUNT(*) c FROM posts
@@ -1520,29 +1309,61 @@ def record_announcement_view(db, user_id, announcement_id):
 
 def is_currently_verified(user):
     """ተጠቃሚው አሁን ላይ Blue Tick አለው ወይስ የለውም የሚለውን ይመልሳል"""
-    if not user or not user.get("is_verified", False):
+    if not user:
         return False
-    if not user.get("verified_until"):
+    def _field(u, k):
+        try:
+            if isinstance(u, dict):
+                return u.get(k)
+            return u[k]
+        except Exception:
+            return getattr(u, k, None)
+
+    if not _field(user, "is_verified"):
         return False
-    return datetime.datetime.utcnow() <= datetime.datetime.fromisoformat(user["verified_until"])
+    verified_until = _field(user, "verified_until")
+    if not verified_until:
+        return False
+    return datetime.datetime.utcnow() <= datetime.datetime.fromisoformat(verified_until)
 
 
 def is_currently_vip(user):
     """ተጠቃሚው አሁን ላይ VIP ነው ወይስ አይደለም የሚለውን ይመልሳል"""
-    if not user or not user.get("is_vip", False):
+    if not user:
         return False
-    if not user.get("vip_until"):
+    def _field(u, k):
+        try:
+            if isinstance(u, dict):
+                return u.get(k)
+            return u[k]
+        except Exception:
+            return getattr(u, k, None)
+
+    if not _field(user, "is_vip"):
         return False
-    return datetime.datetime.utcnow() <= datetime.datetime.fromisoformat(user["vip_until"])
+    vip_until = _field(user, "vip_until")
+    if not vip_until:
+        return False
+    return datetime.datetime.utcnow() <= datetime.datetime.fromisoformat(vip_until)
 
 
 def channel_is_verified(channel):
     """ቻናሉ/ቡድኑ አሁን ላይ Blue Tick አለው ወይስ የለውም የሚለውን ይመልሳል።
     ይህ በራሱ ጊዜው ካለፈ በኋላ Blue Tick ን በራስሰር 'ያነሳል' - cron ሳያስፈልግ፣
     ልክ እንደ ተጠቃሚ verification ተመሳሳይ በሆነ መንገድ በእያንዳንዱ ጭነት ላይ ይሰላል።"""
-    if not channel or not channel.get("is_verified", False) or not channel.get("verified_until"):
+    if not channel:
         return False
-    return datetime.datetime.utcnow() <= datetime.datetime.fromisoformat(channel["verified_until"])
+    def _field(u, k):
+        try:
+            if isinstance(u, dict):
+                return u.get(k)
+            return u[k]
+        except Exception:
+            return getattr(u, k, None)
+
+    if not _field(channel, "is_verified") or not _field(channel, "verified_until"):
+        return False
+    return datetime.datetime.utcnow() <= datetime.datetime.fromisoformat(_field(channel, "verified_until"))
 
 
 def channel_verification_days_left(channel):
@@ -1639,8 +1460,12 @@ def save_photo(file_storage):
             file_storage.stream.seek(0)  # rewind so the local save below still works
 
     # --- Local disk storage (default behaviour, unchanged) ---
-    file_storage.save(os.path.join(app.config["UPLOAD_FOLDER"], unique))
-    return unique
+    try:
+        file_storage.save(os.path.join(app.config["UPLOAD_FOLDER"], unique))
+        return unique
+    except Exception as exc:
+        print(f"Failed to save uploaded file locally: {exc}")
+        return None
 
 
 def save_cv_photo(file_storage):
@@ -1684,6 +1509,94 @@ def photo_url(value):
     return url_for("uploaded_file", filename=value)
 
 
+@app.template_global()
+def activity_badge_for(user):
+    """Return a human-friendly badge name based on user's points.
+    Accepts dict-like or sqlite3.Row objects."""
+    def _field(u, k):
+        try:
+            if isinstance(u, dict):
+                return u.get(k)
+            return u[k]
+        except Exception:
+            return getattr(u, k, None)
+
+    points = _field(user, "points") or 0
+    try:
+        points = int(points)
+    except Exception:
+        points = 0
+    if points >= 501:
+        return "Gold Elite"
+    if points >= 101:
+        return "Silver Expert"
+    return "Bronze Member"
+
+
+from markupsafe import Markup
+
+
+@app.template_global()
+def badge_html_for(user):
+    """Return small badge HTML reflecting activity badge and verification/vip."""
+    def _field(u, k):
+        try:
+            if isinstance(u, dict):
+                return u.get(k)
+            return u[k]
+        except Exception:
+            return getattr(u, k, None)
+
+    badge = activity_badge_for(user)
+    is_verified = bool(_field(user, "is_verified"))
+    is_vip = bool(_field(user, "is_vip"))
+    parts = []
+    # Activity badge icon
+    if badge.startswith("Gold"):
+                parts.append('''<span class="user-badge user-badge-gold" title="{t}">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <defs>
+                                <linearGradient id="g_gold" x1="0%" x2="100%" y1="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#FFD54A"/>
+                                    <stop offset="100%" stop-color="#FFB300"/>
+                                </linearGradient>
+                            </defs>
+                            <path fill="url(#g_gold)" d="M12 2l2.7 5.5L20 9l-4 3.6L17 19l-5-2.6L7 19l1-6.4L4 9l5.3-1.5L12 2z" />
+                        </svg>
+                    </span>'''.format(t=badge))
+    elif badge.startswith("Silver"):
+                parts.append('''<span class="user-badge user-badge-silver" title="{t}">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <defs>
+                                <linearGradient id="g_silver" x1="0%" x2="100%" y1="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#E0E0E0"/>
+                                    <stop offset="100%" stop-color="#BDBDBD"/>
+                                </linearGradient>
+                            </defs>
+                            <path fill="url(#g_silver)" d="M12 2L4 5v6c0 5 4 9 8 11 4-2 8-6 8-11V5l-8-3z" />
+                        </svg>
+                    </span>'''.format(t=badge))
+    else:
+                parts.append('''<span class="user-badge user-badge-bronze" title="{t}">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <defs>
+                                <linearGradient id="g_bronze" x1="0%" x2="100%" y1="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#D7A86A"/>
+                                    <stop offset="100%" stop-color="#B87333"/>
+                                </linearGradient>
+                            </defs>
+                            <circle cx="12" cy="12" r="9" fill="url(#g_bronze)" />
+                        </svg>
+                    </span>'''.format(t=badge))
+    # Verified / VIP overlays
+    if is_vip:
+        parts.append('<span class="user-badge user-badge-vip" title="VIP">\n            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">\n              <path fill="#FFD54A" d="M12 2l2 4 4 .7-3 2.7.8 4-3.8-2-3.8 2 .8-4L6 6.7 10 6z"/>\n            </svg>\n          </span>')
+    elif is_verified:
+        parts.append('<span class="user-badge user-badge-verified" title="Verified">\n            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">\n              <path fill="#34D399" d="M10 15l-3.5-3.5 1.4-1.4L10 12.2l6.1-6.1 1.4 1.4L10 15z"/>\n            </svg>\n          </span>')
+
+    return Markup(''.join(parts))
+
+
 def get_setting(key, default=None):
     db = get_db()
     row = db.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
@@ -1719,9 +1632,15 @@ def get_active_banks():
     """Returns all currently-active admin-managed deposit bank accounts,
     for display on the wallet deposit form."""
     db = get_db()
-    return db.execute(
-        "SELECT * FROM bank_accounts WHERE is_active = 1 ORDER BY bank_name"
-    ).fetchall()
+    try:
+        return db.execute(
+            "SELECT id, bank_name, account_name, account_number, account_holder_name, is_active, created_at FROM bank_accounts WHERE is_active = 1 ORDER BY bank_name"
+        ).fetchall()
+    except Exception:
+        # Fallback for older DB schemas without account_name/account_holder_name
+        return db.execute(
+            "SELECT id, bank_name, account_number, is_active, created_at FROM bank_accounts WHERE is_active = 1 ORDER BY bank_name"
+        ).fetchall()
 
 
 def _generate_cv_payload(form_data, photo=None):
@@ -2055,6 +1974,17 @@ def register():
             new_user = db.execute(
                 "SELECT id FROM users WHERE lower(username) = ?", (normalized_username,)
             ).fetchone()
+            if new_user:
+                wallet_id = _generate_wallet_id(db)
+                db.execute(
+                    "UPDATE users SET balance = 0.0, wallet_id = ? WHERE id = ?",
+                    (wallet_id, new_user["id"]),
+                )
+                db.execute(
+                    "INSERT INTO wallets (user_id, balance, escrow_balance, created_at) VALUES (?, 0.00, 0.00, ?)",
+                    (new_user["id"], _now_iso()),
+                )
+                db.commit()
             session["user_id"] = new_user["id"]
             flash(get_translator(session.get("lang", DEFAULT_LANG))["login"])
 
@@ -2138,51 +2068,106 @@ def feed():
     db = get_db()
     user = get_current_user()
 
-    posts = db.execute(
-        """SELECT posts.*, users.username, users.full_name, users.avatar, users.user_type,
-                  users.is_verified, users.verified_until, users.is_vip, users.vip_until
-           FROM posts JOIN users ON posts.user_id = users.id
-           ORDER BY posts.created_at DESC LIMIT 100"""
-    ).fetchall()
+    try:
+        page = int(request.args.get("page", 1))
+        if page < 1:
+            page = 1
+    except Exception:
+        page = 1
+    page_size = 10
+    offset = (page - 1) * page_size
 
-    channel_posts = []
+    posts = []
+    try:
+        if not db.is_sqlite:
+            try:
+                db.execute("SET LOCAL statement_timeout = 3000")
+            except Exception:
+                pass
 
+        posts = db.execute(
+            """WITH latest_posts AS (
+                   SELECT * FROM posts
+                   ORDER BY created_at DESC
+                   LIMIT ? OFFSET ?
+               )
+               SELECT p.*, u.username, u.full_name, u.avatar, u.user_type,
+                      u.is_verified, u.verified_until, u.is_vip, u.vip_until,
+                      COALESCE(like_counts.like_count, 0) AS like_count,
+                      COALESCE(comment_counts.comment_count, 0) AS comment_count
+               FROM latest_posts p
+               JOIN users u ON p.user_id = u.id
+               LEFT JOIN (
+                   SELECT post_id, COUNT(*) AS like_count
+                   FROM likes
+                   WHERE post_id IN (SELECT id FROM latest_posts)
+                   GROUP BY post_id
+               ) like_counts ON like_counts.post_id = p.id
+               LEFT JOIN (
+                   SELECT post_id, COUNT(*) AS comment_count
+                   FROM comments
+                   WHERE post_id IN (SELECT id FROM latest_posts)
+                   GROUP BY post_id
+               ) comment_counts ON comment_counts.post_id = p.id
+               ORDER BY p.created_at DESC""",
+            (page_size, offset),
+        ).fetchall()
+    except Exception as exc:
+        print(f"Warning: could not load feed posts: {exc}")
+        flash("There was a problem loading your feed. Please try again in a moment.")
+        posts = []
+
+    post_ids = [p["id"] for p in posts]
+    author_ids = list({p["user_id"] for p in posts})
     liked_ids = set()
     saved_ids = set()
     following_ids = set()
     applied_ids = set()
-    if user:
-        rows = db.execute(
-            "SELECT post_id FROM likes WHERE user_id = ?", (user["id"],)
-        ).fetchall()
-        liked_ids = {r["post_id"] for r in rows}
-        srows = db.execute(
-            "SELECT post_id FROM saved_posts WHERE user_id = ?", (user["id"],)
-        ).fetchall()
-        saved_ids = {r["post_id"] for r in srows}
-        frows = db.execute(
-            "SELECT followed_id FROM follows WHERE follower_id = ?", (user["id"],)
-        ).fetchall()
-        following_ids = {r["followed_id"] for r in frows}
-        arows = db.execute(
-            "SELECT post_id FROM job_applications WHERE applicant_id = ?", (user["id"],)
-        ).fetchall()
-        applied_ids = {r["post_id"] for r in arows}
+
+    if user and post_ids:
+        try:
+            placeholders = ", ".join("?" for _ in post_ids)
+            liked_ids = {
+                r["post_id"]
+                for r in db.execute(
+                    f"SELECT post_id FROM likes WHERE user_id = ? AND post_id IN ({placeholders})",
+                    tuple([user["id"]] + post_ids),
+                ).fetchall()
+            }
+            saved_ids = {
+                r["post_id"]
+                for r in db.execute(
+                    f"SELECT post_id FROM saved_posts WHERE user_id = ? AND post_id IN ({placeholders})",
+                    tuple([user["id"]] + post_ids),
+                ).fetchall()
+            }
+            applied_ids = {
+                r["post_id"]
+                for r in db.execute(
+                    f"SELECT post_id FROM job_applications WHERE applicant_id = ? AND post_id IN ({placeholders})",
+                    tuple([user["id"]] + post_ids),
+                ).fetchall()
+            }
+            if author_ids:
+                author_placeholders = ", ".join("?" for _ in author_ids)
+                following_ids = {
+                    r["followed_id"]
+                    for r in db.execute(
+                        f"SELECT followed_id FROM follows WHERE follower_id = ? AND followed_id IN ({author_placeholders})",
+                        tuple([user["id"]] + author_ids),
+                    ).fetchall()
+                }
+        except Exception as exc:
+            print(f"Warning: could not load user feed metadata: {exc}")
 
     def build_post_payload(rows):
         payload = []
         for p in rows:
-            like_count = db.execute(
-                "SELECT COUNT(*) c FROM likes WHERE post_id = ?", (p["id"],)
-            ).fetchone()["c"]
-            comment_count = db.execute(
-                "SELECT COUNT(*) c FROM comments WHERE post_id = ?", (p["id"],)
-            ).fetchone()["c"]
             payload.append({
                 "post": p,
                 "author_name": p["full_name"] or p["username"] or "Unknown",
-                "like_count": like_count,
-                "comment_count": comment_count,
+                "like_count": p.get("like_count", 0),
+                "comment_count": p.get("comment_count", 0),
                 "liked": p["id"] in liked_ids,
                 "saved": p["id"] in saved_ids,
                 "following": p["user_id"] in following_ids,
@@ -2191,13 +2176,14 @@ def feed():
         return payload
 
     posts_data = build_post_payload(posts)
-    channel_posts_data = build_post_payload(channel_posts)
+    has_next = len(posts) == page_size
 
     return render_template(
         "feed.html",
         posts_data=posts_data,
-        posts=posts_data,
-        channel_posts=channel_posts_data,
+        page=page,
+        page_size=page_size,
+        has_next=has_next,
         days_left=trial_days_left(user) if user else 0,
         show_trial_banner=user and not user["paid_until"],
     )
@@ -2215,8 +2201,12 @@ def home():
 def new_post():
     content = request.form.get("content", "").strip()
     post_type = request.form.get("post_type", "general")
-    photo = save_photo(request.files.get("photo"))
+    photo_file = request.files.get("photo")
+    if photo_file and photo_file.filename and not allowed_file(photo_file.filename):
+        flash("Unsupported image format. Please upload PNG, JPG, JPEG, GIF, or WEBP.")
+        return redirect(url_for("feed"))
 
+    photo = save_photo(photo_file)
     if not content and not photo:
         return redirect(url_for("feed"))
 
@@ -2235,16 +2225,26 @@ def new_post():
         flash("Your post was blocked for policy review.")
         return redirect(url_for("feed"))
 
-    status = "approved"
-    db.execute(
-        """INSERT INTO posts (user_id, content, photo, post_type, status, created_at)
-           VALUES (?, ?, ?, ?, ?, ?)""",
-        (session["user_id"], content, photo, post_type, status,
-         datetime.datetime.utcnow().isoformat()),
-    )
-    db.commit()
-    refresh_trust_status(db, user["id"])
-    db.commit()
+    try:
+        status = "approved"
+        db.execute(
+            """INSERT INTO posts (user_id, content, photo, post_type, status, created_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (session["user_id"], content, photo, post_type, status,
+             datetime.datetime.utcnow().isoformat()),
+        )
+        # Award points for creating a post
+        try:
+            db.execute("UPDATE users SET points = COALESCE(points,0) + ? WHERE id = ?", (10, session["user_id"]))
+        except Exception:
+            pass
+        db.commit()
+        refresh_trust_status(db, user["id"])
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        print(f"New post submission failed: {exc}")
+        flash("Could not publish your post right now. Please try again.")
     return redirect(url_for("feed"))
 
 
@@ -2716,9 +2716,15 @@ def profile(user_id):
             (current_uid, user_id),
         ).fetchone() is not None
 
+    portfolio_items = db.execute(
+        "SELECT * FROM portfolio_items WHERE user_id = ? ORDER BY created_at DESC",
+        (user_id,),
+    ).fetchall()
+
     return render_template(
         "profile.html", profile_user=profile_user, posts=posts,
         ratings=ratings, avg_stars=avg_row["avg_stars"], rating_count=avg_row["cnt"],
+        portfolio_items=portfolio_items,
         followers_count=followers_count, following_count=following_count,
         posts_count=posts_count, is_following=is_following,
     )
@@ -2782,6 +2788,45 @@ def edit_profile():
         return redirect(url_for("profile", user_id=user["id"]))
 
     return render_template("edit_profile.html", user=user)
+
+
+@app.route("/profile/update-skills", methods=["POST"])
+@login_required
+def update_profile_skills():
+    skills = request.form.get("skills", "").strip()
+    db = get_db()
+    db.execute("UPDATE users SET skills = ? WHERE id = ?", (skills, session["user_id"]))
+    db.commit()
+    return redirect(url_for("profile", user_id=session["user_id"]))
+
+
+@app.route("/profile/<int:user_id>/portfolio/add", methods=["POST"])
+@login_required
+def add_portfolio_item(user_id):
+    if session.get("user_id") != user_id:
+        abort(403)
+
+    title = request.form.get("title", "").strip()
+    description = request.form.get("description", "").strip()
+    project_url = request.form.get("project_url", "").strip()
+    image_file = request.files.get("image")
+    image_path = save_photo(image_file) if image_file and image_file.filename else None
+
+    if image_file and image_file.filename and image_path is None:
+        flash("Unsupported portfolio image format. Please upload a valid image.")
+        return redirect(url_for("profile", user_id=user_id))
+
+    if not title:
+        flash("Please add a project title to save your portfolio item.")
+        return redirect(url_for("profile", user_id=user_id))
+
+    db = get_db()
+    db.execute(
+        "INSERT INTO portfolio_items (user_id, title, description, project_url, image_path, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (user_id, title, description, project_url or None, image_path, datetime.datetime.utcnow().isoformat()),
+    )
+    db.commit()
+    return redirect(url_for("profile", user_id=user_id))
 
 
 @app.route("/profile/<int:worker_id>/rate", methods=["POST"])
@@ -3203,7 +3248,11 @@ def cv_maker():
         description = (request.form.get("description") or "").strip()
         price = request.form.get("price", "0").strip()
         location = (request.form.get("location") or "Addis Ababa").strip()
-        photo = save_photo(request.files.get("photo"))
+        photo_file = request.files.get("photo")
+        if photo_file and photo_file.filename and not allowed_file(photo_file.filename):
+            flash("Unsupported image format. Please upload PNG, JPG, JPEG, GIF, or WEBP.")
+            return redirect(url_for("cv_maker"))
+        photo = save_photo(photo_file)
         if title and price:
             try:
                 price_value = float(price)
@@ -3211,10 +3260,15 @@ def cv_maker():
                 price_value = 0.0
             status = review_listing(db, user["id"], title, description)
             db.execute(
-                """INSERT INTO products (user_id, title, description, price, location, status, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (user["id"], title, description, price_value, location, status, datetime.datetime.utcnow().isoformat()),
+                """INSERT INTO products (user_id, title, description, price, location, status, photo, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (user["id"], title, description, price_value, location, status, photo, datetime.datetime.utcnow().isoformat()),
             )
+            # Award points for creating a marketplace listing
+            try:
+                db.execute("UPDATE users SET points = COALESCE(points,0) + ? WHERE id = ?", (15, user["id"]))
+            except Exception:
+                pass
             db.commit()
             flash("Your marketplace listing has been submitted.")
             return redirect(url_for("marketplace"))
@@ -3226,36 +3280,50 @@ def cv_maker():
 def marketplace():
     user = get_current_user()
     db = get_db()
-    listings = db.execute(
-        """SELECT p.*, u.username, u.full_name, u.avatar
-           FROM products p
-           JOIN users u ON p.user_id = u.id
-           ORDER BY p.created_at DESC LIMIT 50"""
-    ).fetchall()
 
     if request.method == "POST":
         title = (request.form.get("title") or "").strip()
         description = (request.form.get("description") or "").strip()
         price = request.form.get("price", "0").strip()
         location = (request.form.get("location") or "Addis Ababa").strip()
-        photo = save_photo(request.files.get("photo"))
+        photo_file = request.files.get("photo")
+        if photo_file and photo_file.filename and not allowed_file(photo_file.filename):
+            flash("Unsupported image format. Please upload PNG, JPG, JPEG, GIF, or WEBP.")
+            return redirect(url_for("marketplace"))
+        photo = save_photo(photo_file)
         if title and price:
             try:
                 price_value = float(price)
             except ValueError:
                 price_value = 0.0
-            status = review_listing(db, user["id"], title, description)
-            db.execute(
-                """INSERT INTO products (user_id, title, description, price, location, status, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (user["id"], title, description, price_value, location, status, datetime.datetime.utcnow().isoformat()),
-            )
-            db.commit()
-            flash("Your marketplace listing has been submitted.")
-            return redirect(url_for("marketplace"))
+            try:
+                status = review_listing(db, user["id"], title, description)
+                db.execute(
+                    """INSERT INTO products (user_id, title, description, price, location, status, photo, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (user["id"], title, description, price_value, location, status, photo, datetime.datetime.utcnow().isoformat()),
+                )
+                # Award points for creating a marketplace listing
+                try:
+                    db.execute("UPDATE users SET points = COALESCE(points,0) + ? WHERE id = ?", (15, user["id"]))
+                except Exception:
+                    pass
+                db.commit()
+                flash("Your marketplace listing has been submitted.")
+                return redirect(url_for("marketplace"))
+            except Exception as exc:
+                db.rollback()
+                print(f"Marketplace listing submission failed: {exc}")
+                flash("Could not publish your marketplace listing right now. Please try again.")
+                return redirect(url_for("marketplace"))
 
+    listings = db.execute(
+        """SELECT p.*, u.username, u.full_name, u.is_verified, u.verified_until, u.is_vip, u.vip_until
+           FROM products p
+           JOIN users u ON p.user_id = u.id
+           ORDER BY p.created_at DESC LIMIT 50"""
+    ).fetchall()
     return render_template("marketplace.html", listings=listings, user=user)
-
 
 # ---------------------------------------------------------------------------
 # Wallet (deposit / withdraw)
@@ -3302,51 +3370,71 @@ def wallet():
 @login_required
 def api_wallet_balance():
     db = get_db()
-    row = db.execute("SELECT wallet_balance, alta_tokens FROM users WHERE id = ?", (session['user_id'],)).fetchone()
-    return jsonify({
-        'wallet_balance': row['wallet_balance'] if row else 0,
-        'alta_tokens': row['alta_tokens'] if row else 0,
-    })
+    # Query the full user row to avoid selecting non-existent columns on older schemas.
+    row = db.execute("SELECT * FROM users WHERE id = ?", (session['user_id'],)).fetchone()
+    if not row:
+        return jsonify({'wallet_balance': 0, 'alta_tokens': 0})
+    # Support both sqlite3.Row and psycopg2 RealDictRow
+    try:
+        wallet_balance = row['wallet_balance'] if 'wallet_balance' in row.keys() else row.get('wallet_balance', 0)
+    except Exception:
+        wallet_balance = row.get('wallet_balance', 0) if isinstance(row, dict) else 0
+    try:
+        alta_tokens = row['alta_tokens'] if 'alta_tokens' in row.keys() else row.get('alta_tokens', 0)
+    except Exception:
+        alta_tokens = row.get('alta_tokens', 0) if isinstance(row, dict) else 0
+    return jsonify({'wallet_balance': wallet_balance or 0, 'alta_tokens': alta_tokens or 0})
 
 
 @app.route("/wallet/transfer", methods=["POST"])
 @login_required
 def wallet_transfer():
-    amount = int(request.form.get("amount", 0) or 0)
+    amount = float(request.form.get("amount", 0) or 0)
     recipient_identifier = (request.form.get("recipient_identifier") or "").strip()
     if amount <= 0 or not recipient_identifier:
         flash("Please enter a valid amount and recipient")
         return redirect(url_for("wallet"))
+
     db = get_db()
     sender = get_current_user()
     recipient = db.execute(
-        "SELECT * FROM users WHERE lower(username) = lower(?) OR lower(email) = lower(?) OR lower(phone) = lower(?)",
-        (recipient_identifier, recipient_identifier, recipient_identifier),
+        "SELECT * FROM users WHERE lower(username) = lower(?) OR lower(email) = lower(?) OR lower(phone) = lower(?) OR wallet_id = ?",
+        (recipient_identifier, recipient_identifier, recipient_identifier, recipient_identifier),
     ).fetchone()
     if not recipient or recipient["id"] == sender["id"]:
         flash("Recipient could not be found")
         return redirect(url_for("wallet"))
 
-    # Use a DB transaction and conditional update to avoid race conditions
     if getattr(db, "is_sqlite", False):
         db.execute("BEGIN IMMEDIATE")
     try:
-        cur = db.execute(
-            "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ? AND wallet_balance >= ?",
-            (amount, sender["id"], amount),
-        )
-        if cur.rowcount == 0:
+        # If wallet columns don't exist on this DB, disallow transfers for now.
+        if 'wallet_balance' not in sender and 'wallet_balance' not in (sender.keys() if hasattr(sender, 'keys') else []):
+            db.rollback()
+            flash("Wallet transfers are not available on this database schema.")
+            return redirect(url_for("wallet"))
+
+        sender_balance = float(sender.get("balance", sender.get("wallet_balance", 0)) or 0)
+        if sender_balance < amount:
             db.rollback()
             flash("insufficient_balance")
             return redirect(url_for("wallet"))
 
         db.execute(
-            "UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
-            (amount, recipient["id"]),
+            "UPDATE users SET balance = balance - ?, wallet_balance = wallet_balance - ? WHERE id = ?",
+            (amount, amount, sender["id"]),
         )
         db.execute(
-            "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'transfer', ?, ?, 'approved', ?)",
-            (sender["id"], amount, f"Sent to {recipient['username']}", datetime.datetime.utcnow().isoformat()),
+            "UPDATE users SET balance = balance + ?, wallet_balance = wallet_balance + ? WHERE id = ?",
+            (amount, amount, recipient["id"]),
+        )
+        db.execute(
+            "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, recipient_wallet_id, status, created_at) VALUES (?, 'transfer', ?, ?, ?, 'approved', ?)",
+            (sender["id"], amount, f"Sent to {recipient['username']}", recipient.get("wallet_id"), datetime.datetime.utcnow().isoformat()),
+        )
+        db.execute(
+            "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, recipient_wallet_id, status, created_at) VALUES (?, 'transfer', ?, ?, ?, 'approved', ?)",
+            (recipient["id"], amount, f"Received from {sender['username']}", sender.get("wallet_id"), datetime.datetime.utcnow().isoformat()),
         )
         db.commit()
         flash("P2P transfer sent")
@@ -3359,33 +3447,30 @@ def wallet_transfer():
 @app.route("/wallet/deposit", methods=["POST"])
 @login_required
 def wallet_deposit():
-    amount = int(request.form.get("amount", 0) or 0)
+    amount = float(request.form.get("amount", 0) or 0)
     bank = request.form.get("bank", "").strip()
     ref = request.form.get("transaction_ref", "").strip()
     note = request.form.get("note", "").strip()
     receipt_photo = save_photo(request.files.get("receipt_photo"))
 
-    # Only accept a bank name that's currently active in the admin-managed
-    # list, so users can't submit a deposit against a bank that was removed
-    # or never existed.
     active_bank_names = {b["bank_name"] for b in get_active_banks()}
     if amount > 0 and bank and bank in active_bank_names and ref:
         db = get_db()
         db.execute(
             """INSERT INTO wallet_transactions
-               (user_id, tx_type, amount, transaction_ref, bank, note, receipt_photo, created_at)
-               VALUES (?, 'deposit', ?, ?, ?, ?, ?, ?)""",
-            (session["user_id"], amount, ref, bank, note, receipt_photo, datetime.datetime.utcnow().isoformat()),
+               (user_id, tx_type, amount, transaction_ref, bank, note, receipt_photo, receipt_image_path, status, created_at)
+               VALUES (?, 'deposit', ?, ?, ?, ?, ?, ?, 'pending', ?)""",
+            (session["user_id"], amount, ref, bank, note, receipt_photo, receipt_photo, datetime.datetime.utcnow().isoformat()),
         )
         db.commit()
-        flash("payment_pending")
+        flash("Deposit request submitted for review.")
     else:
         flash("Please select a valid bank, amount, and transaction reference.")
     return redirect(url_for("wallet"))
 
 
 def _submit_withdrawal_request(user_id, amount, bank_name, account_number, account_name):
-    amount = int(amount or 0)
+    amount = float(amount or 0)
     bank_name = (bank_name or "").strip()
     account_number = (account_number or "").strip()
     account_name = (account_name or "").strip()
@@ -3400,23 +3485,34 @@ def _submit_withdrawal_request(user_id, amount, bank_name, account_number, accou
         return False, "invalid_account_name"
 
     db = get_db()
+    user = db.execute("SELECT id, balance, wallet_balance, is_verified FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user:
+        return False, "user_not_found"
+
+    balance = float(user.get("balance", user.get("wallet_balance", 0)) or 0)
+    daily_limit = 50000.0 if not user.get("is_verified") else 500000.0
+    today_start = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    today_total = db.execute(
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM wallet_transactions WHERE user_id = ? AND tx_type = 'withdrawal' AND status = 'approved' AND created_at >= ?",
+        (user_id, today_start),
+    ).fetchone()["total"] or 0
+    if today_total + amount > daily_limit:
+        return False, "daily_limit_exceeded"
+    if balance < amount:
+        return False, "insufficient_balance"
+
     if getattr(db, "is_sqlite", False):
         db.execute("BEGIN IMMEDIATE")
     try:
-        cur = db.execute(
-            "UPDATE users SET wallet_balance = wallet_balance - ? "
-            "WHERE id = ? AND wallet_balance >= ?",
-            (amount, user_id, amount),
+        db.execute(
+            "UPDATE users SET balance = balance - ?, wallet_balance = wallet_balance - ? WHERE id = ?",
+            (amount, amount, user_id),
         )
-        if cur.rowcount == 0:
-            db.rollback()
-            return False, "insufficient_balance"
-
         note = f"Account: {account_name} | Account Number: {account_number}"
         db.execute(
             """INSERT INTO wallet_transactions
-               (user_id, tx_type, amount, bank, note, account_number, account_name, created_at)
-               VALUES (?, 'withdrawal', ?, ?, ?, ?, ?, ?)""",
+               (user_id, tx_type, amount, bank, note, account_number, account_name, status, created_at)
+               VALUES (?, 'withdrawal', ?, ?, ?, ?, ?, 'approved', ?)""",
             (user_id, amount, bank_name, note, account_number, account_name, datetime.datetime.utcnow().isoformat()),
         )
         db.commit()
@@ -3481,6 +3577,11 @@ def buy_verification():
             "UPDATE users SET is_verified = 1, verified_until = ? WHERE id = ?",
             (verified_until.isoformat(), user["id"]),
         )
+        # Award points for obtaining Blue Tick verification
+        try:
+            db.execute("UPDATE users SET points = COALESCE(points,0) + ? WHERE id = ?", (100, user["id"]))
+        except Exception:
+            pass
         admin_user = db.execute(
             "SELECT * FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1"
         ).fetchone()
@@ -4078,53 +4179,78 @@ def admin_reject_product(product_id):
 
 
 @app.route("/admin")
+@app.route("/admin/overview")
 @login_required
 @admin_required
 def admin_panel():
-    db = get_db()
-    pending_payments = db.execute(
-        """SELECT payments.*, users.username FROM payments
-           JOIN users ON payments.user_id = users.id
-           WHERE payments.status = 'pending' ORDER BY payments.created_at DESC"""
-    ).fetchall()
-    reports = db.execute(
-        """SELECT reports.*, users.username as reporter FROM reports
-           JOIN users ON reports.reporter_id = users.id
-           WHERE reports.status = 'pending'
-           ORDER BY reports.created_at DESC"""
-    ).fetchall()
-    pending_wallet_tx = db.execute(
-        """SELECT wallet_transactions.*, users.username, users.phone FROM wallet_transactions
-           JOIN users ON wallet_transactions.user_id = users.id
-           WHERE wallet_transactions.status = 'pending'
-           ORDER BY wallet_transactions.created_at DESC"""
-    ).fetchall()
-    gift_earnings = db.execute(
-        "SELECT COALESCE(SUM(platform_cut), 0) total FROM gifts"
-    ).fetchone()["total"]
-    verified_users_count = db.execute(
-        "SELECT COUNT(*) c FROM users WHERE is_verified = 1"
-    ).fetchone()["c"]
-    vip_users_count = db.execute(
-        "SELECT COUNT(*) c FROM users WHERE is_vip = 1"
-    ).fetchone()["c"]
-    subscription_revenue = db.execute(
-        "SELECT COALESCE(SUM(amount), 0) total FROM payments WHERE status = 'approved'"
-    ).fetchone()["total"]
-    total_revenue = subscription_revenue + gift_earnings
+    try:
+        db = get_db()
+        if not db.is_sqlite:
+            try:
+                db.execute("SET LOCAL statement_timeout = 3000")
+            except Exception:
+                pass
+        pending_payments = db.execute(
+            """SELECT payments.*, users.username FROM payments
+               JOIN users ON payments.user_id = users.id
+               WHERE payments.status = 'pending'
+               ORDER BY payments.created_at DESC
+               LIMIT 50"""
+        ).fetchall()
+        reports = db.execute(
+            """SELECT reports.*, users.username as reporter FROM reports
+               JOIN users ON reports.reporter_id = users.id
+               WHERE reports.status = 'pending'
+               ORDER BY reports.created_at DESC
+               LIMIT 50"""
+        ).fetchall()
+        pending_wallet_tx = db.execute(
+            """SELECT wallet_transactions.*, users.username, users.phone FROM wallet_transactions
+               JOIN users ON wallet_transactions.user_id = users.id
+               WHERE wallet_transactions.status = 'pending'
+               ORDER BY wallet_transactions.created_at DESC
+               LIMIT 100"""
+        ).fetchall()
+        total_users = db.execute("SELECT COUNT(*) c FROM users").fetchone()["c"]
+        pending_unverified_users = db.execute("SELECT COUNT(*) c FROM users WHERE is_verified = 0").fetchone()["c"]
+        pending_deposits_count = db.execute("SELECT COUNT(*) c FROM wallet_transactions WHERE status = 'pending' AND tx_type = 'deposit'").fetchone()["c"]
+        pending_withdrawals_count = db.execute("SELECT COUNT(*) c FROM wallet_transactions WHERE status = 'pending' AND tx_type = 'withdrawal'").fetchone()["c"]
+        gift_earnings = db.execute(
+            "SELECT COALESCE(SUM(platform_cut), 0) total FROM gifts"
+        ).fetchone()["total"]
+        verified_users_count = db.execute(
+            "SELECT COUNT(*) c FROM users WHERE is_verified = 1"
+        ).fetchone()["c"]
+        vip_users_count = db.execute(
+            "SELECT COUNT(*) c FROM users WHERE is_vip = 1"
+        ).fetchone()["c"]
+        subscription_revenue = db.execute(
+            "SELECT COALESCE(SUM(amount), 0) total FROM payments WHERE status = 'approved'"
+        ).fetchone()["total"]
+        total_revenue = subscription_revenue + gift_earnings
 
-    verification_price = float(get_setting("verification_price", VERIFICATION_MONTHLY_PRICE) or VERIFICATION_MONTHLY_PRICE)
-    vip_price = float(get_setting("vip_price", VIP_MONTHLY_PRICE) or VIP_MONTHLY_PRICE)
-    return render_template(
-        "admin.html", pending_payments=pending_payments, reports=reports,
-        pending_wallet_tx=pending_wallet_tx, gift_earnings=gift_earnings,
-        verified_users_count=verified_users_count,
-        vip_users_count=vip_users_count,
-        subscription_revenue=subscription_revenue,
-        total_revenue=total_revenue,
-        verification_price=verification_price,
-        vip_price=vip_price,
-    )
+        verification_price = float(get_setting("verification_price", VERIFICATION_MONTHLY_PRICE) or VERIFICATION_MONTHLY_PRICE)
+        vip_price = float(get_setting("vip_price", VIP_MONTHLY_PRICE) or VIP_MONTHLY_PRICE)
+        return render_template(
+            "admin.html", pending_payments=pending_payments, reports=reports,
+            pending_wallet_tx=pending_wallet_tx, gift_earnings=gift_earnings,
+            verified_users_count=verified_users_count,
+            vip_users_count=vip_users_count,
+            subscription_revenue=subscription_revenue,
+            total_revenue=total_revenue,
+            verification_price=verification_price,
+            vip_price=vip_price,
+        )
+    except Exception as exc:
+        print(f"Admin overview page error: {exc}")
+        flash("Could not load admin overview at this time.")
+        return render_template(
+            "admin.html", pending_payments=[], reports=[], pending_wallet_tx=[],
+            gift_earnings=0, verified_users_count=0, vip_users_count=0,
+            subscription_revenue=0, total_revenue=0,
+            verification_price=float(get_setting("verification_price", VERIFICATION_MONTHLY_PRICE) or VERIFICATION_MONTHLY_PRICE),
+            vip_price=float(get_setting("vip_price", VIP_MONTHLY_PRICE) or VIP_MONTHLY_PRICE),
+        )
 
 
 @app.route("/admin/settings", methods=["GET", "POST"])
@@ -4174,39 +4300,57 @@ def admin_settings():
 @login_required
 @admin_required
 def admin_dashboard():
-    db = get_db()
-    pending_deposits = db.execute(
-        """SELECT wallet_transactions.id,
-                  users.username,
-                  wallet_transactions.amount,
-                  wallet_transactions.transaction_ref,
-                  wallet_transactions.bank,
-                  wallet_transactions.note,
-                  wallet_transactions.receipt_photo,
-                  wallet_transactions.created_at
-           FROM wallet_transactions
-           JOIN users ON wallet_transactions.user_id = users.id
-           WHERE wallet_transactions.status = 'pending'
-             AND wallet_transactions.tx_type = 'deposit'
-           ORDER BY wallet_transactions.created_at DESC"""
-    ).fetchall()
-    pending_withdrawals = db.execute(
-        """SELECT wallet_transactions.id,
-                  users.username,
-                  wallet_transactions.amount,
-                  wallet_transactions.created_at
-           FROM wallet_transactions
-           JOIN users ON wallet_transactions.user_id = users.id
-           WHERE wallet_transactions.status = 'pending'
-             AND wallet_transactions.tx_type = 'withdrawal'
-           ORDER BY wallet_transactions.created_at DESC"""
-    ).fetchall()
-    return render_template(
-        "admin_dashboard.html",
-        pending_deposits=pending_deposits,
-        pending_withdrawals=pending_withdrawals,
-        telebirr_number=get_setting("telebirr_wallet_number", TELEBIRR_WALLET_NUMBER),
-    )
+    try:
+        db = get_db()
+        if not db.is_sqlite:
+            try:
+                db.execute("SET LOCAL statement_timeout = 3000")
+            except Exception:
+                pass
+
+        pending_deposits = db.execute(
+            """SELECT wallet_transactions.id,
+                      users.username,
+                      wallet_transactions.amount,
+                      wallet_transactions.transaction_ref,
+                      wallet_transactions.bank,
+                      wallet_transactions.note,
+                      wallet_transactions.receipt_photo,
+                      wallet_transactions.created_at
+               FROM wallet_transactions
+               JOIN users ON wallet_transactions.user_id = users.id
+               WHERE wallet_transactions.status = 'pending'
+                 AND wallet_transactions.tx_type = 'deposit'
+               ORDER BY wallet_transactions.created_at DESC
+               LIMIT 100"""
+        ).fetchall()
+        pending_withdrawals = db.execute(
+            """SELECT wallet_transactions.id,
+                      users.username,
+                      wallet_transactions.amount,
+                      wallet_transactions.created_at
+               FROM wallet_transactions
+               JOIN users ON wallet_transactions.user_id = users.id
+               WHERE wallet_transactions.status = 'pending'
+                 AND wallet_transactions.tx_type = 'withdrawal'
+               ORDER BY wallet_transactions.created_at DESC
+               LIMIT 100"""
+        ).fetchall()
+        return render_template(
+            "admin_dashboard.html",
+            pending_deposits=pending_deposits,
+            pending_withdrawals=pending_withdrawals,
+            telebirr_number=get_setting("telebirr_wallet_number", TELEBIRR_WALLET_NUMBER),
+        )
+    except Exception as exc:
+        print(f"Admin dashboard page error: {exc}")
+        flash("Could not load deposit/withdrawal dashboard at this time.")
+        return render_template(
+            "admin_dashboard.html",
+            pending_deposits=[],
+            pending_withdrawals=[],
+            telebirr_number=get_setting("telebirr_wallet_number", TELEBIRR_WALLET_NUMBER),
+        )
 
 
 def _claim_pending_transaction(db, tx_id, tx_type, new_status):
@@ -4522,66 +4666,88 @@ def generate_temp_password(user_id):
 @login_required
 @admin_required
 def admin_users():
-    db = get_db()
-    q = request.args.get("q", "").strip()
-    page = max(1, request.args.get("page", 1, type=int))
-    per_page = 20
-    offset = (page - 1) * per_page
+    try:
+        db = get_db()
+        q = request.args.get("q", "").strip()
+        page = max(1, request.args.get("page", 1, type=int))
+        per_page = 20
+        offset = (page - 1) * per_page
 
-    where = ""
-    params = []
-    if q:
-        where = "WHERE username LIKE ? OR phone LIKE ? OR full_name LIKE ?"
-        like = f"%{q}%"
-        params = [like, like, like]
+        where = ""
+        params = []
+        if q:
+            where = "WHERE username LIKE ? OR phone LIKE ? OR full_name LIKE ?"
+            like = f"%{q}%"
+            params = [like, like, like]
 
-    total = db.execute(f"SELECT COUNT(*) c FROM users {where}", params).fetchone()["c"]
-    users = db.execute(
-        f"""SELECT id, username, full_name, phone, wallet_balance, created_at,
-                   is_banned, banned_until, ban_reason, is_verified, is_admin
-            FROM users {where}
-            ORDER BY created_at DESC LIMIT ? OFFSET ?""",
-        params + [per_page, offset],
-    ).fetchall()
+        total = db.execute(f"SELECT COUNT(*) c FROM users {where}", params).fetchone()["c"]
+        users = db.execute(
+            f"""SELECT id, username, full_name, phone,
+                       COALESCE(balance, wallet_balance, 0) AS balance,
+                       wallet_id,
+                       created_at,
+                       is_banned, banned_until, ban_reason, is_verified, is_admin
+                FROM users {where}
+                ORDER BY created_at DESC LIMIT ? OFFSET ?""",
+            params + [per_page, offset],
+        ).fetchall()
 
-    generated_password = None
-    generated_for = session.pop("_generated_password_for", None)
-    if generated_for:
-        generated_password = session.pop("_generated_password_value", None)
+        generated_password = None
+        generated_for = session.pop("_generated_password_for", None)
+        if generated_for:
+            generated_password = session.pop("_generated_password_value", None)
 
-    return render_template(
-        "admin_users.html",
-        users=users, q=q, page=page, per_page=per_page, total=total,
-        is_currently_banned=is_currently_banned,
-        generated_for=generated_for, generated_password=generated_password,
-    )
+        return render_template(
+            "admin_users.html",
+            users=users, q=q, page=page, per_page=per_page, total=total,
+            is_currently_banned=is_currently_banned,
+            generated_for=generated_for, generated_password=generated_password,
+        )
+    except Exception as exc:
+        print(f"Admin users page error: {exc}")
+        flash("Could not load users list at this time.")
+        return render_template(
+            "admin_users.html",
+            users=[], q="", page=1, per_page=20, total=0,
+            is_currently_banned=is_currently_banned,
+            generated_for=None, generated_password=None,
+        )
 
 
 # ---------------------------------------------------------------------------
 # Admin - Verification & Badge System
 # ---------------------------------------------------------------------------
 @app.route("/admin/verify")
+@app.route("/admin/verification")
 @login_required
 @admin_required
 def admin_verify():
-    db = get_db()
-    q = request.args.get("q", "").strip()
-    results = []
-    if q:
-        results = db.execute(
-            """SELECT id, username, full_name, is_verified, verified_until
-               FROM users WHERE username LIKE ? OR full_name LIKE ?
-               ORDER BY username LIMIT 25""",
-            (f"%{q}%", f"%{q}%"),
+    try:
+        db = get_db()
+        q = request.args.get("q", "").strip()
+        results = []
+        if q:
+            results = db.execute(
+                """SELECT id, username, full_name, is_verified, verified_until
+                   FROM users WHERE username LIKE ? OR full_name LIKE ?
+                   ORDER BY username LIMIT 25""",
+                (f"%{q}%", f"%{q}%"),
+            ).fetchall()
+        verified_users = db.execute(
+            """SELECT id, username, full_name, verified_until FROM users
+               WHERE is_verified = 1 ORDER BY verified_until DESC LIMIT 50"""
         ).fetchall()
-    verified_users = db.execute(
-        """SELECT id, username, full_name, verified_until FROM users
-           WHERE is_verified = 1 ORDER BY verified_until DESC LIMIT 50"""
-    ).fetchall()
-    return render_template(
-        "admin_verify.html", q=q, results=results, verified_users=verified_users,
-        is_currently_verified=is_currently_verified,
-    )
+        return render_template(
+            "admin_verify.html", q=q, results=results, verified_users=verified_users,
+            is_currently_verified=is_currently_verified,
+        )
+    except Exception as exc:
+        print(f"Admin verify page error: {exc}")
+        flash("Could not load verification dashboard at this time.")
+        return render_template(
+            "admin_verify.html", q="", results=[], verified_users=[],
+            is_currently_verified=is_currently_verified,
+        )
 
 
 @app.route("/admin/user/<int:user_id>/grant-verified", methods=["POST"])

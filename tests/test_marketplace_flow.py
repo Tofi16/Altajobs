@@ -11,11 +11,14 @@ class MarketplaceFlowTests(unittest.TestCase):
         self.temp_db = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
         self.temp_db.close()
         app_module.app.config['TESTING'] = True
-        app_module.app.config['DATABASE'] = self.temp_db.name
+        app_module.DATABASE = self.temp_db.name
+        app_module.DATABASE_URL = 'sqlite:///' + self.temp_db.name.replace('\\', '/')
+        app_module.USE_SQLITE = True
         app_module.init_db()
         self.client = app_module.app.test_client()
 
-        with app_module.get_db() as db:
+        with app_module.app.app_context():
+            db = app_module.get_db()
             db.execute(
                 "INSERT INTO users (username, password_hash, is_admin, created_at, full_name) VALUES (?, ?, 0, ?, ?)",
                 ('seller1', 'hash', '2025-01-01T00:00:00', 'Seller One'),

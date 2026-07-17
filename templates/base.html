@@ -8,10 +8,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
 {% endif %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
+<body class="{% if request.path.startswith('/admin') %}admin-page{% endif %}">
 
 {% if current_user %}
 <header class="topbar">
@@ -53,11 +56,7 @@
       </div>
 
       <button type="button" class="topbar-avatar-btn" id="headerSidebarToggle" aria-label="Open menu">
-        {% if current_user['avatar'] %}
-          <img src="{{ photo_url(current_user['avatar']) }}" alt="Profile picture">
-        {% else %}
-          {{ (current_user['full_name'] or current_user['username'])[0] }}
-        {% endif %}
+        <i class='bx bx-menu'></i>
       </button>
     </div>
   </div>
@@ -153,45 +152,22 @@
 {% if current_user %}
 <div class="sidebar-overlay" id="headerSidebarOverlay"></div>
 <aside class="header-sidebar-drawer" id="headerSidebarDrawer" aria-hidden="true">
-  <div class="drawer-head">
-    <div class="drawer-avatar">
-      {% if current_user['avatar'] %}
-        <img src="{{ photo_url(current_user['avatar']) }}" alt="Profile picture">
-      {% else %}
-        {{ (current_user['full_name'] or current_user['username'])[0] }}
-      {% endif %}
-    </div>
-    <div>
-      <div class="drawer-name">{{ current_user['full_name'] or current_user['username'] }}</div>
-      <div class="drawer-handle">@{{ current_user['username'] }}</div>
-    </div>
-  </div>
-
   <nav class="drawer-nav">
-    <a href="{{ url_for('profile', user_id=current_user['id']) }}">
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="var(--accent)" stroke-width="1.6"><path d="M12 12c2.5 0 4.5-2 4.5-4.5S14.5 3 12 3 7.5 5 7.5 7.5 9.5 12 12 12z"/><path d="M4.5 20.25c0-3.3 2.7-6 7.5-6s7.5 2.7 7.5 6"/></g></svg>
-      <div class="drawer-label">Profile</div>
-    </a>
-    <a href="{{ url_for('wallet') }}">
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7h14v10H3z" stroke="var(--accent)" stroke-width="1.6" fill="none"/><path d="M21 9v6" stroke="var(--accent)" stroke-width="1.6"/></svg>
-      <div class="drawer-label">Wallet</div>
+    <a href="{{ url_for('settings_page') }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" stroke="var(--accent)" stroke-width="1.6" fill="none"/><path d="M19.4 15a1.8 1.8 0 0 0 .3 2l.1.1a1 1 0 0 1-1.1 1.6l-.1-.05-.1-.05a1.8 1.8 0 0 0-2 .3l-.1.1a1 1 0 0 1-1.4 0l-.1-.1a1.8 1.8 0 0 0-2-.3l-.1.06a1 1 0 0 1-1.1-.2l-.08-.09" stroke="var(--accent)" stroke-width="1.4" fill="none"/></svg>
+      <div class="drawer-label">Settings</div>
     </a>
     <a href="{{ url_for('tokens_page') }}">
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="6" stroke="var(--accent)" stroke-width="1.6" fill="none"/><path d="M12 8v8" stroke="var(--accent)" stroke-width="1.6"/></svg>
       <div class="drawer-label">Alta Tokens</div>
     </a>
-    <a href="{{ url_for('marketplace') }}">
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 7h18v10H3z" stroke="var(--accent)" stroke-width="1.6" fill="none"/><path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2" stroke="var(--accent)" stroke-width="1.6"/></svg>
-      <div class="drawer-label">Marketplace</div>
-    </a>
-    <a href="{{ url_for('settings_page') }}">
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" stroke="var(--accent)" stroke-width="1.6" fill="none"/><path d="M19.4 15a1.8 1.8 0 0 0 .3 2l.1.1a1 1 0 0 1-1.1 1.6l-.1-.05-.1-.05a1.8 1.8 0 0 0-2 .3l-.1.1a1 1 0 0 1-1.4 0l-.1-.1a1.8 1.8 0 0 0-2-.3l-.1.06a1 1 0 0 1-1.1-.2l-.08-.09" stroke="var(--accent)" stroke-width="1.4" fill="none"/></svg>
-      <div class="drawer-label">Settings</div>
-    </a>
-    <a href="{{ url_for('logout') }}">
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M16 17l5-5-5-5" stroke="var(--accent)" stroke-width="1.6" fill="none"/><path d="M21 12H9" stroke="var(--accent)" stroke-width="1.6"/><path d="M7 5v14" stroke="var(--accent)" stroke-width="1.6" fill="none"/></svg>
-      <div class="drawer-label">Logout</div>
-    </a>
+    {% if current_user and current_user['is_admin'] %}
+      <div class="drawer-divider"></div>
+      <h4>Admin</h4>
+      <a href="{{ url_for('admin_dashboard') }}" class="drawer-item">🛠️ Admin Dashboard</a>
+    {% endif %}
+    <div class="drawer-divider"></div>
+    <a href="{{ url_for('logout') }}" class="drawer-item danger">🚪 {{ t.logout if t.logout is defined else 'Logout' }}</a>
   </nav>
 </aside>
 {% endif %}

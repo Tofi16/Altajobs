@@ -1,12 +1,43 @@
-<div class="card" style="padding:10px 14px;display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-  <a href="{{ url_for('admin_panel') }}" class="btn btn-outline btn-small">📊 Overview</a>
-  <a href="{{ url_for('admin_settings') }}" class="btn btn-outline btn-small">⚙️ Settings</a>
-  <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline btn-small">💵 Deposits/Withdrawals</a>
-  <a href="{{ url_for('admin_users') }}" class="btn btn-outline btn-small">👥 Users</a>
-  <a href="{{ url_for('admin_verify') }}" class="btn btn-outline btn-small">✔️ Verification</a>
-  <a href="{{ url_for('admin_moderation') }}" class="btn btn-outline btn-small">🚩 Reports</a>
-  <a href="{{ url_for('admin_revenue') }}" class="btn btn-outline btn-small">📈 Revenue</a>
-  <a href="{{ url_for('admin_products') }}" class="btn btn-outline btn-small">🛍️ Product Approval</a>
-  <a href="{{ url_for('admin_announcements') }}" class="btn btn-outline btn-small">📣 Announcements</a>
-  <a href="{{ url_for('admin_challenges') }}" class="btn btn-outline btn-small">🏆 Challenge</a>
-</div>
+<nav class="admin-sidebar">
+  <div class="admin-sidebar-brand">
+    <div>
+      <div class="admin-sidebar-logo">AltaJobs</div>
+      <div class="admin-sidebar-subtitle">Admin Console</div>
+    </div>
+  </div>
+
+  <div class="admin-sidebar-group">
+    <a href="{{ url_for('admin_panel') }}" class="admin-sidebar-link {% if request.path == '/admin' or request.path == '/admin/overview' %}active{% endif %}">
+      <i class='bx bx-home-circle'></i>
+      <span>Overview</span>
+    </a>
+    <a href="{{ url_for('admin_dashboard') }}" class="admin-sidebar-link {% if request.path == '/admin/dashboard' %}active{% endif %}">
+      <i class='bx bx-wallet-alt'></i>
+      <span>Deposits / Withdrawals</span>
+    </a>
+    <a href="{{ url_for('admin_users') }}" class="admin-sidebar-link {% if request.path == '/admin/users' %}active{% endif %}">
+      <i class='bx bx-user'></i>
+      <span>Users</span>
+    </a>
+    <a href="{{ url_for('admin_verify') }}" class="admin-sidebar-link {% if request.path == '/admin/verify' or request.path == '/admin/verification' %}active{% endif %}">
+      <i class='bx bx-shield-quarter'></i>
+      <span>Verification</span>
+    </a>
+    <a href="{{ url_for('admin_revenue') }}" class="admin-sidebar-link {% if request.path == '/admin/revenue' %}active{% endif %}">
+      <i class='bx bx-line-chart'></i>
+      <span>Revenue</span>
+    </a>
+    <a href="{{ url_for('admin_moderation') }}" class="admin-sidebar-link {% if request.path == '/admin/moderation' %}active{% endif %}">
+      <i class='bx bx-flag'></i>
+      <span>Moderation</span>
+    </a>
+    <a href="{{ url_for('admin_products') }}" class="admin-sidebar-link {% if request.path == '/admin/products' %}active{% endif %}">
+      <i class='bx bx-store-alt'></i>
+      <span>Product Approval</span>
+    </a>
+    <a href="{{ url_for('admin_settings') }}" class="admin-sidebar-link {% if request.path == '/admin/settings' %}active{% endif %}">
+      <i class='bx bx-cog'></i>
+      <span>Settings</span>
+    </a>
+  </div>
+</nav>

@@ -1,18 +1,106 @@
 {% extends "base.html" %}
 {% block content %}
-{% include "admin_nav.html" %}
+<div class="admin-shell">
+  {% include "admin_nav.html" %}
+  <main class="admin-main">
+    <section class="admin-page-header">
+      <div>
+        <p class="admin-overline">Verification Center</p>
+        <h1>Approve Verified Users</h1>
+        <p class="post-meta">Search users and manage verified badges with confidence.</p>
+      </div>
+      <div class="admin-header-actions">
+        {% if q %}
+          <a href="{{ url_for('admin_verify') }}" class="btn btn-outline btn-small">Clear</a>
+        {% endif %}
+      </div>
+    </section>
 
-<div class="card">
-  <h2 style="margin:0 0 6px">✔️ Verification &amp; Badge System</h2>
-  <p class="post-meta" style="margin:0 0 12px">Search for a trustworthy user and grant them a Verified blue badge.</p>
-  <form method="GET" action="{{ url_for('admin_verify') }}" style="display:flex;gap:8px;flex-wrap:wrap">
-    <input type="text" name="q" value="{{ q }}" placeholder="Search by username or full name" style="max-width:320px;margin:0">
-    <button type="submit" class="btn btn-small">Search</button>
-  </form>
+    <div class="admin-card" style="padding:18px 24px;">
+      <form method="GET" action="{{ url_for('admin_verify') }}" class="admin-action-group" style="flex-wrap:wrap; gap:12px;">
+        <input type="text" name="q" value="{{ q }}" placeholder="Search by username or full name" style="min-width:240px; width:100%; max-width:420px;">
+        <button type="submit" class="btn btn-primary btn-small">Search verified users</button>
+      </form>
+    </div>
+
+    {% if q %}
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <h2>Search Results</h2>
+      </div>
+      {% if not results %}
+        <p class="post-meta">No matching users found.</p>
+      {% else %}
+      <div class="admin-table-shell">
+      <table class="admin-table">
+        <thead>
+          <tr><th>User</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for u in results %}
+          <tr>
+            <td>
+              <strong>{{ u['full_name'] or u['username'] }}</strong><br>
+              <span class="post-meta">@{{ u['username'] }}</span>
+            </td>
+            <td>
+              {% if is_currently_verified(u) %}
+                <span class="admin-badge">Verified until {{ u['verified_until'][:10] }}</span>
+              {% else %}
+                <span class="admin-badge">Not verified</span>
+              {% endif %}
+            </td>
+            <td class="admin-action-group">
+              {% if is_currently_verified(u) %}
+              <form method="POST" action="{{ url_for('revoke_verified', user_id=u['id']) }}">
+                <button type="submit" class="btn btn-small btn-outline">Revoke</button>
+              </form>
+              {% else %}
+              <form method="POST" action="{{ url_for('grant_verified', user_id=u['id']) }}" class="admin-action-group" style="gap:10px;flex-wrap:wrap;">
+                <input type="number" name="days" value="30" min="1" style="width:90px;">
+                <button type="submit" class="btn btn-small">Grant Verified</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <h2>Currently Verified Users</h2>
+      </div>
+      {% if not verified_users %}
+        <p class="post-meta">No verified users at the moment.</p>
+      {% else %}
+      <div class="admin-table-shell">
+      <table class="admin-table">
+        <thead><tr><th>User</th><th>Verified Until</th><th></th></tr></thead>
+        <tbody>
+          {% for u in verified_users %}
+          <tr>
+            <td>{{ u['full_name'] or u['username'] }} <span class="admin-badge">Verified</span></td>
+            <td>{{ (u['verified_until'] or '')[:10] }}</td>
+            <td>
+              <form method="POST" action="{{ url_for('revoke_verified', user_id=u['id']) }}">
+                <button type="submit" class="btn btn-small btn-outline">Revoke</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
+    </div>
+  </main>
 </div>
-
-{% if q %}
-<div class="card">
+{% endblock %}
   <h3>Search Results</h3>
   {% if not results %}
     <p class="post-meta">No matching users.</p>

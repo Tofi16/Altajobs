@@ -441,7 +441,7 @@
 
       <div class="wallet-balance-display">
         <div class="wallet-balance-label">Total Balance</div>
-        <h1 class="wallet-balance-amount">{{ current_user['wallet_balance'] }} ETB</h1>
+        <h1 class="wallet-balance-amount">{{ current_user.get('balance', current_user.get('wallet_balance', 0)) }} ETB</h1>
         <div class="wallet-tokens-display">
           <strong id="walletTokensCount">{{ current_user['alta_tokens'] }}</strong> {{ t.alta_tokens }}
         </div>
@@ -450,7 +450,7 @@
       <div class="wallet-card-footer">
         <div>
           <div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Card Number</div>
-          <div style="font-weight: 600;">•••• •••• •••• 4242</div>
+          <div style="font-weight: 600;">{{ current_user.get('wallet_id') or '—' }}</div>
         </div>
         <div style="text-align: right;">
           <div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Valid Thru</div>
@@ -607,7 +607,7 @@
   <form id="withdrawModalForm" method="POST" action="{{ url_for('withdraw_request') }}">
     <div class="form-group">
       <label>Amount (ETB)</label>
-      <input type="number" name="amount" min="10" max="{{ current_user['wallet_balance'] }}" placeholder="Enter amount" required>
+      <input type="number" name="amount" min="10" max="{{ current_user.get('balance', current_user.get('wallet_balance', 0)) }}" placeholder="Enter amount" required>
     </div>
     <div class="form-group">
       <label>Bank / Destination</label>

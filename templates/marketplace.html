@@ -28,16 +28,24 @@
     <p class="post-meta">No listings yet. Be the first to publish one.</p>
   {% else %}
     {% for item in listings %}
-      <div class="card marketplace-card" style="margin-bottom:10px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-          <div>
-            <div style="font-weight:800">{{ item['title'] }}</div>
-            <div class="post-meta">{{ item['full_name'] or item['username'] }} • {{ item['location'] or 'Addis Ababa' }}</div>
+      <div class="card marketplace-card" style="margin-bottom:10px; padding:18px;">
+        {% if item['photo'] %}
+          <div class="marketplace-media">
+            <img src="{{ photo_url(item['photo']) }}" alt="{{ item['title'] }}" />
           </div>
-          <div style="font-weight:800;color:var(--accent)">{{ item['price'] }} ETB</div>
+        {% endif %}
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-top:14px;">
+          <div>
+            <div style="font-weight:800; font-size:1.05rem; color:#ffffff;">{{ item['title'] }}</div>
+            <div class="post-meta">{{ item['full_name'] or item['username'] }} • {{ item['location'] or 'Addis Ababa' }}</div>
+            {{ badge_html_for(item) }}
+          </div>
+          <div style="font-weight:800;color:var(--accent); font-size:1.02rem;">{{ item['price'] }} ETB</div>
         </div>
-        {% if item['description'] %}<p style="margin:10px 0 0;color:var(--text)">{{ item['description'] }}</p>{% endif %}
-        <div class="post-meta" style="margin-top:8px">Status: {{ item['status'] }}</div>
+        {% if item['description'] %}
+          <p style="margin:12px 0 0; color: var(--text); line-height: 1.7;">{{ item['description'] }}</p>
+        {% endif %}
+        <div class="post-meta" style="margin-top:10px;">Status: {{ item['status'] }}</div>
       </div>
     {% endfor %}
   {% endif %}
