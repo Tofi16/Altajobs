@@ -1,188 +1,632 @@
 {% extends "base.html" %}
 {% block content %}
 
-<!-- Wallet styles moved to static/css/style.css (Tech & Trust theme) -->
+<style>
+/* ============================================
+   PREMIUM WALLET UI - FINTECH DESIGN SYSTEM
+   ============================================ */
 
-<div class="card wallet-digital-card">
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-    <div>
-      <h2 style="margin:0">Wallet Hub</h2>
-      <div class="wallet-balance">{{ current_user['wallet_balance'] }} ETB</div>
-      <div class="wallet-sub">🪙 <span id="walletTokensCount">{{ current_user['alta_tokens'] }} {{ t.alta_tokens }}</span></div>
-    </div>
-    <div style="text-align:right">
-      <div style="font-size:0.85rem;color:var(--muted)">Card</div>
-      <div style="margin-top:8px;color:var(--muted)">•••• •••• •••• 4242</div>
-    </div>
-  </div>
+.wallet-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 16px;
+}
 
-  <div class="wallet-quick-actions">
-    <button class="wallet-action-btn" type="button" onclick="openModal('depositModal')">
-      <div class="circle">⬇️</div>
-      <div class="wallet-action-label">Deposit</div>
-    </button>
-    <button class="wallet-action-btn" type="button" onclick="openModal('withdrawModal')">
-      <div class="circle">⬆️</div>
-      <div class="wallet-action-label">Withdraw</div>
-    </button>
-    <button class="wallet-action-btn" type="button" onclick="openModal('transferModal')">
-      <div class="circle">🔁</div>
-      <div class="wallet-action-label">Send</div>
-    </button>
-    <button class="wallet-action-btn" onclick='location.href="{{ url_for("challenges") }}"'>
-      <div class="circle">🏆</div>
-      <div class="wallet-action-label">Challenge</div>
-    </button>
-  </div>
-</div>
+/* ===== Digital Bank Card ===== */
+.wallet-digital-card-modern {
+  background: linear-gradient(135deg, #1D9BF0 0%, #0F4C8B 100%);
+  border-radius: 24px;
+  padding: 28px;
+  margin-bottom: 28px;
+  box-shadow: 0 20px 60px rgba(29, 155, 240, 0.2);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
 
-<!-- Recent Transactions -->
-<div class="transactions-card">
-  <h3>Recent Transactions</h3>
-  {% set txs = transactions if transactions is defined else history if history is defined else [] %}
-  {% if txs and txs|length > 0 %}
-    <div class="transactions-list">
-      {% for t in txs[:12] %}
-        {% set is_in = (t['amount']|float) > 0 %}
-        <div class="tx-item">
-          <div class="tx-left">
-            <div class="tx-type">{{ t['tx_type']|capitalize }}</div>
-            <div class="tx-date">{{ (t['created_at'][:16] if t['created_at'] else '')|replace('T',' ') }}</div>
-          </div>
-          <div class="tx-amount {{ 'tx-in' if is_in else 'tx-out' }}">{{ '+' if is_in else '-' }}{{ (t['amount']|abs) }} ETB</div>
+.wallet-digital-card-modern::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.wallet-card-content {
+  position: relative;
+  z-index: 1;
+}
+
+.wallet-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 32px;
+}
+
+.wallet-card-left h3 {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  opacity: 0.85;
+  text-transform: uppercase;
+  margin: 0 0 8px 0;
+}
+
+.wallet-card-chip {
+  width: 40px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.wallet-balance-display {
+  margin-bottom: 24px;
+}
+
+.wallet-balance-label {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+
+.wallet-balance-amount {
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.9) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+}
+
+.wallet-tokens-display {
+  font-size: 13px;
+  opacity: 0.8;
+  margin-top: 4px;
+}
+
+.wallet-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  opacity: 0.75;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* ===== Action Buttons Grid ===== */
+.wallet-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 500px) {
+  .wallet-actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}
+
+.wallet-action-btn-modern {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 10px;
+}
+
+.wallet-action-btn-modern:hover,
+.wallet-action-btn-modern:active {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(29, 155, 240, 0.2);
+}
+
+.wallet-action-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  color: #fff;
+}
+
+.wallet-action-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ===== Transaction History ===== */
+.transactions-section-modern {
+  margin-bottom: 32px;
+}
+
+.section-header {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 18px;
+  color: var(--text);
+}
+
+.transactions-list-modern {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+.tx-item-modern {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background 0.2s;
+}
+
+.tx-item-modern:last-child {
+  border-bottom: none;
+}
+
+.tx-item-modern:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tx-item-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+}
+
+.tx-icon-wrapper {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.tx-icon-wrapper.deposit {
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.tx-icon-wrapper.withdraw {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.tx-icon-wrapper.transfer {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.tx-details {
+  flex: 1;
+}
+
+.tx-type-modern {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.tx-date-modern {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 4px 0 0 0;
+}
+
+.tx-amount-modern {
+  font-size: 15px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.tx-amount-modern.in {
+  color: #10b981;
+}
+
+.tx-amount-modern.out {
+  color: #ef4444;
+}
+
+/* ===== Empty State ===== */
+.tx-empty-modern {
+  padding: 60px 20px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.4;
+}
+
+.tx-empty-modern h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 8px 0;
+}
+
+.tx-empty-modern p {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ===== Premium Cards Section ===== */
+.wallet-features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.feature-card-modern {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s;
+}
+
+.feature-card-modern:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.feature-card-modern h4 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  color: var(--text);
+}
+
+.feature-card-modern p {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 14px 0;
+  line-height: 1.5;
+}
+
+.feature-card-modern .btn {
+  width: 100%;
+}
+
+.badge-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+/* ===== Buttons ===== */
+.btn-premium {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+  color: #fff;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(29, 155, 240, 0.3);
+}
+
+.btn-premium:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(29, 155, 240, 0.4);
+}
+
+.btn-outline-modern {
+  background: transparent;
+  color: var(--accent);
+  padding: 10px 20px;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-outline-modern:hover {
+  background: rgba(29, 155, 240, 0.1);
+}
+
+/* ===== Disable Info Card ===== */
+.info-card-modern {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 16px;
+  padding: 16px;
+  margin-top: 24px;
+}
+
+.info-card-modern h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ef4444;
+  margin: 0 0 6px 0;
+}
+
+.info-card-modern p {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .wallet-container {
+    padding: 12px;
+  }
+
+  .wallet-digital-card-modern {
+    padding: 24px 20px;
+    margin-bottom: 24px;
+  }
+
+  .wallet-balance-amount {
+    font-size: 36px;
+  }
+
+  .wallet-features-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<div class="wallet-container">
+  <!-- Digital Bank Card -->
+  <div class="wallet-digital-card-modern">
+    <div class="wallet-card-content">
+      <div class="wallet-card-header">
+        <div class="wallet-card-left">
+          <h3>Available Balance</h3>
+          <div class="wallet-card-chip">💳</div>
         </div>
-      {% endfor %}
+      </div>
+
+      <div class="wallet-balance-display">
+        <div class="wallet-balance-label">Total Balance</div>
+        <h1 class="wallet-balance-amount">{{ current_user['wallet_balance'] }} ETB</h1>
+        <div class="wallet-tokens-display">
+          <strong id="walletTokensCount">{{ current_user['alta_tokens'] }}</strong> {{ t.alta_tokens }}
+        </div>
+      </div>
+
+      <div class="wallet-card-footer">
+        <div>
+          <div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Card Number</div>
+          <div style="font-weight: 600;">•••• •••• •••• 4242</div>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Valid Thru</div>
+          <div style="font-weight: 600;">12/27</div>
+        </div>
+      </div>
     </div>
-  {% else %}
-    <div class="tx-empty">
-      <p style="font-weight:800;color:var(--text)">No transactions yet</p>
-      <p class="post-meta">Your activity will show up here once you send or receive funds.</p>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="wallet-actions-grid">
+    <button class="wallet-action-btn-modern" type="button" onclick="openModal('depositModal')">
+      <div class="wallet-action-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      </div>
+      <span>Deposit</span>
+    </button>
+    <button class="wallet-action-btn-modern" type="button" onclick="openModal('withdrawModal')">
+      <div class="wallet-action-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12h14"/></svg>
+      </div>
+      <span>Withdraw</span>
+    </button>
+    <button class="wallet-action-btn-modern" type="button" onclick="openModal('transferModal')">
+      <div class="wallet-action-icon">
+        <svg viewBox="0 0 24 24"><path d="M1 8l6-6 6 6M7 2v20M23 16l-6 6-6-6M17 22V2"/></svg>
+      </div>
+      <span>Send</span>
+    </button>
+    <button class="wallet-action-btn-modern" onclick='location.href="{{ url_for("challenges") }}"'>
+      <div class="wallet-action-icon">
+        <svg viewBox="0 0 24 24"><path d="M7 8a3 3 0 100-6 3 3 0 000 6zM17 8a3 3 0 100-6 3 3 0 000 6zM12 16a5 5 0 1010 0 5 5 0 0 0-10 0z"/></svg>
+      </div>
+      <span>Challenge</span>
+    </button>
+  </div>
+
+  <!-- Recent Transactions -->
+  <div class="transactions-section-modern">
+    <h2 class="section-header">Recent Transactions</h2>
+    {% set txs = transactions if transactions is defined else history if history is defined else [] %}
+    
+    {% if txs and txs|length > 0 %}
+      <div class="transactions-list-modern">
+        {% for t in txs[:12] %}
+          {% set is_in = (t['amount']|float) > 0 %}
+          <div class="tx-item-modern">
+            <div class="tx-item-left">
+              <div class="tx-icon-wrapper {% if is_in %}deposit{% else %}withdraw{% endif %}">
+                {% if is_in %}📥{% else %}📤{% endif %}
+              </div>
+              <div class="tx-details">
+                <p class="tx-type-modern">{{ t['tx_type']|capitalize }}</p>
+                <p class="tx-date-modern">{{ (t['created_at'][:16] if t['created_at'] else '')|replace('T',' ') }}</p>
+              </div>
+            </div>
+            <div class="tx-amount-modern {% if is_in %}in{% else %}out{% endif %}">
+              {{ '+' if is_in else '−' }}{{ (t['amount']|abs) }} ETB
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="tx-empty-modern">
+        <div class="empty-icon">📊</div>
+        <h4>No Transactions Yet</h4>
+        <p>Your transaction history will appear here once you send or receive funds.</p>
+      </div>
+    {% endif %}
+  </div>
+
+
+  <!-- Premium Features -->
+  <div class="wallet-features-grid">
+    <!-- Verification Card -->
+    <div class="feature-card-modern">
+      {% if verified_now %}
+        <div class="badge-active">✓ Active</div>
+        <h4>✔️ {{ t.get_verified }}</h4>
+        <p>Your account is verified until {{ current_user['verified_until'][:10] }}</p>
+      {% else %}
+        <h4>✔️ {{ t.get_verified }}</h4>
+        <p>Get verified to unlock exclusive features and build trust with your audience.</p>
+        <p style="font-size: 12px; color: var(--accent); font-weight: 600; margin: 0;">{{ verification_price }} ETB/month</p>
+        <form method="POST" action="{{ url_for('buy_verification') }}" style="margin-top: 14px;">
+          <button type="submit" class="btn-premium" style="width: 100%;">Get Verified</button>
+        </form>
+      {% endif %}
     </div>
-  {% endif %}
-</div>
 
-<div class="wallet-grid">
-  <div class="glass-card">
-    <h3>✔️ {{ t.get_verified }}</h3>
-    {% if verified_now %}
-      <p><span class="verified-badge" title="{{ t.verified_badge }}">
-           <svg class="verified-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path fill="#1DA1F2" d="M12 2l2.2 3.6L18 6l-2.4 1.8L16 12l-4-2-4 2 .4-4.2L6 6l3.8-.4L12 2z"/><path fill="#fff" d="M10.6 12.3l1.8 1.5 3-4-1.2-1-2.3 2.9-1.3-1z"/></svg>
-         </span>
-         — {{ t.verified_until_label }} {{ current_user['verified_until'][:10] }}</p>
-    {% else %}
-      <p class="post-meta">{{ t.verification_price }}: {{ verification_price }} ETB / month</p>
-      <form method="POST" action="{{ url_for('buy_verification') }}">
-        <button type="submit" class="btn btn-gold">{{ t.buy_verification }} ({{ verification_price }} ETB)</button>
-      </form>
-    {% endif %}
+    <!-- VIP Card -->
+    <div class="feature-card-modern">
+      {% if vip_now %}
+        <div class="badge-active">✓ Active</div>
+        <h4>👑 {{ t.get_vip }}</h4>
+        <p>Your VIP status is active until {{ current_user['vip_until'][:10] }}</p>
+      {% else %}
+        <h4>👑 {{ t.get_vip }}</h4>
+        <p>Unlock VIP perks, priority support, and exclusive badges.</p>
+        <p style="font-size: 12px; color: var(--accent); font-weight: 600; margin: 0;">{{ vip_price }} ETB/month</p>
+        <form method="POST" action="{{ url_for('buy_vip') }}" style="margin-top: 14px;">
+          <button type="submit" class="btn-premium" style="width: 100%;">Upgrade to VIP</button>
+        </form>
+      {% endif %}
+    </div>
+
+    <!-- Challenge Card -->
+    <div class="feature-card-modern">
+      <h4>🏅 Monthly Challenge</h4>
+      {% if challenge_status %}
+        <p>Tier: <strong>{{ challenge_status['tier_amount'] }} ETB</strong></p>
+        <p>Prize Pool: <strong>{{ challenge_status['prize_pool'] }} ETB</strong></p>
+        <p style="font-size: 12px; color: var(--muted); margin: 8px 0 0;">Status: {{ challenge_status['status'] }}</p>
+      {% else %}
+        <p>Join this month's challenge and compete for the prize pool!</p>
+        <a href="{{ url_for('challenges') }}" class="btn-outline-modern" style="display: inline-block; width: 100%; text-align: center; margin-top: 14px;">Join Challenge</a>
+      {% endif %}
+    </div>
   </div>
 
-  <div class="glass-card">
-    <h3>👑 {{ t.get_vip }}</h3>
-    {% if vip_now %}
-      <p><span class="verified-badge vip-badge">👑 {{ t.vip }}</span>
-         — {{ t.verified_until_label }} {{ current_user['vip_until'][:10] }}</p>
-    {% else %}
-      <p class="post-meta">{{ t.vip }}: {{ vip_price }} ETB / month</p>
-      <form method="POST" action="{{ url_for('buy_vip') }}">
-        <button type="submit" class="btn btn-gold">{{ t.get_vip }} ({{ vip_price }} ETB)</button>
-      </form>
-    {% endif %}
+  <!-- Info Banner -->
+  <div class="info-card-modern">
+    <h4>💬 Need Help?</h4>
+    <p>Contact our support team for deposit assistance or any wallet-related questions.</p>
   </div>
-
-  <div class="glass-card">
-    <h3>🏅 Monthly Business Challenge</h3>
-    {% if challenge_status %}
-      <p class="post-meta">Tier: {{ challenge_status['tier_amount'] }} ETB</p>
-      <p class="post-meta">Pool status: {{ challenge_status['pool_status'] }}</p>
-      <p class="post-meta">Entry status: {{ challenge_status['status'] }}</p>
-      <p class="post-meta">Prize pool: {{ challenge_status['prize_pool'] }} ETB</p>
-    {% else %}
-      <p class="post-meta">You have not joined this month's challenge yet.</p>
-      <a href="{{ url_for('challenges') }}" class="btn btn-outline btn-small">Join Challenge</a>
-    {% endif %}
-  </div>
-</div>
-
-<!-- Manual deposit methods have been removed; deposits are handled externally -->
-<div class="card glass-card" style="margin-top:16px;padding:18px">
-  <h3>Deposits Disabled</h3>
-  <p class="post-meta" style="margin:4px 0 12px">Manual bank/Telebirr deposit setup and receipt uploads have been removed. Please contact support for alternative deposit methods.</p>
-</div>
-
-<script>
-  document.querySelectorAll('.copy-bank-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var value = btn.getAttribute('data-copy-value');
-      var done = function () {
-        var original = btn.textContent;
-        btn.textContent = 'Copied';
-        setTimeout(function () { btn.textContent = original; }, 1500);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(value).then(done).catch(function () {
-          window.prompt('Copy account number:', value);
-        });
-      } else {
-        window.prompt('Copy account number:', value);
-      }
-    });
-  });
-</script>
-
-<!-- Transfer modal markup (moved to modal) -->
-
-<!-- legacy transaction tickets removed; use Recent Transactions above -->
-
-<!-- Deposit form removed per policy change -->
-
-<div class="card glass-card" id="withdraw-form" style="margin-top:16px;padding:18px">
-</div>
-<!-- Withdraw form moved to modal -->
 </div>
 
 {% endblock %}
 
-<!-- Modal backdrops and modals -->
+<!-- ============================================
+     MODAL DIALOGS
+     ============================================ -->
+
+<!-- Modal Backdrop -->
 <div id="modalBackdrop" class="modal-backdrop"></div>
 
+<!-- Deposit Modal -->
 <div id="depositModal" class="modal" role="dialog" aria-hidden="true">
-  <h3>Deposit Funds</h3>
-  <p class="post-meta">Deposits are handled via external payment providers. Use the reference below to complete a deposit.</p>
+  <h3>💰 Deposit Funds</h3>
+  <p class="post-meta" style="margin-bottom: 18px;">Deposits are processed through secure external payment providers.</p>
   <div class="form-group">
     <label>Amount (ETB)</label>
-    <input type="number" id="depositAmount" min="1" step="1" placeholder="Amount to deposit">
+    <input type="number" id="depositAmount" min="1" step="1" placeholder="Enter amount">
   </div>
-  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
     <button type="button" class="btn btn-outline" onclick="closeModal('depositModal')">Cancel</button>
-    <button type="button" class="btn" onclick="(function(){alert('Deposit flow triggered');closeModal('depositModal');})()" style="background:var(--accent);color:#fff">Proceed</button>
+    <button type="button" class="btn-premium" onclick="(function(){alert('Deposit process initiated');closeModal('depositModal');})()" style="background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); color: #fff; border: none;">Proceed</button>
   </div>
 </div>
 
+<!-- Withdraw Modal -->
 <div id="withdrawModal" class="modal" role="dialog" aria-hidden="true">
-  <h3>Withdraw Funds</h3>
+  <h3>📤 Withdraw Funds</h3>
   <form id="withdrawModalForm" method="POST" action="{{ url_for('withdraw_request') }}">
     <div class="form-group">
       <label>Amount (ETB)</label>
-      <input type="number" name="amount" min="10" max="{{ current_user['wallet_balance'] }}" required>
+      <input type="number" name="amount" min="10" max="{{ current_user['wallet_balance'] }}" placeholder="Enter amount" required>
     </div>
     <div class="form-group">
       <label>Bank / Destination</label>
-      <input type="text" name="destination" placeholder="Bank or destination" required>
+      <input type="text" name="destination" placeholder="Bank name or destination account" required>
     </div>
     <div class="form-group">
-      <label>Enter Password / PIN</label>
-      <input type="password" name="auth_pin" placeholder="Password or PIN" required>
+      <label>Confirm Password / PIN</label>
+      <input type="password" name="auth_pin" placeholder="Enter your password" required>
     </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
       <button type="button" class="btn btn-outline" onclick="closeModal('withdrawModal')">Cancel</button>
-      <button type="submit" class="btn" style="background:var(--accent);color:#fff">Submit Withdrawal</button>
+      <button type="submit" class="btn-premium" style="background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); color: #fff; border: none;">Submit</button>
     </div>
   </form>
 </div>
 
+<!-- Transfer Modal -->
 <div id="transferModal" class="modal" role="dialog" aria-hidden="true">
-  <h3>Send Funds</h3>
+  <h3>🔄 Send Funds</h3>
   <form id="transferModalForm" method="POST" action="{{ url_for('wallet_transfer') }}">
     <div class="form-group">
       <label>Recipient</label>
@@ -190,15 +634,36 @@
     </div>
     <div class="form-group">
       <label>Amount (ETB)</label>
-      <input type="number" name="amount" min="1" required>
+      <input type="number" name="amount" min="1" placeholder="Enter amount" required>
     </div>
     <div class="form-group">
-      <label>Enter Password / PIN</label>
-      <input type="password" name="auth_pin" placeholder="Password or PIN" required>
+      <label>Confirm Password / PIN</label>
+      <input type="password" name="auth_pin" placeholder="Enter your password" required>
     </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
       <button type="button" class="btn btn-outline" onclick="closeModal('transferModal')">Cancel</button>
-      <button type="submit" class="btn" style="background:var(--accent);color:#fff">Send</button>
+      <button type="submit" class="btn-premium" style="background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); color: #fff; border: none;">Send</button>
     </div>
   </form>
 </div>
+
+<script>
+  // Modal backdrop interaction
+  document.getElementById('modalBackdrop').addEventListener('click', function() {
+    closeAllModals();
+  });
+
+  // Copy functionality
+  document.querySelectorAll('.copy-bank-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var value = btn.getAttribute('data-copy-value');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(value).then(function() {
+          var original = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(function() { btn.textContent = original; }, 1500);
+        });
+      }
+    });
+  });
+</script>

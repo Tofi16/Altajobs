@@ -30,8 +30,10 @@
       <div class="topbar-icon-wrap">
         <button type="button" class="topbar-icon-btn" id="headerBellToggle" aria-label="Notifications">
           <i class='bx bx-bell'></i>
-          {% set alert_count = unread_message_count if unread_message_count else 3 %}
-          <span class="topbar-badge {{ 'pulse' if alert_count > 0 else '' }}">{{ alert_count if alert_count < 10 else '9+' }}</span>
+          {% set alert_count = unread_message_count or 0 %}
+          {% if alert_count > 0 %}
+          <span class="topbar-badge pulse">{{ alert_count if alert_count < 10 else '9+' }}</span>
+          {% endif %}
         </button>
         <div class="topbar-popover" id="headerNotifications" role="dialog" aria-label="Recent notifications">
           <div class="popover-head">Recent activity</div>
@@ -109,16 +111,6 @@
       </div>
     {% endif %}
   {% endwith %}
-
-  {% if request.path.startswith('/profile/') %}
-  <div class="card lang-switch-card">
-    <h4 style="margin:0 0 8px"><i class='bx bx-world'></i> Language</h4>
-    <div class="lang-switch-row">
-      <a href="{{ url_for('set_language_route', lang='en') }}" class="lang-switch-pill {{ 'active' if current_lang=='en' }}">English</a>
-      <a href="{{ url_for('set_language_route', lang='am') }}" class="lang-switch-pill {{ 'active' if current_lang=='am' }}">አማርኛ</a>
-    </div>
-  </div>
-  {% endif %}
 
   {% block content %}{% endblock %}
 </main>
