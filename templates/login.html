@@ -31,7 +31,6 @@
     width: min(100%, 980px);
     max-width: 960px;
     min-height: 560px;
-    perspective: 1500px;
     z-index: 1;
   }
   .auth-card {
@@ -43,11 +42,10 @@
     box-shadow: 0 24px 90px rgba(6, 19, 48, 0.42);
     overflow: hidden;
     position: relative;
-    transform-style: preserve-3d;
-    transition: transform 0.9s cubic-bezier(0.2, 1, 0.25, 1);
+    transition: box-shadow 0.3s ease, background 0.3s ease;
   }
   .auth-card.flipped {
-    transform: rotateY(180deg);
+    /* keep the card layout normal, only swap panels */
   }
   .auth-panel {
     position: absolute;
@@ -56,14 +54,29 @@
     display: grid;
     grid-template-rows: auto 1fr auto;
     row-gap: 22px;
-    backface-visibility: hidden;
-    transform-style: preserve-3d;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
   }
   .auth-panel.front {
-    transform: rotateY(0deg);
+    transform: none;
   }
   .auth-panel.back {
-    transform: rotateY(180deg);
+    transform: none;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .auth-card.flipped .auth-panel.front {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .auth-card.flipped .auth-panel.back {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
   }
   .auth-heading {
     display: grid;
@@ -185,7 +198,7 @@
     font-size: 1.2rem;
   }
   .auth-panel.back {
-    transform: rotateY(180deg);
+    transform: none;
   }
   .auth-switch {
     display: inline-flex;
@@ -316,7 +329,7 @@
 
         <div class="auth-content">
           <form class="auth-form" method="POST" action="{{ url_for('register') }}">
-            <input type="hidden" name="ref_code" value="{{ request.args.get('ref', '') }}">
+            <input type="hidden" name="ref_code" value="{{ ref_code if ref_code is defined else request.args.get('ref', '') }}">
             <div>
               <label for="full_name">{{ t.full_name }}</label>
               <input id="full_name" class="auth-input" type="text" name="full_name" autocomplete="name" required>
@@ -389,7 +402,14 @@
   const authCard = document.getElementById('authCard');
   function toggleAuth(showRegister) {
     authCard.classList.toggle('flipped', showRegister);
-    history.replaceState(null, '', showRegister ? '?mode=register' : '?mode=login');
+    const url = new URL(window.location.href);
+    if (showRegister) {
+      url.searchParams.set('mode', 'register');
+    } else {
+      url.searchParams.delete('mode');
+      url.searchParams.set('mode', 'login');
+    }
+    history.replaceState(null, '', url.pathname + url.search);
   }
   document.addEventListener('DOMContentLoaded', function () {
     if ({{ 'true' if show_register else 'false' }}) {

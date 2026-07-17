@@ -25,8 +25,10 @@ from flask import jsonify
 try:
     import psycopg2
     import psycopg2.extras
+    PG_INTEGRITY_ERROR = psycopg2.IntegrityError
 except ImportError:
     psycopg2 = None
+    PG_INTEGRITY_ERROR = sqlite3.IntegrityError
 
 from translations import get_translator, DEFAULT_LANG, TRANSLATIONS
 
@@ -138,6 +140,9 @@ class DatabaseConnection:
 
     def commit(self):
         self.conn.commit()
+
+    def rollback(self):
+        self.conn.rollback()
 
     def close(self):
         self.conn.close()
@@ -2053,14 +2058,20 @@ def register():
                         pass
 
             return redirect(url_for("feed"))
-        except sqlite3.IntegrityError as exc:
+        except (sqlite3.IntegrityError, PG_INTEGRITY_ERROR) as exc:
             db.rollback()
             print(f"[auth] registration failed due to integrity error: {exc}")
             flash("This username is already taken. Please choose another one.")
             return redirect(url_for("register"))
 
     ref_code = request.args.get("ref", "")
-    return redirect(url_for("login", mode="register", ref=ref_code))
+    return render_template(
+        "login.html",
+        show_register=True,
+        ref_code=ref_code,
+        social_links=get_social_links(),
+        social_auth_enabled=social_auth_enabled(),
+    )
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -2085,6 +2096,7 @@ def login():
     return render_template(
         "login.html",
         show_register=show_register,
+        ref_code=request.args.get("ref", ""),
         social_links=get_social_links(),
         social_auth_enabled=social_auth_enabled(),
     )
