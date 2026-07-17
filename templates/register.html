@@ -1,213 +1,244 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
-  .auth-shell {
-    min-height: calc(100vh - 90px);
-    display: grid;
-    place-items: center;
-    padding: 18px 12px 30px;
-    background:
-      radial-gradient(circle at top left, rgba(59,130,246,0.28), transparent 38%),
-      radial-gradient(circle at bottom right, rgba(37,99,235,0.24), transparent 36%),
-      linear-gradient(135deg, #07111f 0%, #0b1729 100%);
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  html, body {
+    min-height: 100%;
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    background: #0F172A;
+    color: #e2e8f0;
+    direction: ltr !important;
   }
-  .aj-card {
-    width: min(100%, 470px);
-    background: rgba(7, 19, 36, 0.72);
-    border: 1px solid rgba(125, 211, 252, 0.16);
-    border-radius: 24px;
-    padding: 24px 20px 20px;
-    box-shadow: 0 20px 60px rgba(2, 10, 25, 0.34);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+
+  body > * {
+    direction: ltr !important;
+    transform: none !important;
   }
-  .aj-brand {
-    display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px;
+
+  .page-shell {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+    background: #0F172A;
   }
-  .aj-logo {
-    width:46px;height:46px;border-radius:14px;display:grid;place-items:center;
-    background: linear-gradient(135deg, rgba(59,130,246,0.9), rgba(37,99,235,0.95));
-    box-shadow:0 0 24px rgba(59,130,246,0.34);
-    color:#fff;font-weight:800;font-size:1rem;letter-spacing:0.06em;
-  }
-  .aj-brand-text h1 { margin:0;font-size:1.05rem;font-weight:700;letter-spacing:0.02em; }
-  .aj-brand-text span { font-size:0.78rem;color:var(--muted);letter-spacing:0.16em;text-transform:uppercase; }
-  .aj-welcome { text-align:center;color:var(--text);font-size:1rem;margin:4px 0 14px; }
-  .aj-input {
-    border-radius: 14px;
-    border: 1px solid rgba(125, 211, 252, 0.16);
-    padding: 12px 14px;
+
+  .auth-card {
     width: 100%;
-    box-sizing: border-box;
-    font-size: 15px;
-    color: var(--text);
-    background: rgba(255,255,255,0.05);
-    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
-    outline: none;
+    max-width: 440px;
+    background: #1E293B;
+    padding: 24px;
+    border-radius: 24px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
   }
-  .aj-input:focus {
-    border-color: var(--accent);
-    background: rgba(255,255,255,0.08);
+
+  .auth-header {
+    margin-bottom: 20px;
+  }
+
+  .auth-title {
+    margin: 0;
+    color: #f8fafc;
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .auth-copy {
+    margin-top: 10px;
+    color: #cbd5e1;
+    font-size: 0.95rem;
+    line-height: 1.7;
+  }
+
+  .auth-form {
+    display: grid;
+    gap: 14px;
+  }
+
+  .auth-form label {
+    display: block;
+    color: #cbd5e1;
+    font-size: 0.95rem;
+    margin-bottom: 6px;
+  }
+
+  .auth-input,
+  .auth-select {
+    width: 100%;
+    height: 48px;
+    padding: 0 14px;
+    border-radius: 14px;
+    border: 1px solid #334155;
+    background: #0F172A;
+    color: #f8fafc;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .auth-input:focus,
+  .auth-select:focus {
+    border-color: #1D9BF0;
     box-shadow: 0 0 0 4px rgba(29, 155, 240, 0.18);
   }
-  .aj-password-wrap { position: relative; }
-  .aj-password-wrap .aj-input { padding-right: 42px; }
-  .aj-eye-toggle {
-    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-    background: none; border: none; cursor: pointer; font-size: 18px; line-height: 1; padding: 4px;
+
+  .auth-actions {
+    margin-top: 4px;
   }
-  .aj-hint { font-size:0.78rem;color:var(--muted);margin-top:6px; }
-  .aj-status { font-size:0.8rem; margin-top:6px; min-height: 18px; }
-  .aj-status.error { color:#f87171; }
-  .aj-status.success { color:#34d399; }
-  .aj-strength { height:6px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden;margin-top:6px; }
-  .aj-strength > span { display:block;height:100%;width:0%;transition:width .2s ease, background .2s ease; }
-  .aj-btn-full { width:100%;margin-top:10px; }
-  .aj-link-row { text-align:center;font-size:0.9rem;color:var(--muted);margin-top:10px; }
-  .aj-link-row a { color:var(--accent);font-weight:700; }
-  .aj-input[disabled] { opacity:0.6; cursor:not-allowed; }
+
+  .auth-btn {
+    width: 100%;
+    height: 48px;
+    border-radius: 14px;
+    border: none;
+    background: #1D9BF0;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
+  }
+
+  .auth-btn:hover {
+    background: #1785d7;
+    transform: translateY(-1px);
+  }
+
+  .auth-footer {
+    margin-top: 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    color: #94a3b8;
+    font-size: 0.94rem;
+  }
+
+  .auth-footer a,
+  .auth-footer button {
+    color: #1D9BF0;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .auth-footer button:hover,
+  .auth-footer a:hover {
+    text-decoration: underline;
+  }
+
+  .social-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .social-item {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    border-radius: 14px;
+    border: 1px solid #334155;
+    background: #0F172A;
+    color: #e2e8f0;
+    padding: 12px 10px;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+
+  .social-item:hover {
+    border-color: #1D9BF0;
+    background: rgba(29, 155, 240, 0.08);
+  }
+
+  @media (max-width: 480px) {
+    .auth-card {
+      padding: 20px;
+    }
+
+    .social-grid {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 
-<div class="auth-shell">
-  <div class="aj-card">
-    <div class="aj-brand">
-      <div class="aj-logo">AJ</div>
-      <div class="aj-brand-text">
-        <h1>AltaJobs</h1>
-        <span>Join the premium network</span>
-      </div>
+<div class="page-shell">
+  <div class="auth-card">
+    <div class="auth-header">
+      <h1 class="auth-title">Create your AltaJobs account</h1>
+      <p class="auth-copy">Join the premium job marketplace and get started in seconds.</p>
     </div>
-    <p class="aj-welcome">Welcome aboard — create a secure account in seconds.</p>
 
-    <form method="POST" id="registerForm">
-      <input type="hidden" name="ref_code" value="{{ ref_code }}">
+    <form class="auth-form" method="POST" action="{{ url_for('register') }}">
+      <input type="hidden" name="ref_code" value="{{ ref_code if ref_code is defined else request.args.get('ref', '') }}">
 
-      <label>{{ t.full_name }}</label>
-      <input class="aj-input" type="text" name="full_name" required>
-
-      <label style="margin-top:10px;display:block;">{{ t.username }}</label>
-      <input class="aj-input" type="text" name="username" id="usernameField" required autocomplete="username">
-      <div class="aj-status" id="usernameStatus"></div>
-
-      <label style="margin-top:10px;display:block;">{{ t.password }}</label>
-      <div class="aj-password-wrap">
-        <input class="aj-input" type="password" name="password" id="passwordField" required autocomplete="new-password">
-        <button type="button" class="aj-eye-toggle" onclick="aj_togglePassword()">👁️</button>
+      <div>
+        <label for="full_name">{{ t.full_name }}</label>
+        <input id="full_name" class="auth-input" type="text" name="full_name" autocomplete="name" required>
       </div>
-      <div class="aj-strength" id="passwordStrength"><span></span></div>
-      <div class="aj-hint">Use at least 8 characters, one uppercase letter, one number, and one special character.</div>
-
-      <label style="margin-top:10px;display:block;">Confirm password</label>
-      <div class="aj-password-wrap">
-        <input class="aj-input" type="password" name="confirm_password" id="confirmPasswordField" required autocomplete="new-password">
+      <div>
+        <label for="username">{{ t.username }}</label>
+        <input id="username" class="auth-input" type="text" name="username" autocomplete="username" required>
       </div>
-      <div class="aj-status" id="confirmStatus"></div>
-
-      <button type="submit" class="btn aj-btn-full" id="registerSubmitBtn">{{ t.create_account }}</button>
+      <div>
+        <label for="password">{{ t.password }}</label>
+        <input id="password" class="auth-input" type="password" name="password" autocomplete="new-password" required>
+      </div>
+      <div>
+        <label for="confirm_password">Confirm Password</label>
+        <input id="confirm_password" class="auth-input" type="password" name="confirm_password" autocomplete="new-password" required>
+      </div>
+      <div>
+        <label for="user_type">Account type</label>
+        <select id="user_type" class="auth-select" name="user_type">
+          <option value="worker">Worker</option>
+          <option value="employer">Employer</option>
+        </select>
+      </div>
+      <div class="auth-actions">
+        <button type="submit" class="auth-btn">{{ t.create_account }}</button>
+      </div>
     </form>
 
-    <p class="aj-link-row">
-      {{ t.already_have_account }} <a href="{{ url_for('login') }}">{{ t.login }}</a>
-    </p>
-    <p class="aj-link-row">
-      <a href="{{ url_for('set_language_route', lang='en') }}">English</a> ·
-      <a href="{{ url_for('set_language_route', lang='am') }}">አማርኛ</a>
-    </p>
+    {% if social_auth_enabled %}
+    <div class="auth-copy">Fast account creation with social login.</div>
+    <div class="social-grid">
+      {% if social_links.google %}
+      <a class="social-item" href="{{ social_links.google }}" target="_blank" rel="noopener noreferrer">
+        <i class='bx bxl-google'></i>
+        Google
+      </a>
+      {% endif %}
+      {% if social_links.telegram %}
+      <a class="social-item" href="{{ social_links.telegram }}" target="_blank" rel="noopener noreferrer">
+        <i class='bx bxl-telegram'></i>
+        Telegram
+      </a>
+      {% endif %}
+      {% if social_links.discord %}
+      <a class="social-item" href="{{ social_links.discord }}" target="_blank" rel="noopener noreferrer">
+        <i class='bx bxl-discord'></i>
+        Discord
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="auth-footer">
+      <div>Already have an account?</div>
+      <a href="{{ url_for('login') }}">Sign in</a>
+    </div>
   </div>
 </div>
-
-<script>
-  function aj_togglePassword() {
-    var field = document.getElementById('passwordField');
-    field.type = field.type === 'password' ? 'text' : 'password';
-  }
-
-  function aj_setStatus(el, message, kind) {
-    if (!el) return;
-    el.textContent = message || '';
-    el.className = 'aj-status' + (kind ? ' ' + kind : '');
-  }
-
-  function aj_passwordScore(password) {
-    let score = 0;
-    if (!password) return 0;
-    if (password.length >= 8) score += 1;
-    if (/[A-Z]/.test(password)) score += 1;
-    if (/\d/.test(password)) score += 1;
-    if (/[^A-Za-z0-9]/.test(password)) score += 1;
-    return score;
-  }
-
-  function aj_updatePasswordStrength() {
-    const field = document.getElementById('passwordField');
-    const bar = document.getElementById('passwordStrength').querySelector('span');
-    const score = aj_passwordScore(field.value);
-    const colors = ['#f87171', '#f59e0b', '#3b82f6', '#34d399'];
-    const widths = ['25%', '50%', '75%', '100%'];
-    const width = widths[Math.min(score, 3)];
-    bar.style.width = width;
-    bar.style.background = colors[Math.max(0, Math.min(score, 3))];
-  }
-
-  function aj_updateConfirmMatch() {
-    const password = document.getElementById('passwordField').value;
-    const confirm = document.getElementById('confirmPasswordField').value;
-    const status = document.getElementById('confirmStatus');
-    const submit = document.getElementById('registerSubmitBtn');
-    if (!confirm) {
-      status.textContent = '';
-      status.className = 'aj-status';
-      submit.disabled = false;
-      return;
-    }
-    if (password !== confirm) {
-      aj_setStatus(status, 'Passwords do not match.', 'error');
-      submit.disabled = true;
-    } else {
-      aj_setStatus(status, 'Passwords match.', 'success');
-      submit.disabled = false;
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', function () {
-    const usernameField = document.getElementById('usernameField');
-    const passwordField = document.getElementById('passwordField');
-    const confirmField = document.getElementById('confirmPasswordField');
-    const submit = document.getElementById('registerSubmitBtn');
-    const usernameStatus = document.getElementById('usernameStatus');
-    let usernameOk = false;
-
-    function validateUsername(value) {
-      if (!value) {
-        usernameOk = false;
-        aj_setStatus(usernameStatus, '', '');
-        submit.disabled = false;
-        return;
-      }
-      fetch('/api/check-username?username=' + encodeURIComponent(value))
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-          if (data.available) {
-            usernameOk = true;
-            aj_setStatus(usernameStatus, 'Username is available.', 'success');
-          } else {
-            usernameOk = false;
-            aj_setStatus(usernameStatus, 'Username is already taken.', 'error');
-          }
-          submit.disabled = !usernameOk || passwordField.value !== confirmField.value;
-        })
-        .catch(function () {
-          usernameOk = false;
-          aj_setStatus(usernameStatus, 'Could not verify username right now.', 'error');
-          submit.disabled = true;
-        });
-    }
-
-    usernameField.addEventListener('input', function () { validateUsername(this.value.trim()); });
-    passwordField.addEventListener('input', function () { aj_updatePasswordStrength(); submit.disabled = !usernameOk || passwordField.value !== confirmField.value; });
-    confirmField.addEventListener('input', aj_updateConfirmMatch);
-    aj_updatePasswordStrength();
-    aj_updateConfirmMatch();
-  });
-</script>
 {% endblock %}

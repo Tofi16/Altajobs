@@ -42,6 +42,19 @@ DATA_DIR = os.environ.get("DATA_DIR", BASE_DIR)
 os.makedirs(DATA_DIR, exist_ok=True)
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+
+
+def _ensure_postgres_ssl(url):
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme in ("postgres", "postgresql"):
+        query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
+        if "sslmode" not in query:
+            query["sslmode"] = ["require"]
+        query_string = urllib.parse.urlencode(query, doseq=True)
+        return urllib.parse.urlunparse(parsed._replace(query=query_string))
+    return url
+
+
 if DATABASE_URL:
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
@@ -49,6 +62,7 @@ if DATABASE_URL:
         DATABASE = DATABASE_URL[len("sqlite:///" ):]
         USE_SQLITE = True
     else:
+        DATABASE_URL = _ensure_postgres_ssl(DATABASE_URL)
         DATABASE = DATABASE_URL
         USE_SQLITE = False
 else:
@@ -592,7 +606,8 @@ def init_postgres_db():
             experience TEXT,
             bio TEXT,
             avatar TEXT,
-            is_admin INTEGER DEFAULT 0,
+            referral_code TEXT DEFAULT NULL,
+            is_admin BOOLEAN DEFAULT FALSE,
             created_at TEXT NOT NULL,
             plan TEXT DEFAULT NULL,
             paid_until TEXT DEFAULT NULL,
@@ -991,6 +1006,9 @@ def migrate_db():
             if "role" in user_cols:
                 insert_cols.append("role")
                 insert_values.append("admin")
+            if "referral_code" in user_cols:
+                insert_cols.append("referral_code")
+                insert_values.append(None)
             db.execute(
                 f"INSERT INTO users ({', '.join(insert_cols)}) VALUES ({', '.join('?' for _ in insert_cols)})",
                 insert_values,
@@ -1180,7 +1198,7 @@ def ensure_postgres_admin_user():
 
     try:
         db = get_db()
-        db.execute("UPDATE users SET is_admin = TRUE WHERE username = ?", ("Tofik",))
+        db.execute("UPDATE users SET is_admin = 1 WHERE username = ?", ("Tofik",))
         db.commit()
     except Exception as exc:
         print(f"Warning: could not set Tofik as admin in PostgreSQL: {exc}")
@@ -2007,15 +2025,12 @@ def register():
             return redirect(url_for("register"))
 
         db = get_db()
-        # SQLite-only locking syntax removed for PostgreSQL compatibility.
-        # db.execute("BEGIN IMMEDIATE")
         try:
             existing = db.execute(
                 "SELECT id FROM users WHERE lower(username) = ?", (normalized_username,)
             ).fetchone()
             if existing:
-                db.rollback()
-                flash("This username is already taken. Please choose another one.")
+                flash("Registration failed. Username might be taken.")
                 return redirect(url_for("register"))
 
             db.execute(
@@ -2054,20 +2069,24 @@ def register():
                             (referrer["id"], new_user["id"], _now_iso()),
                         )
                         db.commit()
-                    except sqlite3.IntegrityError:
+                    except Exception:
                         pass
 
             return redirect(url_for("feed"))
         except (sqlite3.IntegrityError, PG_INTEGRITY_ERROR) as exc:
             db.rollback()
             print(f"[auth] registration failed due to integrity error: {exc}")
-            flash("This username is already taken. Please choose another one.")
+            flash("Registration failed. Username might be taken.")
+            return redirect(url_for("register"))
+        except Exception as exc:
+            db.rollback()
+            print(f"[auth] registration failed: {exc}")
+            flash("Registration failed. Username might be taken.")
             return redirect(url_for("register"))
 
     ref_code = request.args.get("ref", "")
     return render_template(
-        "login.html",
-        show_register=True,
+        "register.html",
         ref_code=ref_code,
         social_links=get_social_links(),
         social_auth_enabled=social_auth_enabled(),
