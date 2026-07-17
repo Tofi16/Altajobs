@@ -50,7 +50,8 @@ def cv_maker():
         payload["priority_badge"] = tier_info["priority_badge"]
 
         db = get_db()
-        db.execute("BEGIN IMMEDIATE")
+        if getattr(db, "is_sqlite", False):
+            db.execute("BEGIN IMMEDIATE")
         try:
             # Conditional UPDATE keeps this atomic/race-safe, same pattern
             # used everywhere else wallet balances are debited.

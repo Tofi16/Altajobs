@@ -761,8 +761,28 @@ def ensure_database_schema():
                 print(f"Warning: database schema migration fallback failed: {migrate_exc}")
 
 
+def ensure_postgres_admin_user():
+    if is_sqlite_database():
+        return
+
+    try:
+        db = get_db()
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE")
+        db.commit()
+    except Exception as exc:
+        print(f"Warning: could not ensure PostgreSQL is_admin column: {exc}")
+
+    try:
+        db = get_db()
+        db.execute("UPDATE users SET is_admin = TRUE WHERE username = ?", ("Tofik",))
+        db.commit()
+    except Exception as exc:
+        print(f"Warning: could not set Tofik as admin in PostgreSQL: {exc}")
+
+
 with app.app_context():
     ensure_database_schema()
+    ensure_postgres_admin_user()
 
 
 # ---------------------------------------------------------------------------
@@ -860,13 +880,6 @@ def enforce_maintenance_mode():
     except Exception:
         # On any error, fail open (don't block requests)
         return
-
-
-# Endpoints a signed-in-but-not-yet-verified user is still allowed to reach.
-# Keep this list minimal - anything not in it will bounce an unverified
-# user straight to the verification page, even if they type the URL
-# directly instead of following a redirect.
-_VERIFICATION_EXEMPT_ENDPOINTS = {"verify_email_page", "resend_verification"}
 
 
 def login_required(f):
@@ -1245,6 +1258,20 @@ def get_setting(key, default=None):
     db = get_db()
     row = db.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
     return row["value"] if row else default
+
+
+@app.template_global()
+def get_social_links():
+    return {
+        "google": (get_setting("social_google_url", "") or "").strip(),
+        "telegram": (get_setting("social_telegram_url", "") or "").strip(),
+        "discord": (get_setting("social_discord_url", "") or "").strip(),
+    }
+
+
+@app.template_global()
+def social_auth_enabled():
+    return get_setting("social_auth_enabled", "1") == "1"
 
 
 def set_setting(key, value):
@@ -1632,134 +1659,7 @@ def register():
             return redirect(url_for("register"))
 
     ref_code = request.args.get("ref", "")
-    return render_template("register.html", ref_code=ref_code)
-
-
-@app.route("/verify-email", methods=["GET", "POST"])
-@login_required
-def verify_email_page():
-    user = get_current_user()
-    if not user:
-        return redirect(url_for("login"))
-    if user["email_verified"] or not user["email_verification_code"]:
-        return redirect(url_for("feed"))
-    if request.method == "POST":
-        code = request.form.get("verification_code", "").strip()
-        if not code:
-            flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_required"])
-            return redirect(url_for("verify_email_page"))
-        if user and user["email_verification_code"] and check_password_hash(user["email_verification_code"], code):
-            db = get_db()
-            db.execute(
-                "UPDATE users SET email_verified = 1, email_verification_code = NULL, email_verified_at = ? WHERE id = ?",
-                (_now_iso(), user["id"]),
-            )
-            db.commit()
-            flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_success"])
-            return redirect(url_for("feed"))
-        flash(get_translator(session.get("lang", DEFAULT_LANG))["invalid_verification_code"])
-        return redirect(url_for("verify_email_page"))
-
-    return render_template("verify_email.html", user=user)
-
-
-@app.route("/resend-verification", methods=["POST"])
-@login_required
-def resend_verification():
-    user = get_current_user()
-    if not user or not user["email"]:
-        flash(get_translator(session.get("lang", DEFAULT_LANG))["email_required"])
-        return redirect(url_for("verify_email_page"))
-    code = _generate_code()
-    db = get_db()
-    db.execute(
-        "UPDATE users SET email_verification_code = ? WHERE id = ?",
-        (generate_password_hash(code), user["id"]),
-    )
-    db.commit()
-    try:
-        email_sent = _send_email(
-            "Verify your AltaJobs account",
-            user["email"],
-            f"Your new verification code is: {code}",
-        )
-    except Exception as exc:
-        print(f"[auth] resend verification email failed: {exc}")
-        email_sent = False
-
-    if not email_sent:
-        flash("We could not send the verification email right now, but your code is still available for later verification.")
-    else:
-        flash(get_translator(session.get("lang", DEFAULT_LANG))["verification_sent"])
-    return redirect(url_for("verify_email_page"))
-
-
-@app.route("/forgot-password", methods=["GET", "POST"])
-def forgot_password():
-    if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        if not email:
-            flash(get_translator(session.get("lang", DEFAULT_LANG))["email_required"])
-            return redirect(url_for("forgot_password"))
-        db = get_db()
-        user = db.execute("SELECT id, username, email FROM users WHERE email = ?", (email,)).fetchone()
-        if user:
-            code = _generate_code()
-            db.execute(
-                "UPDATE users SET password_reset_code = ?, password_reset_expires = ? WHERE id = ?",
-                (
-                    generate_password_hash(code),
-                    (datetime.datetime.utcnow() + datetime.timedelta(minutes=15)).isoformat(),
-                    user["id"],
-                ),
-            )
-            db.commit()
-            try:
-                email_sent = _send_email(
-                    "Reset your AltaJobs password",
-                    user["email"],
-                    f"Hello {user['username']},\n\nYour reset code is: {code}\n\nIt expires in 15 minutes.",
-                )
-            except Exception as exc:
-                print(f"[auth] password reset email failed: {exc}")
-                email_sent = False
-        flash(get_translator(session.get("lang", DEFAULT_LANG))["password_reset_sent"])
-        return redirect(url_for("reset_password"))
-    return render_template("forgot_password.html")
-
-
-@app.route("/reset-password", methods=["GET", "POST"])
-def reset_password():
-    if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        code = request.form.get("reset_code", "").strip()
-        new_password = request.form.get("new_password", "")
-        if not email or not code or not new_password:
-            flash(get_translator(session.get("lang", DEFAULT_LANG))["invalid_reset_code"])
-            return redirect(url_for("reset_password"))
-        db = get_db()
-        user = db.execute(
-            "SELECT id, password_reset_code, password_reset_expires FROM users WHERE email = ?",
-            (email,),
-        ).fetchone()
-        if not user:
-            flash(get_translator(session.get("lang", DEFAULT_LANG))["email_required"])
-            return redirect(url_for("reset_password"))
-        expires = user["password_reset_expires"]
-        if not user["password_reset_code"] or not expires or datetime.datetime.utcnow() > datetime.datetime.fromisoformat(expires):
-            flash(get_translator(session.get("lang", DEFAULT_LANG))["invalid_reset_code"])
-            return redirect(url_for("reset_password"))
-        if not check_password_hash(user["password_reset_code"], code):
-            flash(get_translator(session.get("lang", DEFAULT_LANG))["invalid_reset_code"])
-            return redirect(url_for("reset_password"))
-        db.execute(
-            "UPDATE users SET password_hash = ?, password_reset_code = NULL, password_reset_expires = NULL WHERE id = ?",
-            (generate_password_hash(new_password), user["id"]),
-        )
-        db.commit()
-        flash(get_translator(session.get("lang", DEFAULT_LANG))["password_reset_success"])
-        return redirect(url_for("login"))
-    return render_template("reset_password.html")
+    return redirect(url_for("login", mode="register", ref=ref_code))
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -1780,7 +1680,13 @@ def login():
         flash(get_translator(session.get("lang", DEFAULT_LANG))["login_failed"])
         return redirect(url_for("login"))
 
-    return render_template("login.html")
+    show_register = request.args.get("mode", "") == "register"
+    return render_template(
+        "login.html",
+        show_register=show_register,
+        social_links=get_social_links(),
+        social_auth_enabled=social_auth_enabled(),
+    )
 
 
 @app.route("/logout")
@@ -2988,7 +2894,8 @@ def wallet_transfer():
         return redirect(url_for("wallet"))
 
     # Use a DB transaction and conditional update to avoid race conditions
-    db.execute("BEGIN IMMEDIATE")
+    if getattr(db, "is_sqlite", False):
+        db.execute("BEGIN IMMEDIATE")
     try:
         cur = db.execute(
             "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ? AND wallet_balance >= ?",
@@ -3059,7 +2966,8 @@ def _submit_withdrawal_request(user_id, amount, bank_name, account_number, accou
         return False, "invalid_account_name"
 
     db = get_db()
-    db.execute("BEGIN IMMEDIATE")
+    if getattr(db, "is_sqlite", False):
+        db.execute("BEGIN IMMEDIATE")
     try:
         cur = db.execute(
             "UPDATE users SET wallet_balance = wallet_balance - ? "
@@ -3116,7 +3024,8 @@ def wallet_withdraw():
 def buy_verification():
     db = get_db()
     user = get_current_user()
-    db.execute("BEGIN IMMEDIATE")
+    if getattr(db, "is_sqlite", False):
+        db.execute("BEGIN IMMEDIATE")
     try:
         # re-fetch fresh user row inside transaction
         fresh = db.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
@@ -3165,7 +3074,8 @@ def buy_verification():
 def buy_vip():
     db = get_db()
     user = get_current_user()
-    db.execute("BEGIN IMMEDIATE")
+    if getattr(db, "is_sqlite", False):
+        db.execute("BEGIN IMMEDIATE")
     try:
         fresh = db.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
         vip_price = float(get_setting("vip_price", VIP_MONTHLY_PRICE) or VIP_MONTHLY_PRICE)
@@ -3218,7 +3128,8 @@ def send_gift():
 
     db = get_db()
     # transaction-safe: deduct from sender only if they have sufficient balance
-    db.execute("BEGIN IMMEDIATE")
+    if getattr(db, "is_sqlite", False):
+        db.execute("BEGIN IMMEDIATE")
     try:
         cur = db.execute(
             "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ? AND wallet_balance >= ?",
@@ -3793,6 +3704,10 @@ def admin_settings():
         set_setting("verification_price", request.form.get("verification_price", str(VERIFICATION_MONTHLY_PRICE)))
         set_setting("vip_price", request.form.get("vip_price", str(VIP_MONTHLY_PRICE)))
         set_setting("extra_product_fee", request.form.get("extra_product_fee", "0"))
+        set_setting("social_auth_enabled", request.form.get("social_auth_enabled") == "1" and "1" or "0")
+        set_setting("social_google_url", request.form.get("social_google_url", "").strip())
+        set_setting("social_telegram_url", request.form.get("social_telegram_url", "").strip())
+        set_setting("social_discord_url", request.form.get("social_discord_url", "").strip())
         flash("Settings updated.")
         return redirect(url_for("admin_settings"))
 
@@ -3800,12 +3715,20 @@ def admin_settings():
     verification_price = float(get_setting("verification_price", VERIFICATION_MONTHLY_PRICE) or VERIFICATION_MONTHLY_PRICE)
     vip_price = float(get_setting("vip_price", VIP_MONTHLY_PRICE) or VIP_MONTHLY_PRICE)
     extra_product_fee = float(get_setting("extra_product_fee", 0) or 0)
+    social_auth_on = get_setting("social_auth_enabled", "1") == "1"
+    google_url = get_setting("social_google_url", "") or ""
+    telegram_url = get_setting("social_telegram_url", "") or ""
+    discord_url = get_setting("social_discord_url", "") or ""
     return render_template(
         "admin_settings.html",
         maintenance_mode=maintenance_mode,
         verification_price=verification_price,
         vip_price=vip_price,
         extra_product_fee=extra_product_fee,
+        social_auth_on=social_auth_on,
+        social_google_url=google_url,
+        social_telegram_url=telegram_url,
+        social_discord_url=discord_url,
     )
 
 
@@ -3879,7 +3802,8 @@ def _claim_pending_transaction(db, tx_id, tx_type, new_status):
 @admin_required
 def approve_deposit(tx_id):
     db = get_db()
-    db.execute("BEGIN IMMEDIATE")
+    if getattr(db, "is_sqlite", False):
+        db.execute("BEGIN IMMEDIATE")
     try:
         tx = _claim_pending_transaction(db, tx_id, "deposit", "approved")
         if tx:
@@ -3905,7 +3829,8 @@ def approve_deposit(tx_id):
 def reject_deposit(tx_id):
     db = get_db()
     reason = (request.form.get("reason") or "").strip()
-    db.execute("BEGIN IMMEDIATE")
+    if getattr(db, "is_sqlite", False):
+        db.execute("BEGIN IMMEDIATE")
     try:
         # Nothing was ever deducted for a deposit request, so rejecting it
         # is just a status change - no balance change needed.
@@ -3927,7 +3852,8 @@ def reject_deposit(tx_id):
 @admin_required
 def approve_withdrawal(tx_id):
     db = get_db()
-    db.execute("BEGIN IMMEDIATE")
+    if getattr(db, "is_sqlite", False):
+        db.execute("BEGIN IMMEDIATE")
     try:
         # Funds were already reserved (deducted) when the withdrawal was
         # requested in wallet_withdraw() - approving just finalizes status.
@@ -3945,7 +3871,8 @@ def approve_withdrawal(tx_id):
 def reject_withdrawal(tx_id):
     db = get_db()
     reason = (request.form.get("reason") or "").strip()
-    db.execute("BEGIN IMMEDIATE")
+    if getattr(db, "is_sqlite", False):
+        db.execute("BEGIN IMMEDIATE")
     try:
         tx = _claim_pending_transaction(db, tx_id, "withdrawal", "rejected")
         if tx:
@@ -3970,7 +3897,8 @@ def reject_withdrawal(tx_id):
 @admin_required
 def approve_wallet_tx(tx_id):
     db = get_db()
-    db.execute("BEGIN IMMEDIATE")
+    if getattr(db, "is_sqlite", False):
+        db.execute("BEGIN IMMEDIATE")
     try:
         tx = db.execute("SELECT * FROM wallet_transactions WHERE id = ?", (tx_id,)).fetchone()
         if not tx or tx["status"] != "pending":
@@ -4000,7 +3928,8 @@ def approve_wallet_tx(tx_id):
 @admin_required
 def reject_wallet_tx(tx_id):
     db = get_db()
-    db.execute("BEGIN IMMEDIATE")
+    if getattr(db, "is_sqlite", False):
+        db.execute("BEGIN IMMEDIATE")
     try:
         tx = db.execute("SELECT * FROM wallet_transactions WHERE id = ?", (tx_id,)).fetchone()
         if not tx or tx["status"] != "pending":

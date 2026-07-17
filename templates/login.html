@@ -1,107 +1,400 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
+  :root {
+    --auth-bg: linear-gradient(135deg, #041b33 0%, #0a294b 35%, #112f54 100%);
+    --auth-card: rgba(8, 24, 58, 0.88);
+    --auth-border: rgba(56, 149, 255, 0.18);
+    --auth-glow: rgba(59, 130, 246, 0.2);
+    --auth-accent: #4f8bff;
+    --auth-white: #eef4ff;
+    --auth-muted: rgba(234, 245, 255, 0.72);
+  }
   .auth-shell {
-    min-height: calc(100vh - 90px);
+    min-height: 100vh;
     display: grid;
     place-items: center;
-    padding: 18px 12px 30px;
-    background:
-      radial-gradient(circle at top left, rgba(59,130,246,0.28), transparent 38%),
-      radial-gradient(circle at bottom right, rgba(37,99,235,0.24), transparent 36%),
-      linear-gradient(135deg, #07111f 0%, #0b1729 100%);
+    padding: 24px;
+    background: var(--auth-bg);
+    overflow: hidden;
   }
-  .aj-card {
-    width: min(100%, 440px);
-    background: rgba(7, 19, 36, 0.72);
-    border: 1px solid rgba(125, 211, 252, 0.16);
-    border-radius: 24px;
-    padding: 24px 20px 20px;
-    box-shadow: 0 20px 60px rgba(2, 10, 25, 0.34);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+  .auth-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top left, rgba(79, 139, 255, 0.16), transparent 20%),
+                radial-gradient(circle at bottom right, rgba(72, 138, 255, 0.14), transparent 18%);
+    pointer-events: none;
   }
-  .aj-brand {
-    display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px;
+  .auth-card-wrap {
+    position: relative;
+    width: min(100%, 980px);
+    max-width: 960px;
+    min-height: 560px;
+    perspective: 1500px;
+    z-index: 1;
   }
-  .aj-logo {
-    width:46px;height:46px;border-radius:14px;display:grid;place-items:center;
-    background: linear-gradient(135deg, rgba(59,130,246,0.9), rgba(37,99,235,0.95));
-    box-shadow:0 0 24px rgba(59,130,246,0.34);
-    color:#fff;font-weight:800;font-size:1rem;letter-spacing:0.06em;
-  }
-  .aj-brand-text h1 { margin:0;font-size:1.05rem;font-weight:700;letter-spacing:0.02em; }
-  .aj-brand-text span { font-size:0.78rem;color:var(--muted);letter-spacing:0.16em;text-transform:uppercase; }
-  .aj-welcome { text-align:center;color:var(--text);font-size:1rem;margin:4px 0 14px; }
-  .aj-input {
-    border-radius: 14px;
-    border: 1px solid rgba(125, 211, 252, 0.16);
-    padding: 12px 14px;
+  .auth-card {
     width: 100%;
-    box-sizing: border-box;
-    font-size: 15px;
-    color: var(--text);
-    background: rgba(255,255,255,0.05);
-    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+    min-height: 560px;
+    border-radius: 28px;
+    background: var(--auth-card);
+    border: 1px solid var(--auth-border);
+    box-shadow: 0 24px 90px rgba(6, 19, 48, 0.42);
+    overflow: hidden;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.9s cubic-bezier(0.2, 1, 0.25, 1);
+  }
+  .auth-card.flipped {
+    transform: rotateY(180deg);
+  }
+  .auth-panel {
+    position: absolute;
+    inset: 0;
+    padding: 40px;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    row-gap: 22px;
+    backface-visibility: hidden;
+    transform-style: preserve-3d;
+  }
+  .auth-panel.front {
+    transform: rotateY(0deg);
+  }
+  .auth-panel.back {
+    transform: rotateY(180deg);
+  }
+  .auth-heading {
+    display: grid;
+    gap: 12px;
+    max-width: 560px;
+  }
+  .auth-title {
+    color: var(--auth-white);
+    font-size: clamp(2rem, 2.7vw, 3.4rem);
+    line-height: 1.02;
+    margin: 0;
+  }
+  .auth-copy {
+    color: var(--auth-muted);
+    max-width: 520px;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .auth-content {
+    display: grid;
+    gap: 20px;
+    align-content: start;
+  }
+  .auth-form {
+    background: rgba(12, 34, 73, 0.87);
+    border: 1px solid rgba(79,143,255,0.14);
+    border-radius: 24px;
+    padding: 26px;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
+    display: grid;
+    gap: 16px;
+  }
+  .auth-form label {
+    font-size: 0.95rem;
+    color: var(--auth-muted);
+    display: block;
+    margin-bottom: 6px;
+  }
+  .auth-input,
+  .auth-select {
+    width: 100%;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 14px 16px;
+    font-size: 0.98rem;
+    background: rgba(255,255,255,0.04);
+    color: var(--auth-white);
     outline: none;
+    transition: border-color 0.2s ease, background 0.2s ease;
   }
-  .aj-input:focus {
-    border-color: var(--accent);
+  .auth-input:focus,
+  .auth-select:focus {
+    border-color: rgba(79, 139, 255, 0.9);
     background: rgba(255,255,255,0.08);
-    box-shadow: 0 0 0 4px rgba(29, 155, 240, 0.18);
   }
-  .aj-password-wrap { position: relative; }
-  .aj-password-wrap .aj-input { padding-right: 42px; }
-  .aj-eye-toggle {
-    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-    background: none; border: none; cursor: pointer; font-size: 18px; line-height: 1; padding: 4px;
+  .auth-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
   }
-  .aj-btn-full { width:100%;margin-top:10px; }
-  .aj-link-row { text-align:center;font-size:0.9rem;color:var(--muted);margin-top:10px; }
-  .aj-link-row a { color:var(--accent);font-weight:700; }
+  .auth-btn {
+    flex: 1;
+    min-width: 160px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    border: none;
+    background: linear-gradient(135deg, #4f8bff 0%, #2b6dfd 100%);
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  }
+  .auth-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.05);
+  }
+  .auth-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    color: var(--auth-muted);
+    font-size: 0.95rem;
+  }
+  .auth-footer a {
+    color: var(--auth-accent);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .auth-social {
+    display: grid;
+    gap: 12px;
+  }
+  .social-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .social-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border-radius: 14px;
+    padding: 12px 10px;
+    background: rgba(255,255,255,0.06);
+    color: var(--auth-white);
+    text-decoration: none;
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+  .social-item:hover {
+    transform: translateY(-1px);
+    background: rgba(79,143,255,0.16);
+  }
+  .social-item i {
+    font-size: 1.2rem;
+  }
+  .auth-panel.back {
+    transform: rotateY(180deg);
+  }
+  .auth-switch {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    color: var(--auth-muted);
+    font-size: 0.95rem;
+  }
+  .auth-switch button {
+    border: none;
+    background: none;
+    color: var(--auth-accent);
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+  }
+  .auth-shadow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(circle at top, rgba(79,139,255,0.14), transparent 22%),
+                radial-gradient(circle at bottom right, rgba(42, 84, 181, 0.12), transparent 30%);
+  }
+  .auth-bottom-note {
+    color: var(--auth-muted);
+    font-size: 0.92rem;
+  }
+  @media (max-width: 900px) {
+    .auth-card {
+      min-height: 700px;
+    }
+    .auth-card-wrap {
+      max-width: 540px;
+    }
+  }
+  @media (max-width: 640px) {
+    .auth-card {
+      padding: 0;
+    }
+    .auth-panel {
+      padding: 24px;
+    }
+    .auth-social .social-list {
+      grid-template-columns: 1fr;
+    }
+    .auth-footer {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
 </style>
 
 <div class="auth-shell">
-  <div class="aj-card">
-    <div class="aj-brand">
-      <div class="aj-logo">AJ</div>
-      <div class="aj-brand-text">
-        <h1>AltaMarket</h1>
-        <span>Secure access</span>
+  <div class="auth-card-wrap">
+    <div id="authCard" class="auth-card {{ 'flipped' if show_register else '' }}">
+      <div class="auth-panel front">
+        <div class="auth-heading">
+          <div class="aj-brand" style="justify-content:flex-start; gap:12px;">
+            <div class="aj-logo">AJ</div>
+            <div class="aj-brand-text">
+              <h1 class="auth-title">Sign in to AltaJobs</h1>
+              <p class="auth-copy">Access your dashboard, manage listings, and connect with premium talent.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="auth-content">
+          <form class="auth-form" method="POST" action="{{ url_for('login') }}">
+            <div>
+              <label for="username">{{ t.username }}</label>
+              <input id="username" class="auth-input" type="text" name="username" autocomplete="username" required>
+            </div>
+            <div>
+              <label for="password">{{ t.password }}</label>
+              <input id="password" class="auth-input" type="password" name="password" autocomplete="current-password" required>
+            </div>
+            <div class="auth-actions">
+              <button type="submit" class="auth-btn">{{ t.login }}</button>
+            </div>
+          </form>
+
+          {% if social_auth_enabled %}
+          <div class="auth-social">
+            <p class="auth-copy">Or continue with</p>
+            <div class="social-list">
+              {% if social_links.google %}
+              <a class="social-item" href="{{ social_links.google }}" target="_blank" rel="noopener noreferrer">
+                <i class='bx bxl-google'></i>
+                Google
+              </a>
+              {% endif %}
+              {% if social_links.telegram %}
+              <a class="social-item" href="{{ social_links.telegram }}" target="_blank" rel="noopener noreferrer">
+                <i class='bx bxl-telegram'></i>
+                Telegram
+              </a>
+              {% endif %}
+              {% if social_links.discord %}
+              <a class="social-item" href="{{ social_links.discord }}" target="_blank" rel="noopener noreferrer">
+                <i class='bx bxl-discord'></i>
+                Discord
+              </a>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="auth-footer">
+          <div class="auth-switch">
+            New here?
+            <button type="button" onclick="toggleAuth(true)">Create account</button>
+          </div>
+          <div class="auth-bottom-note">No password reset required — log in directly.</div>
+        </div>
+      </div>
+
+      <div class="auth-panel back">
+        <div class="auth-heading">
+          <div class="aj-brand" style="justify-content:flex-start; gap:12px;">
+            <div class="aj-logo">AJ</div>
+            <div class="aj-brand-text">
+              <h1 class="auth-title">Create your AltaJobs account</h1>
+              <p class="auth-copy">Join the premium job marketplace and start applying, hiring, and earning.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="auth-content">
+          <form class="auth-form" method="POST" action="{{ url_for('register') }}">
+            <input type="hidden" name="ref_code" value="{{ request.args.get('ref', '') }}">
+            <div>
+              <label for="full_name">{{ t.full_name }}</label>
+              <input id="full_name" class="auth-input" type="text" name="full_name" autocomplete="name" required>
+            </div>
+            <div>
+              <label for="username_register">{{ t.username }}</label>
+              <input id="username_register" class="auth-input" type="text" name="username" autocomplete="username" required>
+            </div>
+            <div>
+              <label for="password_register">{{ t.password }}</label>
+              <input id="password_register" class="auth-input" type="password" name="password" autocomplete="new-password" required>
+            </div>
+            <div>
+              <label for="confirm_password">Confirm Password</label>
+              <input id="confirm_password" class="auth-input" type="password" name="confirm_password" autocomplete="new-password" required>
+            </div>
+            <div>
+              <label for="user_type">Account type</label>
+              <select id="user_type" class="auth-select" name="user_type">
+                <option value="worker">Worker</option>
+                <option value="employer">Employer</option>
+              </select>
+            </div>
+            <div class="auth-actions">
+              <button type="submit" class="auth-btn">{{ t.create_account }}</button>
+            </div>
+          </form>
+
+          {% if social_auth_enabled %}
+          <div class="auth-social">
+            <p class="auth-copy">Create account faster with</p>
+            <div class="social-list">
+              {% if social_links.google %}
+              <a class="social-item" href="{{ social_links.google }}" target="_blank" rel="noopener noreferrer">
+                <i class='bx bxl-google'></i>
+                Google
+              </a>
+              {% endif %}
+              {% if social_links.telegram %}
+              <a class="social-item" href="{{ social_links.telegram }}" target="_blank" rel="noopener noreferrer">
+                <i class='bx bxl-telegram'></i>
+                Telegram
+              </a>
+              {% endif %}
+              {% if social_links.discord %}
+              <a class="social-item" href="{{ social_links.discord }}" target="_blank" rel="noopener noreferrer">
+                <i class='bx bxl-discord'></i>
+                Discord
+              </a>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="auth-footer">
+          <div class="auth-switch">
+            Already have an account?
+            <button type="button" onclick="toggleAuth(false)">Sign in</button>
+          </div>
+          <div class="auth-bottom-note">Login directly — no password reset link needed.</div>
+        </div>
       </div>
     </div>
-    <p class="aj-welcome">Welcome back to your trusted market.</p>
-
-    <form method="POST">
-      <label>{{ t.username }}</label>
-      <input class="aj-input" type="text" name="username" required>
-
-      <label>{{ t.password }}</label>
-      <div class="aj-password-wrap">
-        <input class="aj-input" type="password" name="password" id="passwordField" required>
-        <button type="button" class="aj-eye-toggle" onclick="aj_togglePassword()">👁️</button>
-      </div>
-
-      <button type="submit" class="btn aj-btn-full">{{ t.login }}</button>
-    </form>
-
-    <p class="aj-link-row">
-      {{ t.no_account }} <a href="{{ url_for('register') }}">{{ t.register }}</a>
-    </p>
-    <p class="aj-link-row">
-      <a href="{{ url_for('forgot_password') }}">{{ t.password_reset_sent }}</a>
-    </p>
-    <p class="aj-link-row">
-      <a href="{{ url_for('set_language_route', lang='en') }}">English</a> ·
-      <a href="{{ url_for('set_language_route', lang='am') }}">አማርኛ</a>
-    </p>
+    <div class="auth-shadow"></div>
   </div>
 </div>
 
 <script>
-  function aj_togglePassword() {
-    var field = document.getElementById('passwordField');
-    field.type = field.type === 'password' ? 'text' : 'password';
+  const authCard = document.getElementById('authCard');
+  function toggleAuth(showRegister) {
+    authCard.classList.toggle('flipped', showRegister);
+    history.replaceState(null, '', showRegister ? '?mode=register' : '?mode=login');
   }
+  document.addEventListener('DOMContentLoaded', function () {
+    if ({{ 'true' if show_register else 'false' }}) {
+      authCard.classList.add('flipped');
+    }
+  });
 </script>
 {% endblock %}
