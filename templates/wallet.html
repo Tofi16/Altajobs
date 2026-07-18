@@ -24,198 +24,198 @@
   margin-bottom: 24px;
   box-shadow: 0 22px 50px rgba(4, 50, 110, 0.28);
   overflow: hidden;
-  color: #ffffff;
-}
+  <style>
+  /* Minimalist Action-Centric Wallet (brand-blue focused) */
+  :root{--brand:#0a62e4;--brand-dark:#064ea6;--muted:#94a3b8;--bg:#0f1724}
+  .wallet-container{max-width:740px;margin:0 auto;padding:20px;box-sizing:border-box}
+  .wallet-hero{background:transparent;padding:18px 12px 8px 12px;margin-bottom:18px}
+  .wallet-hero .label{font-size:13px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .wallet-hero .balance{font-size:48px;font-weight:800;color:var(--brand);margin:6px 0}
+  .wallet-hero .tokens{font-size:14px;color:var(--muted)}
 
-.wallet-balance-panel::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 54%;
-  background: radial-gradient(circle at top center, rgba(255, 255, 255, 0.18), transparent 55%);
-  pointer-events: none;
-}
+  .actions-row{display:flex;gap:16px;margin-bottom:18px}
+  .action-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:12px;padding:14px;border-radius:12px;background:var(--brand);color:#fff;border:0;cursor:pointer;font-weight:700;box-shadow:0 8px 24px rgba(10,98,228,0.18);transition:transform .14s ease}
+  .action-btn:active{transform:translateY(1px)}
+  .action-icon{width:36px;height:36px;border-radius:8px;background:#fff;color:var(--brand);display:inline-flex;align-items:center;justify-content:center;font-weight:800}
 
-.wallet-balance-header {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 24px;
-}
+  .requests-section{margin-top:6px}
+  .requests-title{font-weight:700;margin:6px 0 12px 0;color:#111}
+  .requests-list{border-radius:8px;border:1px solid rgba(15,23,42,0.06);overflow:hidden;background:#fff}
+  .request-item{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid rgba(15,23,42,0.04)}
+  .request-item:last-child{border-bottom:none}
+  .request-meta{font-size:13px;color:#334155}
+  .request-status.pending{color:#f59e0b;font-weight:700}
+  .request-status.approved{color:#10b981;font-weight:700}
 
-.wallet-balance-title {
-  font-size: 0.85rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.78);
-  font-weight: 700;
-}
+  /* Modal */
+  .modal-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(2,6,23,0.6);z-index:600}
+  .modal{background:#fff;border-radius:12px;min-width:320px;max-width:520px;padding:18px;box-shadow:0 20px 60px rgba(2,6,23,0.4)}
+  .modal h3{margin:0 0 8px 0}
+  .modal .row{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+  .modal input, .modal textarea{padding:10px;border:1px solid #e6eef8;border-radius:8px;width:100%;box-sizing:border-box}
+  .modal .actions{display:flex;gap:8px;justify-content:flex-end}
+  .btn-ghost{background:transparent;border:1px solid #ccddee;padding:10px 14px;border-radius:8px;cursor:pointer}
+  .btn-primary{background:var(--brand);color:#fff;border:0;padding:10px 14px;border-radius:8px;cursor:pointer}
 
-.wallet-balance-amount {
-  font-size: clamp(2.4rem, 5vw, 4rem);
-  font-weight: 800;
-  color: #ffffff;
-  line-height: 1;
-  margin: 0;
-}
+  @media (max-width:640px){.actions-row{flex-direction:column}.wallet-hero .balance{font-size:36px}}
+  </style>
 
-.wallet-balance-secondary {
-  font-size: 0.95rem;
-  color: rgba(255, 255, 255, 0.82);
-}
+  <div class="wallet-container">
+    <!-- HERO: Available Balance + Tokens -->
+    <section class="wallet-hero">
+      <div class="label">Available Balance</div>
+      <div class="balance">{{ current_user.get('balance', current_user.get('wallet_balance', 0)) }} ETB</div>
+      <div class="tokens"><strong id="walletTokensCount">{{ current_user.get('alta_tokens', 0) }}</strong> Alta Tokens</div>
+    </section>
 
-.wallet-balance-secondary strong {
-  color: #ffffff;
-  font-weight: 700;
-}
+    <!-- ACTIONS: Deposit / Withdraw / Send -->
+    <section class="actions-row" aria-label="Wallet actions">
+      <button class="action-btn" data-modal="depositModal" type="button">
+        <span class="action-icon">↓</span>
+        <span>Deposit</span>
+      </button>
+      <button class="action-btn" data-modal="withdrawModal" type="button">
+        <span class="action-icon">↑</span>
+        <span>Withdraw</span>
+      </button>
+      <button class="action-btn" data-modal="sendModal" type="button">
+        <span class="action-icon">✈</span>
+        <span>Send</span>
+      </button>
+    </section>
 
-/* ===== Action Buttons Row ===== */
-.wallet-actions-row {
-  display: flex;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 28px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-}
+    <!-- RECENT REQUESTS -->
+    <section class="requests-section">
+      <div class="requests-title">Recent Requests</div>
+      <div id="requestsList" class="requests-list">
+        {% set reqs = requests if requests is defined else [] %}
+        {% if reqs and reqs|length > 0 %}
+          {% for r in reqs %}
+            <div class="request-item">
+              <div class="request-meta">{{ r.get('type','')|capitalize }} • {{ r.get('amount','') }} ETB</div>
+              <div class="request-status {% if r.get('status','') == 'approved' %}approved{% else %}pending{% endif %}">{{ r.get('status','Pending')|capitalize }}</div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="request-item"><div class="request-meta">No requests yet</div><div class="request-status pending">—</div></div>
+        {% endif %}
+      </div>
+    </section>
 
-.wallet-action-block {
-  flex: 1 1 0;
-  min-width: 90px;
-}
+    <!-- Modals -->
+    <div id="depositModal" class="modal-backdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="depositTitle">
+        <h3 id="depositTitle">Deposit Funds</h3>
+        <form id="depositForm">
+          <div class="row">
+            <label>Amount</label>
+            <input name="amount" type="number" step="0.01" min="0" required />
+          </div>
+          <div class="row">
+            <label>Transaction Reference ID</label>
+            <input name="reference_id" type="text" required />
+          </div>
+          <div class="actions">
+            <button type="button" class="btn-ghost" data-close>Cancel</button>
+            <button type="submit" class="btn-primary">Submit Deposit</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
-..wallet-action-btn-modern {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 16px 10px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 22px;
-  cursor: pointer;
-  color: #ffffff;
-  text-decoration: none;
-  pointer-events: auto;
-  touch-action: manipulation;
-  transition: background 0.3s ease, border-color 0.3s ease, transform 0.24s ease;
-}
+    <div id="withdrawModal" class="modal-backdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="withdrawTitle">
+        <h3 id="withdrawTitle">Withdraw Funds</h3>
+        <form id="withdrawForm">
+          <div class="row">
+            <label>Amount</label>
+            <input name="amount" type="number" step="0.01" min="0" required />
+          </div>
+          <div class="row">
+            <label>Destination Account</label>
+            <input name="destination_account" type="text" required />
+          </div>
+          <div class="actions">
+            <button type="button" class="btn-ghost" data-close>Cancel</button>
+            <button type="submit" class="btn-primary">Request Withdraw</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
-.wallet-action-btn-modern:hover,
-.wallet-action-btn-modern:focus-visible {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.28);
-  transform: translateY(-2px);
-}
+    <div id="sendModal" class="modal-backdrop" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sendTitle">
+        <h3 id="sendTitle">Send Funds</h3>
+        <form id="sendForm">
+          <div class="row">
+            <label>Amount</label>
+            <input name="amount" type="number" step="0.01" min="0" required />
+          </div>
+          <div class="row">
+            <label>Recipient (username or id)</label>
+            <input name="recipient" type="text" required />
+          </div>
+          <div class="actions">
+            <button type="button" class="btn-ghost" data-close>Cancel</button>
+            <button type="submit" class="btn-primary">Send</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
-.wallet-action-circle {
-  width: 72px;
-  height: 72px;
-  border-radius: 22px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(180deg, #ffffff 0%, #e6f2ff 100%);
-  box-shadow: 0 18px 30px rgba(0, 0, 0, 0.16);
-    position: relative;
-    z-index: 201;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-}
+  </div>
 
-.wallet-action-caption {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text);
-  text-align: center;
-}
+  <script>
+  // Minimal modal handling and demo-form append to requests list (client-side)
+  document.querySelectorAll('[data-modal]').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      const id = btn.getAttribute('data-modal');
+      const m = document.getElementById(id);
+      if(m){ m.style.display='flex'; m.setAttribute('aria-hidden','false'); }
+    })
+  })
+  document.querySelectorAll('.modal-backdrop [data-close]').forEach(b=>b.addEventListener('click',e=>{
+    const backdrop = e.target.closest('.modal-backdrop');
+    if(backdrop){ backdrop.style.display='none'; backdrop.setAttribute('aria-hidden','true'); }
+  }))
+  document.querySelectorAll('.modal-backdrop').forEach(back=>{
+    back.addEventListener('click',e=>{ if(e.target===back){ back.style.display='none'; back.setAttribute('aria-hidden','true'); } })
+  })
 
-.deposit-bank-details {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
-  padding: 14px;
-  margin-top: 8px;
-}
-.deposit-bank-row {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 10px;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-.deposit-bank-row:last-child { border-bottom: none; }
-.deposit-bank-label { color: var(--muted); font-size: 0.85rem; }
-.deposit-bank-value { font-weight: 700; color: var(--text); }
-.deposit-bank-note { color: var(--muted); line-height: 1.5; }
-
-@media (max-width: 740px) {
-  .wallet-actions-row {
-    gap: 12px;
+  function appendRequest(type, amount, status){
+    const list = document.getElementById('requestsList');
+    const node = document.createElement('div'); node.className='request-item';
+    node.innerHTML = `<div class="request-meta">${type} • ${amount} ETB</div><div class="request-status ${status==='approved'?'approved':'pending'}">${status.charAt(0).toUpperCase()+status.slice(1)}</div>`;
+    // place at top
+    if(list.firstChild) list.insertBefore(node, list.firstChild); else list.appendChild(node);
   }
-}
 
-@media (max-width: 520px) {
-  .wallet-actions-row {
-    gap: 12px;
-  }
-  .wallet-action-circle {
-    width: 60px;
-    height: 60px;
-  }
-  .wallet-action-caption {
-    font-size: 11px;
-  }
-}
+  // Demo handlers: these would normally post to server endpoints
+  document.getElementById('depositForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    const f = e.target; const amount=f.amount.value; const ref=f.reference_id.value;
+    appendRequest('deposit', amount, 'pending');
+    // close
+    f.closest('.modal-backdrop').style.display='none';
+    f.reset();
+  })
+  document.getElementById('withdrawForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    const f = e.target; const amount=f.amount.value; const dest=f.destination_account.value;
+    appendRequest('withdraw', amount, 'pending');
+    f.closest('.modal-backdrop').style.display='none';
+    f.reset();
+  })
+  document.getElementById('sendForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    const f = e.target; const amount=f.amount.value; const recip=f.recipient.value;
+    appendRequest('send', amount, 'pending');
+    f.closest('.modal-backdrop').style.display='none';
+    f.reset();
+  })
+  </script>
 
-/* ===== Transaction History ===== */
-.transactions-section-modern {
-  margin-bottom: 32px;
-}
-
-.section-header {
-  font-size: 18px;
-  font-weight: 700;
-  margin-bottom: 18px;
-  color: var(--text);
-}
-
-.transactions-list-modern {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
-  overflow: hidden;
-  backdrop-filter: blur(10px);
-}
-
-.tx-item-modern {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  transition: background 0.2s;
-}
-
-.tx-item-modern:last-child {
-  border-bottom: none;
-}
-
-.tx-item-modern:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-
+  {% endblock %}
 .tx-item-left {
   display: flex;
   align-items: center;

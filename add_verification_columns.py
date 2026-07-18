@@ -17,7 +17,7 @@ def _ensure_postgres_ssl(url):
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme in ("postgres://", "postgresql://"):
         query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
-        if "sslmode" not in query:
+        if sslmode" not in query:
             query["sslmode"] = ["require"]
         query_string = urllib.parse.urlencode(query, doseq=True)
         return urllib.parse.urlunparse(parsed._replace(query=query_string))
