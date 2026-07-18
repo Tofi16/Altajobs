@@ -14,112 +14,47 @@
   padding-bottom: calc(var(--topbar-height) + 28px);
 }
 
-/* ===== Digital Bank Card ===== */
-.wallet-digital-card-modern {
-  background: linear-gradient(135deg, #1D9BF0 0%, #0F4C8B 100%);
+/* ===== Compact Wallet Balance Header ===== */
+.wallet-balance-panel {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 24px;
-  padding: 28px;
-  margin-bottom: 28px;
-  box-shadow: 0 20px 60px rgba(29, 155, 240, 0.2);
-  position: relative;
-  overflow: hidden;
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-
-.wallet-digital-card-modern::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  right: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.wallet-card-content {
-  position: relative;
-  z-index: 1;
-}
-
-.wallet-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 32px;
-}
-
-.wallet-card-left h3 {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 1.2px;
-  opacity: 0.85;
-  text-transform: uppercase;
-  margin: 0 0 8px 0;
-}
-
-.wallet-card-chip {
-  width: 40px;
-  height: 28px;
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  font-weight: bold;
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.wallet-balance-display {
+  padding: 24px 22px;
   margin-bottom: 24px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
 }
 
-.wallet-balance-label {
-  font-size: 13px;
-  opacity: 0.85;
-  margin-bottom: 6px;
-  letter-spacing: 0.5px;
+.wallet-balance-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.wallet-balance-title {
+  font-size: 0.85rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .wallet-balance-amount {
-  font-size: 42px;
-  font-weight: 700;
-  letter-spacing: -1px;
-  background: linear-gradient(135deg, #fff 0%, rgba(255, 255, 255, 0.9) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
   margin: 0;
 }
 
-.wallet-tokens-display {
-  font-size: 13px;
-  opacity: 0.8;
-  margin-top: 4px;
+.wallet-balance-secondary {
+  font-size: 0.95rem;
+  color: var(--muted);
 }
 
-.wallet-card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  font-size: 13px;
-  opacity: 0.85;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.wallet-card-footer-group {
-  min-width: 140px;
-}
-
-.wallet-card-footer-value {
+.wallet-balance-secondary strong {
+  color: var(--text);
   font-weight: 700;
-  color: #ffffff;
 }
 
 /* ===== Action Buttons Row ===== */
@@ -127,12 +62,10 @@
   display: flex;
   align-items: stretch;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 32px;
+  gap: 14px;
+  margin-bottom: 28px;
   overflow-x: auto;
   padding-bottom: 4px;
-  position: relative;
-  z-index: 200; /* sit above regular content but below modal backdrop (220) */
 }
 
 .wallet-action-block {
@@ -421,50 +354,56 @@
     padding: 12px;
   }
 
-  .wallet-digital-card-modern {
-    padding: 24px 20px;
-    margin-bottom: 24px;
+  .wallet-balance-panel {
+    padding: 20px 18px;
+    margin-bottom: 22px;
   }
 
   .wallet-balance-amount {
-    font-size: 36px;
+    font-size: 3rem;
   }
 }
 </style>
 
 <div class="wallet-container">
-  <!-- Digital Bank Card -->
-  <div class="wallet-digital-card-modern">
-    <div class="wallet-card-content">
-      <div class="wallet-card-header">
-        <div class="wallet-card-left">
-          <h3>Available Balance</h3>
-          <div class="wallet-card-chip">💳</div>
-        </div>
+  <div class="wallet-balance-panel">
+    <div class="wallet-balance-header">
+      <div class="wallet-balance-title">Total Balance</div>
+      <h1 class="wallet-balance-amount">{{ current_user.get('balance', current_user.get('wallet_balance', 0)) }} ETB</h1>
+      <div class="wallet-balance-secondary">
+        <strong id="walletTokensCount">{{ current_user.get('alta_tokens', 0) }}</strong> {{ t.alta_tokens }}
       </div>
+    </div>
 
-      <div class="wallet-balance-display">
-        <div class="wallet-balance-label">Total Balance</div>
-        <h1 class="wallet-balance-amount">{{ current_user.get('balance', current_user.get('wallet_balance', 0)) }} ETB</h1>
-        <div class="wallet-tokens-display">
-          <strong id="walletTokensCount">{{ current_user.get('alta_tokens', 0) }}</strong> {{ t.alta_tokens }}
-        </div>
+    <div class="wallet-actions-row">
+      <div class="wallet-action-block">
+        <button class="wallet-action-btn-modern" type="button" data-modal-target="depositModal" aria-controls="depositModal" title="Deposit funds" aria-label="Deposit funds">
+          <div class="wallet-action-circle">
+            <div class="wallet-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M8 11l4 4 4-4"/><path d="M6 19h12"/></svg></div>
+          </div>
+          <span class="wallet-action-caption">Deposit</span>
+        </button>
       </div>
-
-      <div class="wallet-card-footer">
-        <div class="wallet-card-footer-group">
-          <div class="wallet-card-footer-label">Card Number</div>
-          <div class="wallet-card-footer-value">{{ current_user.get('wallet_id') or '—' }}</div>
-        </div>
-        <div class="wallet-card-footer-group">
-          <div class="wallet-card-footer-label">Valid Thru</div>
-          <div class="wallet-card-footer-value">12/27</div>
-        </div>
+      <div class="wallet-action-block">
+        <button class="wallet-action-btn-modern" type="button" data-modal-target="withdrawModal" aria-controls="withdrawModal" title="Withdraw funds" aria-label="Withdraw funds">
+          <div class="wallet-action-circle">
+            <div class="wallet-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V10"/><path d="M8 13l4-4 4 4"/><path d="M6 5h12"/></svg></div>
+          </div>
+          <span class="wallet-action-caption">Withdraw</span>
+        </button>
+      </div>
+      <div class="wallet-action-block">
+        <button class="wallet-action-btn-modern" type="button" data-modal-target="transferModal" aria-controls="transferModal" title="Send funds" aria-label="Send funds">
+          <div class="wallet-action-circle">
+            <div class="wallet-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg></div>
+          </div>
+          <span class="wallet-action-caption">Send</span>
+        </button>
       </div>
     </div>
   </div>
 
-  <!-- Action Buttons -->
+  <!-- Recent Transactions -->
   <div class="wallet-actions-row">
     <div class="wallet-action-block">
       <button class="wallet-action-btn-modern" type="button" data-modal-target="depositModal" aria-controls="depositModal" title="Deposit funds" aria-label="Deposit funds">
@@ -732,6 +671,19 @@
 
   // Auto-open modal when redirected from /deposit or /send
   // Auto-open handled centrally in static/js/app.js to avoid timing/order issues
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-modal-target]').forEach(function (button) {
+      button.addEventListener('click', function (e) {
+        var target = button.getAttribute('data-modal-target');
+        if (!target) return;
+        if (typeof window.openModal === 'function') {
+          e.preventDefault();
+          window.openModal(target);
+        }
+      });
+    });
+  });
 
   // Copy functionality
   document.querySelectorAll('.copy-bank-btn').forEach(function(btn) {

@@ -122,11 +122,22 @@ document.addEventListener("DOMContentLoaded", function () {
   const actions = document.getElementById("composeActions");
   const photoInput = document.getElementById("composePhotoInput");
   const photoName = document.getElementById("composePhotoName");
+  const composeForm = document.getElementById("composeForm");
+  const composeSubmit = document.getElementById("composeSubmitButton");
   if (!textarea || !actions) return;
+
+  const updateComposeSubmitState = function () {
+    const hasText = textarea.value.trim().length > 0;
+    if (composeSubmit) {
+      composeSubmit.disabled = !hasText;
+      composeSubmit.classList.toggle('btn-disabled', !hasText);
+    }
+  };
 
   const expand = function () {
     actions.classList.remove("compose-actions-collapsed");
     autoGrow();
+    updateComposeSubmitState();
   };
   const autoGrow = function () {
     textarea.style.height = "auto";
@@ -137,7 +148,17 @@ document.addEventListener("DOMContentLoaded", function () {
   textarea.addEventListener("input", function () {
     expand();
     autoGrow();
+    updateComposeSubmitState();
   });
+
+  if (composeForm) {
+    composeForm.addEventListener('submit', function (e) {
+      if (textarea.value.trim().length === 0) {
+        e.preventDefault();
+        textarea.focus();
+      }
+    });
+  }
 
   if (photoInput && photoName) {
     photoInput.addEventListener("change", function () {
@@ -145,6 +166,8 @@ document.addEventListener("DOMContentLoaded", function () {
       photoName.textContent = photoInput.files && photoInput.files[0] ? photoInput.files[0].name : "";
     });
   }
+
+  updateComposeSubmitState();
 });
 
 // ---------- Quick feed filters (pill bar) ----------
@@ -297,7 +320,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const backdrop = document.getElementById('modalBackdrop');
     const modal = document.getElementById(id);
     if (backdrop) backdrop.classList.add('open');
-    if (modal) modal.classList.add('open');
+    if (modal) {
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden', 'false');
+    }
     lockState.modal = true;
     syncScrollLock();
   }
@@ -305,7 +331,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const backdrop = document.getElementById('modalBackdrop');
     const modal = document.getElementById(id);
     if (backdrop) backdrop.classList.remove('open');
-    if (modal) modal.classList.remove('open');
+    if (modal) {
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
+    }
     lockState.modal = false;
     syncScrollLock();
   }
@@ -314,6 +343,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (backdrop) backdrop.classList.remove('open');
     document.querySelectorAll('.modal.open').forEach(function (modal) {
       modal.classList.remove('open');
+      modal.setAttribute('aria-hidden', 'true');
     });
     lockState.modal = false;
     syncScrollLock();

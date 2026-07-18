@@ -2,7 +2,7 @@
 <html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{ t.app_name }} - {{ t.tagline }}</title>
 {% if current_lang == 'ar' %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,10 +12,70 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
-<link rel="preload" href="{{ url_for('static', filename='css/style.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"></noscript>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    background: #0F172A;
+    color: #F8FAFC;
+    font-family: 'Inter', 'Segoe UI', 'Noto Sans Ethiopic', Tahoma, sans-serif;
+    min-height: 100%;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.24s ease, visibility 0s 0.24s;
+    overflow-x: hidden;
+  }
+  body.render-ready {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.24s ease;
+  }
+  #page-loader {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: #0F172A;
+    z-index: 9999;
+    transition: opacity 0.24s ease, visibility 0s 0.24s;
+  }
+  #page-loader.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .loader-ring {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(255, 255, 255, 0.16);
+    border-top-color: #1D9BF0;
+    border-radius: 50%;
+    animation: spin 0.85s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<noscript><style>body{opacity:1;visibility:visible;transition:none;}#page-loader{display:none!important;}</style></noscript>
 </head>
 <body class="{% if request.path.startswith('/admin') %}admin-page{% endif %}">
+<div id="page-loader"><div class="loader-ring" aria-hidden="true"></div></div>
+<script>
+(function() {
+  function releasePage() {
+    document.body.classList.add('render-ready');
+    var loader = document.getElementById('page-loader');
+    if (loader) loader.classList.add('hidden');
+  }
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    requestAnimationFrame(releasePage);
+  } else {
+    document.addEventListener('DOMContentLoaded', function() {
+      requestAnimationFrame(releasePage);
+    });
+  }
+})();
+</script>
 
 {% if current_user %}
 <header class="topbar">

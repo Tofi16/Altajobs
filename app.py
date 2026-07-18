@@ -1873,6 +1873,13 @@ def photo_url(value):
         return None
     if value.startswith(("http://", "https://", "//")):
         return value
+    if os.path.isabs(value):
+        uploads_root = os.path.normpath(app.config["UPLOAD_FOLDER"]).replace("\\", "/")
+        normalized = os.path.normpath(value).replace("\\", "/")
+        if normalized.startswith(uploads_root):
+            value = normalized[len(uploads_root):].lstrip("/\\")
+        else:
+            value = os.path.basename(normalized)
     if value.startswith("/"):
         return value
     if value.startswith("static/"):
@@ -2586,18 +2593,26 @@ def feed():
             })
         return payload
 
-    posts_data = build_post_payload(posts)
+    posts_data = build_post_payload(posts) or []
     has_next = len(posts) == page_size
+    has_posts = len(posts_data) > 0
 
     return render_template(
         "feed.html",
         posts_data=posts_data,
+        has_posts=has_posts,
         page=page,
         page_size=page_size,
         has_next=has_next,
         days_left=trial_days_left(user) if user else 0,
         show_trial_banner=bool(user and not _get_row_value(user, "paid_until")),
     )
+
+
+@app.route("/home.html")
+@login_required
+def home_html():
+    return feed()
 
 
 @app.route("/api/feed")
@@ -2724,7 +2739,7 @@ def api_feed():
             })
         return payload
 
-    posts_data = build_post_payload(posts)
+    posts_data = build_post_payload(posts) or []
     has_next = len(posts) == page_size
 
     return jsonify({
