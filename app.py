@@ -208,6 +208,22 @@ def get_db():
 
         # Initialize/fill sensible defaults for existing rows (individually)
         try:
+            user_cols = _get_table_columns(db, "users")
+            for column_name, definition in {
+                "strikes": "INTEGER DEFAULT 0",
+                "trust_score": "INTEGER DEFAULT 0",
+                "is_suspended": "INTEGER DEFAULT 0",
+                "is_trusted_seller": "INTEGER DEFAULT 0",
+            }.items():
+                if column_name not in user_cols:
+                    db.execute(f"ALTER TABLE users ADD COLUMN {column_name} {definition}")
+            if not _table_has_column(db, "bank_accounts", "account_holder_name"):
+                db.execute("ALTER TABLE bank_accounts ADD COLUMN account_holder_name TEXT DEFAULT NULL")
+            if not _table_has_column(db, "bank_accounts", "account_name"):
+                db.execute("ALTER TABLE bank_accounts ADD COLUMN account_name TEXT DEFAULT NULL")
+            if _table_has_column(db, "bank_accounts", "account_holder_name") and _table_has_column(db, "bank_accounts", "account_name"):
+                db.execute("UPDATE bank_accounts SET account_holder_name = COALESCE(account_holder_name, account_name) WHERE account_holder_name IS NULL AND account_name IS NOT NULL")
+                db.execute("UPDATE bank_accounts SET account_name = COALESCE(account_name, account_holder_name) WHERE account_name IS NULL AND account_holder_name IS NOT NULL")
             db.execute("UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0), alta_tokens = COALESCE(alta_tokens, 0)")
             db.commit()
         except Exception:
@@ -785,6 +801,10 @@ def migrate_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
             content TEXT,
+            photo TEXT,
+            post_type TEXT DEFAULT 'general',
+            share_count INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'approved',
             created_at TEXT NOT NULL,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         );
@@ -1304,6 +1324,24 @@ def _get_row_value(row, key, default=None):
         return default
 
 
+def _get_table_columns(db, table_name):
+    try:
+        if getattr(db, "is_sqlite", False):
+            rows = db.execute(f"PRAGMA table_info({table_name})").fetchall()
+            return {row[1] for row in rows}
+        rows = db.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name = ? ORDER BY ordinal_position",
+            (table_name,),
+        ).fetchall()
+        return {row[0] if not hasattr(row, "keys") else (row.get("column_name") or row.get("name")) for row in rows}
+    except Exception:
+        return set()
+
+
+def _table_has_column(db, table_name, column_name):
+    return column_name in _get_table_columns(db, table_name)
+
+
 def get_current_user():
     uid = session.get("user_id")
     if not uid:
@@ -1366,7 +1404,7 @@ def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         user = get_current_user()
-        if not user or not user["is_admin"]:
+        if not user or not _get_row_value(user, "is_admin", False):
             abort(403)
         return f(*args, **kwargs)
     return wrapper
@@ -1376,19 +1414,33 @@ def subscription_active(user):
     """ተጠቃሚው ነጻ ጊዜ ውስጥ ነው ወይስ ከፍሏል የሚለውን ይመልሳል"""
     if not user:
         return False
-    created = datetime.datetime.fromisoformat(user["created_at"])
+    try:
+        created = datetime.datetime.fromisoformat(_get_row_value(user, "created_at"))
+    except Exception:
+        return True
     trial_end = created + datetime.timedelta(days=FREE_TRIAL_DAYS)
     if datetime.datetime.utcnow() <= trial_end:
         return True
-    if user["paid_until"]:
-        paid_until = datetime.datetime.fromisoformat(user["paid_until"])
-        if datetime.datetime.utcnow() <= paid_until:
-            return True
+    paid_until = None
+    try:
+        paid_until = user.get("paid_until") if hasattr(user, "get") else user["paid_until"]
+    except Exception:
+        paid_until = None
+    if paid_until:
+        try:
+            paid_until = datetime.datetime.fromisoformat(paid_until)
+            if datetime.datetime.utcnow() <= paid_until:
+                return True
+        except Exception:
+            pass
     return False
 
 
 def trial_days_left(user):
-    created = datetime.datetime.fromisoformat(user["created_at"])
+    try:
+        created = datetime.datetime.fromisoformat(_get_row_value(user, "created_at"))
+    except Exception:
+        return 0
     trial_end = created + datetime.timedelta(days=FREE_TRIAL_DAYS)
     delta = trial_end - datetime.datetime.utcnow()
     return max(delta.days, 0)
@@ -1398,7 +1450,7 @@ def subscription_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         user = get_current_user()
-        if user and user["is_admin"]:
+        if user and _get_row_value(user, "is_admin", False):
             return f(*args, **kwargs)
         if not subscription_active(user):
             return redirect(url_for("subscribe"))
@@ -1431,7 +1483,7 @@ def daily_limit_required(kind="standard"):
             user = get_current_user()
             if not user:
                 return redirect(url_for("login"))
-            if user["is_admin"] or subscription_active(user):
+            if _get_row_value(user, "is_admin", False) or subscription_active(user):
                 return f(*args, **kwargs)
 
             db = get_db()
@@ -1448,9 +1500,9 @@ def is_currently_banned(user):
     """True if the user is permanently banned, or has an active temporary ban."""
     if not user:
         return False
-    if user["is_banned"]:
+    if _get_row_value(user, "is_banned", False):
         return True
-    banned_until = user["banned_until"] if "banned_until" in user.keys() else None
+    banned_until = _get_row_value(user, "banned_until")
     if banned_until and datetime.datetime.utcnow() <= datetime.datetime.fromisoformat(banned_until):
         return True
     return False
@@ -1465,7 +1517,10 @@ def add_notification(db, user_id, message, ntype="info"):
 
 
 def get_restricted_words(db):
-    rows = db.execute("SELECT word FROM restricted_words ORDER BY word").fetchall()
+    try:
+        rows = db.execute("SELECT word FROM restricted_words ORDER BY word").fetchall()
+    except Exception:
+        return []
     return [row["word"] for row in rows]
 
 
@@ -1634,16 +1689,19 @@ def inject_announcements():
     announcement = None
     dismissed_ids = set(session.get("dismissed_announcements", [])) if session else set()
     if user:
-        db = get_db()
-        rows = db.execute(
-            "SELECT * FROM announcements WHERE is_pinned = 1 OR id IN (SELECT id FROM announcements ORDER BY created_at DESC LIMIT 10) ORDER BY is_pinned DESC, created_at DESC"
-        ).fetchall()
-        for row in rows:
-            if row["id"] in dismissed_ids:
-                continue
-            record_announcement_view(db, user["id"], row["id"])
-            announcement = row
-            break
+        try:
+            db = get_db()
+            rows = db.execute(
+                "SELECT * FROM announcements WHERE is_pinned = 1 OR id IN (SELECT id FROM announcements ORDER BY created_at DESC LIMIT 10) ORDER BY is_pinned DESC, created_at DESC"
+            ).fetchall()
+            for row in rows:
+                if row["id"] in dismissed_ids:
+                    continue
+                record_announcement_view(db, user["id"], row["id"])
+                announcement = row
+                break
+        except Exception:
+            announcement = None
     return {"active_announcement": announcement}
 
 
@@ -1739,9 +1797,19 @@ def photo_url(value):
     Works transparently whether the file lives locally or on Supabase Storage."""
     if not value:
         return None
-    if value.startswith("http://") or value.startswith("https://"):
+    value = str(value).strip().replace("\\", "/")
+    if not value:
+        return None
+    if value.startswith("http://") or value.startswith("https://") or value.startswith("/"):
         return value
-    return url_for("uploaded_file", filename=value)
+    if value.startswith("static/"):
+        value = value[len("static/"):]
+    if value.startswith("uploads/"):
+        value = value[len("uploads/"):]
+    try:
+        return url_for("uploaded_file", filename=value)
+    except RuntimeError:
+        return f"/uploads/{value}"
 
 
 @app.template_global()
@@ -1833,9 +1901,12 @@ def badge_html_for(user):
 
 
 def get_setting(key, default=None):
-    db = get_db()
-    row = db.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
-    return row["value"] if row else default
+    try:
+        db = get_db()
+        row = db.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
+        return row["value"] if row else default
+    except Exception:
+        return default
 
 
 @app.template_global()
@@ -2455,7 +2526,7 @@ def feed():
         page_size=page_size,
         has_next=has_next,
         days_left=trial_days_left(user) if user else 0,
-        show_trial_banner=user and not user["paid_until"],
+        show_trial_banner=bool(user and not _get_row_value(user, "paid_until")),
     )
 
 
@@ -2484,25 +2555,38 @@ def new_post():
     user = get_current_user()
     blocked_word = contains_restricted_word(content, db)
     if blocked_word:
+        user_id = _get_row_value(user, "id", session.get("user_id"))
+        username = _get_row_value(user, "username", "unknown")
         db.execute(
             "INSERT INTO reports (reporter_id, target_type, target_id, reason, status, created_at) VALUES (?, 'post', 0, ?, 'pending', ?)",
-            (user["id"], f"Blocked: contains restricted word '{blocked_word}'", datetime.datetime.utcnow().isoformat()),
+            (user_id, f"Blocked: contains restricted word '{blocked_word}'", datetime.datetime.utcnow().isoformat()),
         )
-        add_notification(db, user["id"], f"Your post was blocked because it contains the restricted word '{blocked_word}'.", ntype="warning")
+        add_notification(db, user_id, f"Your post was blocked because it contains the restricted word '{blocked_word}'.", ntype="warning")
         for admin in db.execute("SELECT id FROM users WHERE is_admin = true").fetchall():
-            add_notification(db, admin["id"], f"New post by {user['username']} was blocked for policy review.", ntype="warning")
+            add_notification(db, admin["id"], f"New post by {username} was blocked for policy review.", ntype="warning")
         db.commit()
         flash("Your post was blocked for policy review.")
         return redirect(url_for("feed"))
 
     try:
         status = "approved"
-        db.execute(
-            """INSERT INTO posts (user_id, content, photo, post_type, status, created_at)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (session["user_id"], content, photo, post_type, status,
-             datetime.datetime.utcnow().isoformat()),
-        )
+        post_columns = _get_table_columns(db, "posts")
+        insert_sql = "INSERT INTO posts (user_id, content"
+        insert_values = [session["user_id"], content]
+        if "photo" in post_columns:
+            insert_sql += ", photo"
+            insert_values.append(photo)
+        if "post_type" in post_columns:
+            insert_sql += ", post_type"
+            insert_values.append(post_type)
+        if "status" in post_columns:
+            insert_sql += ", status"
+            insert_values.append(status)
+        insert_sql += ", created_at) VALUES ("
+        insert_sql += ", ".join(["?"] * len(insert_values))
+        insert_sql += ", ?)"
+        insert_values.append(datetime.datetime.utcnow().isoformat())
+        db.execute(insert_sql, tuple(insert_values))
         # Award points for creating a post
         try:
             db.execute("UPDATE users SET points = COALESCE(points,0) + ? WHERE id = ?", (10, session["user_id"]))
@@ -2641,7 +2725,7 @@ def delete_post(post_id):
     db = get_db()
     post = db.execute("SELECT * FROM posts WHERE id = ?", (post_id,)).fetchone()
     user = get_current_user()
-    if post and (post["user_id"] == user["id"] or user["is_admin"]):
+    if post and (post["user_id"] == _get_row_value(user, "id") or _get_row_value(user, "is_admin", False)):
         db.execute("DELETE FROM posts WHERE id = ?", (post_id,))
         db.commit()
     return redirect(url_for("feed"))
@@ -3641,7 +3725,12 @@ def wallet():
 def deposit():
     if request.method == "GET":
         return redirect(url_for("wallet", action="deposit"))
-    return wallet_deposit()
+    try:
+        return wallet_deposit()
+    except Exception as exc:
+        print(f"Wallet deposit route failed: {exc}")
+        flash("We couldn't process your deposit request right now.")
+        return redirect(url_for("wallet"))
 
 
 @app.route("/send", methods=["GET", "POST"])
@@ -3649,7 +3738,12 @@ def deposit():
 def send_funds():
     if request.method == "GET":
         return redirect(url_for("wallet", action="transfer"))
-    return wallet_transfer()
+    try:
+        return wallet_transfer()
+    except Exception as exc:
+        print(f"Wallet transfer route failed: {exc}")
+        flash("We couldn't complete that transfer right now.")
+        return redirect(url_for("wallet"))
 
 
 @app.route('/api/wallet/balance')
@@ -3724,9 +3818,10 @@ def wallet_transfer():
         )
         db.commit()
         flash("P2P transfer sent")
-    except Exception:
+    except Exception as exc:
         db.rollback()
-        raise
+        print(f"Wallet transfer failed: {exc}")
+        flash("We couldn't complete that transfer right now.")
     return redirect(url_for("wallet"))
 
 
@@ -3749,31 +3844,36 @@ def wallet_deposit():
         return redirect(url_for("wallet"))
 
     db = get_db()
-    bank = db.execute(
-        "SELECT * FROM bank_accounts WHERE id = ? AND is_active = true",
-        (bank_id,),
-    ).fetchone()
-    if not bank:
-        flash("Please select an active bank account.")
-        return redirect(url_for("wallet"))
+    try:
+        bank = db.execute(
+            "SELECT * FROM bank_accounts WHERE id = ? AND is_active = true",
+            (bank_id,),
+        ).fetchone()
+        if not bank:
+            flash("Please select an active bank account.")
+            return redirect(url_for("wallet"))
 
-    bank_name = bank.get("bank_name") if hasattr(bank, "get") else bank["bank_name"]
-    account_number = bank.get("account_number") if hasattr(bank, "get") else bank["account_number"]
-    account_name = bank.get("account_holder_name") if hasattr(bank, "get") else bank.get("account_name") if hasattr(bank, "get") else None
-    if not account_name:
-        account_name = bank.get("account_name") if hasattr(bank, "get") else None
+        bank_name = bank.get("bank_name") if hasattr(bank, "get") else bank["bank_name"]
+        account_number = bank.get("account_number") if hasattr(bank, "get") else bank["account_number"]
+        account_name = bank.get("account_holder_name") if hasattr(bank, "get") else bank.get("account_name") if hasattr(bank, "get") else None
+        if not account_name:
+            account_name = bank.get("account_name") if hasattr(bank, "get") else None
 
-    db.execute(
-        """INSERT INTO wallet_transactions
-           (user_id, tx_type, amount, transaction_ref, bank, note, receipt_photo, receipt_image_path, account_number, account_name, status, created_at)
-           VALUES (?, 'deposit', ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)""",
-        (
-            session["user_id"], amount, ref, bank_name, note, receipt_photo, receipt_photo,
-            account_number, account_name, datetime.datetime.utcnow().isoformat(),
-        ),
-    )
-    db.commit()
-    flash("Deposit request submitted for review.")
+        db.execute(
+            """INSERT INTO wallet_transactions
+               (user_id, tx_type, amount, transaction_ref, bank, note, receipt_photo, receipt_image_path, account_number, account_name, status, created_at)
+               VALUES (?, 'deposit', ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)""",
+            (
+                session["user_id"], amount, ref, bank_name, note, receipt_photo, receipt_photo,
+                account_number, account_name, datetime.datetime.utcnow().isoformat(),
+            ),
+        )
+        db.commit()
+        flash("Deposit request submitted for review.")
+    except Exception as exc:
+        db.rollback()
+        print(f"Wallet deposit failed: {exc}")
+        flash("We couldn't process your deposit request right now.")
     return redirect(url_for("wallet"))
 
 
@@ -3840,13 +3940,17 @@ def withdraw_request():
     account_number = request.form.get("accountNumber", "")
     account_name = request.form.get("accountName", "")
 
-    success, error = _submit_withdrawal_request(
-        session["user_id"], amount, bank_name, account_number, account_name
-    )
-    if not success:
-        flash(error or "invalid_withdrawal_request")
-    else:
-        flash("payment_pending")
+    try:
+        success, error = _submit_withdrawal_request(
+            session["user_id"], amount, bank_name, account_number, account_name
+        )
+        if not success:
+            flash(error or "invalid_withdrawal_request")
+        else:
+            flash("payment_pending")
+    except Exception as exc:
+        print(f"Withdrawal request failed: {exc}")
+        flash("We couldn't process your withdrawal request right now.")
     return redirect(url_for("wallet"))
 
 
@@ -4598,10 +4702,22 @@ def admin_settings():
             if not bank_name or not account_number or not account_holder_name:
                 flash("Bank name, account number, and account holder name are required.")
                 return redirect(url_for("admin_settings"))
-            db.execute(
-                "INSERT INTO bank_accounts (bank_name, account_number, account_holder_name, is_active, created_at) VALUES (?, ?, ?, ?, ?)",
-                (bank_name, account_number, account_holder_name, True if is_active else False, datetime.datetime.utcnow().isoformat()),
-            )
+            columns = _get_table_columns(db, "bank_accounts")
+            insert_columns = ["bank_name", "account_number"]
+            insert_values = [bank_name, account_number]
+            if "account_holder_name" in columns:
+                insert_columns.append("account_holder_name")
+                insert_values.append(account_holder_name)
+            elif "account_name" in columns:
+                insert_columns.append("account_name")
+                insert_values.append(account_holder_name)
+            if "is_active" in columns:
+                insert_columns.append("is_active")
+                insert_values.append(True if is_active else False)
+            insert_columns.append("created_at")
+            insert_values.append(datetime.datetime.utcnow().isoformat())
+            insert_sql = f"INSERT INTO bank_accounts ({', '.join(insert_columns)}) VALUES ({', '.join(['?'] * len(insert_columns))})"
+            db.execute(insert_sql, tuple(insert_values))
             db.commit()
             flash("Bank account added.")
             return redirect(url_for("admin_settings"))

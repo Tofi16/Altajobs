@@ -2,7 +2,7 @@
 <html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>{{ t.app_name }} - {{ t.tagline }}</title>
 {% if current_lang == 'ar' %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -78,10 +78,11 @@
 <aside class="left-sidebar">
   <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="sidebar-card" style="display:block;text-decoration:none">
     <div class="avatar gradient" style="width:48px;height:48px;margin-bottom:8px">
-      {% if current_user['avatar'] %}<img src="{{ photo_url(current_user['avatar']) }}">{% else %}{{ (current_user['full_name'] or current_user['username'])[0] }}{% endif %}
+      {% set user_name = (current_user.get('full_name') or current_user.get('username') or 'U') %}
+      {% if current_user.get('avatar') %}<img src="{{ photo_url(current_user.get('avatar')) }}">{% else %}{{ user_name[0] }}{% endif %}
     </div>
-    <div style="font-weight:800;color:var(--text)">{{ current_user['full_name'] or current_user['username'] }}</div>
-    <div class="post-meta">@{{ current_user['username'] }}</div>
+    <div style="font-weight:800;color:var(--text)">{{ user_name }}</div>
+    {% if current_user.get('username') %}<div class="post-meta">@{{ current_user.get('username') }}</div>{% endif %}
   </a>
 
   <div class="sidebar-card">
@@ -196,10 +197,11 @@
   </a>
   <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="nav-tab {{ 'active' if request.path.startswith('/profile/' + current_user['id']|string) or request.path.startswith('/settings') or request.path.startswith('/admin') or request.path.startswith('/challenge') }}">
     <span class="nav-profile-avatar">
-      {% if current_user['avatar'] %}
-        <img src="{{ photo_url(current_user['avatar']) }}">
+      {% set profile_name = (current_user.get('full_name') or current_user.get('username') or 'U') %}
+      {% if current_user.get('avatar') %}
+        <img src="{{ photo_url(current_user.get('avatar')) }}">
       {% else %}
-        {{ (current_user['full_name'] or current_user['username'])[0] }}
+        {{ profile_name[0] }}
       {% endif %}
     </span>
     <span>{{ t.tab_profile }}</span>
