@@ -203,6 +203,14 @@ document.addEventListener("DOMContentLoaded", function () {
     if (bellPopover) bellPopover.classList.remove("open");
   };
 
+  const lockState = { modal: 0, drawer: 0 };
+
+  const syncScrollLock = function () {
+    const locked = lockState.modal > 0 || lockState.drawer > 0;
+    document.body.classList.toggle("no-scroll", locked);
+    document.documentElement.classList.toggle("no-scroll", locked);
+  };
+
   const closeSidebar = function () {
     if (sidebarDrawer) {
       sidebarDrawer.classList.remove("open");
@@ -210,7 +218,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     if (sidebarOverlay) sidebarOverlay.classList.remove("open");
     document.body.classList.remove("drawer-open");
-    document.body.classList.remove("no-scroll");
+    lockState.drawer = 0;
+    syncScrollLock();
   };
 
   if (searchToggle && searchPanel) {
@@ -239,7 +248,8 @@ document.addEventListener("DOMContentLoaded", function () {
       sidebarDrawer.setAttribute("aria-hidden", isOpen ? "false" : "true");
       sidebarOverlay.classList.toggle("open", isOpen);
       document.body.classList.toggle("drawer-open", isOpen);
-      document.body.classList.toggle("no-scroll", isOpen);
+      lockState.drawer = isOpen ? 1 : 0;
+      syncScrollLock();
       if (isOpen) {
         closeSearch();
         closePopover();
@@ -278,14 +288,16 @@ document.addEventListener("DOMContentLoaded", function () {
     const modal = document.getElementById(id);
     if (backdrop) backdrop.classList.add('open');
     if (modal) modal.classList.add('open');
-    document.body.classList.add('no-scroll');
+    lockState.modal += 1;
+    syncScrollLock();
   }
   window.closeModal = function (id) {
     const backdrop = document.getElementById('modalBackdrop');
     const modal = document.getElementById(id);
     if (backdrop) backdrop.classList.remove('open');
     if (modal) modal.classList.remove('open');
-    document.body.classList.remove('no-scroll');
+    lockState.modal = Math.max(0, lockState.modal - 1);
+    syncScrollLock();
   }
   window.closeAllModals = function () {
     const backdrop = document.getElementById('modalBackdrop');
@@ -293,7 +305,8 @@ document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll('.modal.open').forEach(function (modal) {
       modal.classList.remove('open');
     });
-    document.body.classList.remove('no-scroll');
+    lockState.modal = 0;
+    syncScrollLock();
   }
 
   // Wallet: animate balance count on wallet page
