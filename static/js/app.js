@@ -330,6 +330,19 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
+  // Auto-open modal when redirected with ?action=deposit|withdraw|transfer
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    if (action === 'deposit' && typeof window.openModal === 'function') {
+      window.openModal('depositModal');
+    } else if (action === 'withdraw' && typeof window.openModal === 'function') {
+      window.openModal('withdrawModal');
+    } else if (action === 'transfer' && typeof window.openModal === 'function') {
+      window.openModal('transferModal');
+    }
+  } catch (e) {}
+
   // Ensure any stale scroll-lock state is cleared when the page loads.
   lockState.modal = false;
   lockState.drawer = false;
@@ -337,7 +350,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Wallet: animate balance count on wallet page
   try {
-    const balEl = document.querySelector('.wallet-balance');
+    const balEl = document.querySelector('.wallet-balance') || document.querySelector('.wallet-balance-amount');
     if (balEl) {
       const raw = balEl.textContent.replace(/[^0-9\.\-]/g, '') || '0';
       const target = parseFloat(raw);

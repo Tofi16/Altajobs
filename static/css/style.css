@@ -53,10 +53,9 @@ body {
 /* Lock background scrolling when overlays/drawers are open */
 html.no-scroll,
 body.no-scroll {
-  overflow: hidden !important;
-  position: fixed !important;
-  inset: 0 !important;
-  width: 100% !important;
+  /* Preserve ability to scroll when overlays are not active; avoid position:fixed which can block interactions
+     Keep only overflow hidden to prevent background scroll when necessary, without forcing position or inset. */
+  overflow: hidden;
 }
 
 html[dir="rtl"] body {
@@ -224,18 +223,17 @@ img, svg, video { max-width: 100%; height: auto; }
 .drawer-nav a .drawer-label { flex:1; font-size:0.98rem }
 .drawer-nav a .drawer-sub { font-size:0.82rem; color:var(--muted); }
 
+/* Keep header balance areas visible by default; individual pages may hide them as needed */
 .header-balances, [class*="balance-container"], .top-balance-bar {
-  display: none !important;
+  display: block;
 }
 
+/* Wallet pill: allow it to show where appropriate (topbar rules handle display) */
 .wallet-pill {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  height: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
+  display: inline-flex;
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* Topbar balance pill unified look */
@@ -304,7 +302,9 @@ img, svg, video { max-width: 100%; height: auto; }
   align-items: center;
   justify-content: space-around;
   padding: 0 8px;
-  z-index: 100;
+  /* Ensure bottom nav stays on top and remains clickable even when overlays are present */
+  z-index: 99999;
+  pointer-events: auto;
 }
 .nav-tab {
   flex: 1 1 0;

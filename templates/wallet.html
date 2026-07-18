@@ -651,17 +651,7 @@
   });
 
   // Auto-open modal when redirected from /deposit or /send
-  document.addEventListener('DOMContentLoaded', function () {
-    const params = new URLSearchParams(window.location.search);
-    const action = params.get('action');
-    if (action === 'deposit') {
-      openModal('depositModal');
-    } else if (action === 'withdraw') {
-      openModal('withdrawModal');
-    } else if (action === 'transfer') {
-      openModal('transferModal');
-    }
-  });
+  // Auto-open handled centrally in static/js/app.js to avoid timing/order issues
 
   // Copy functionality
   document.querySelectorAll('.copy-bank-btn').forEach(function(btn) {
