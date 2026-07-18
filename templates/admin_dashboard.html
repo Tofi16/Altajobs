@@ -3,35 +3,47 @@
 <div class="admin-shell">
   {% include "admin_nav.html" %}
   <main class="admin-main">
-    <section class="admin-page-header">
-      <div>
-        <p class="admin-overline">Wallet Operations</p>
-        <h1>Approve Deposits & Withdrawals</h1>
-        <p class="post-meta">Review incoming wallet transactions and keep the finance pipeline moving.</p>
+    <section class="admin-page-header admin-hero-panel">
+      <div class="admin-hero-copy">
+        <p class="admin-overline"><i class='bx bx-wallet'></i> Wallet Operations</p>
+        <h1>Approve deposits and withdrawals</h1>
+        <p class="post-meta">Review incoming wallet transactions and keep the finance pipeline moving with clarity and control.</p>
       </div>
-      <div>
+      <div class="admin-hero-actions">
         <a href="{{ url_for('admin_panel') }}" class="btn btn-outline btn-small">← {{ t.admin_panel }}</a>
       </div>
     </section>
 
     <div class="admin-metric-grid">
       <div class="admin-metric-card">
-        <h3>Pending Deposits</h3>
-        <p>{{ pending_deposits|length }}</p>
+        <div class="admin-metric-icon"><i class='bx bx-transfer-alt'></i></div>
+        <div>
+          <h3>Pending Deposits</h3>
+          <p>{{ pending_deposits|length }}</p>
+        </div>
       </div>
       <div class="admin-metric-card">
-        <h3>Pending Withdrawals</h3>
-        <p>{{ pending_withdrawals|length }}</p>
+        <div class="admin-metric-icon"><i class='bx bx-money-withdraw'></i></div>
+        <div>
+          <h3>Pending Withdrawals</h3>
+          <p>{{ pending_withdrawals|length }}</p>
+        </div>
       </div>
       <div class="admin-metric-card">
-        <h3>Active Bank Accounts</h3>
-        <p>{{ active_bank_count }}</p>
+        <div class="admin-metric-icon"><i class='bx bx-buildings'></i></div>
+        <div>
+          <h3>Active Bank Accounts</h3>
+          <p>{{ active_bank_count }}</p>
+        </div>
       </div>
     </div>
 
     <section class="admin-card">
       <div class="admin-card-header">
-        <h2>Pending Deposit Approvals</h2>
+        <div>
+          <h2>Pending Deposit Approvals</h2>
+          <p>Review each payment request before funds are released.</p>
+        </div>
       </div>
       <div class="admin-table-shell">
         <table class="admin-table">
@@ -55,10 +67,10 @@
               <td>{{ tx['created_at'][:16].replace('T',' ') }}</td>
               <td class="admin-action-group">
                 <form method="POST" action="{{ url_for('approve_deposit', tx_id=tx['id']) }}">
-                  <button type="submit" class="btn btn-small">Approve</button>
+                  <button type="submit" class="btn btn-small admin-action-btn">Approve</button>
                 </form>
                 <form method="POST" action="{{ url_for('reject_deposit', tx_id=tx['id']) }}">
-                  <button type="submit" class="btn btn-small btn-outline">Reject</button>
+                  <button type="submit" class="btn btn-small btn-outline admin-action-btn">Reject</button>
                 </form>
               </td>
             </tr>
@@ -70,7 +82,10 @@
 
     <section class="admin-card">
       <div class="admin-card-header">
-        <h2>Pending Withdrawals</h2>
+        <div>
+          <h2>Pending Withdrawals</h2>
+          <p>Confirm payout requests with a polished review flow.</p>
+        </div>
       </div>
       <div class="admin-table-shell">
         <table class="admin-table">
@@ -90,10 +105,10 @@
               <td>{{ tx['created_at'][:16].replace('T',' ') }}</td>
               <td class="admin-action-group">
                 <form method="POST" action="{{ url_for('approve_withdrawal', tx_id=tx['id']) }}">
-                  <button type="submit" class="btn btn-small">Approve</button>
+                  <button type="submit" class="btn btn-small admin-action-btn">Approve</button>
                 </form>
                 <form method="POST" action="{{ url_for('reject_withdrawal', tx_id=tx['id']) }}">
-                  <button type="submit" class="btn btn-small btn-outline">Reject</button>
+                  <button type="submit" class="btn btn-small btn-outline admin-action-btn">Reject</button>
                 </form>
               </td>
             </tr>

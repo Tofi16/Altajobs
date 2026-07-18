@@ -188,6 +188,7 @@ def get_db():
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_id TEXT UNIQUE DEFAULT NULL",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_balance INTEGER DEFAULT 0",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS alta_tokens INTEGER DEFAULT 0",
+            "ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS transaction_ref TEXT DEFAULT NULL",
             "ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS receipt_image_path TEXT DEFAULT NULL",
             "ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS recipient_wallet_id TEXT DEFAULT NULL",
             "ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS account_name TEXT DEFAULT NULL",
@@ -740,6 +741,41 @@ def init_postgres_db():
         conn.close()
 
 
+def _generate_wallet_id(db):
+    """Return a unique wallet ID for a new user.
+
+    Generates a random alphanumeric wallet ID and ensures it does not already
+    exist in the users table. Raises RuntimeError only if a unique ID cannot be
+    generated after several attempts.
+    """
+    for _ in range(10):
+        wallet_id = f"WAL{secrets.randbelow(10**9):09d}"
+        existing = db.execute(
+            "SELECT id FROM users WHERE wallet_id = ?", (wallet_id,)
+        ).fetchone()
+        if existing is None:
+            return wallet_id
+    raise RuntimeError("Unable to generate a unique wallet ID. Please try again.")
+
+
+def _backfill_missing_wallet_ids(db):
+    """Populate wallet IDs for any existing user that is missing one."""
+    try:
+        rows = db.execute(
+            "SELECT id FROM users WHERE wallet_id IS NULL OR wallet_id = ''"
+        ).fetchall()
+    except Exception:
+        return 0
+
+    updated = 0
+    for (user_id,) in rows:
+        wallet_id = _generate_wallet_id(db)
+        db.execute("UPDATE users SET wallet_id = ? WHERE id = ?", (wallet_id, user_id))
+        updated += 1
+
+    return updated
+
+
 def init_db():
     """Initialize local SQLite database schema."""
     if not is_sqlite_database():
@@ -783,6 +819,7 @@ def migrate_db():
             user_id INTEGER NOT NULL,
             tx_type TEXT NOT NULL,
             amount REAL NOT NULL,
+            transaction_ref TEXT DEFAULT NULL,
             status TEXT DEFAULT 'pending',
             created_at TEXT NOT NULL,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -926,6 +963,7 @@ def migrate_db():
 
     wallet_tx_cols = {row[1] for row in db.execute("PRAGMA table_info(wallet_transactions)")}
     for col, coltype in {
+        "transaction_ref": "TEXT DEFAULT NULL",
         "receipt_image_path": "TEXT DEFAULT NULL",
         "recipient_wallet_id": "TEXT DEFAULT NULL",
     }.items():
@@ -941,10 +979,7 @@ def migrate_db():
     try:
         db.execute("UPDATE users SET balance = COALESCE(balance, wallet_balance, 0.0)")
         db.execute("UPDATE users SET wallet_balance = COALESCE(wallet_balance, balance, 0)")
-        rows = db.execute("SELECT id FROM users WHERE wallet_id IS NULL OR wallet_id = ''").fetchall()
-        for (uid,) in rows:
-            wallet_id = _generate_wallet_id(db)
-            db.execute("UPDATE users SET wallet_id = ? WHERE id = ?", (wallet_id, uid))
+        _backfill_missing_wallet_ids(db)
         db.commit()
     except Exception as exc:
         print(f"Warning: could not backfill wallet data: {exc}")
@@ -1040,6 +1075,7 @@ def migrate_db():
     # wallet_transactions table: add deposit ticket fields if missing
     wallet_cols = {row[1] for row in db.execute("PRAGMA table_info(wallet_transactions)")}
     wallet_new_columns = {
+        "transaction_ref": "TEXT DEFAULT NULL",
         "bank": "TEXT DEFAULT NULL",
         "note": "TEXT DEFAULT NULL",
         "receipt_photo": "TEXT DEFAULT NULL",
@@ -1164,14 +1200,48 @@ def ensure_postgres_boolean_columns():
             ("bank_accounts", "is_active", "FALSE"),
         ]
         for table, column, default in boolean_columns:
-            db.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} BOOLEAN DEFAULT {default}")
+            try:
+                db.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} BOOLEAN DEFAULT {default}")
+                db.commit()
+            except Exception as exc:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                print(f"Warning: could not add boolean column {table}.{column}: {exc}")
+
+            try:
+                db.execute(f"ALTER TABLE {table} ALTER COLUMN {column} DROP DEFAULT")
+                db.commit()
+            except Exception:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+
             try:
                 db.execute(
-                    f"ALTER TABLE {table} ALTER COLUMN {column} TYPE BOOLEAN USING CASE WHEN {column} IN (1, '1', TRUE, 'true', 't', 'yes') THEN TRUE ELSE FALSE END"
+                    f"ALTER TABLE {table} ALTER COLUMN {column} TYPE BOOLEAN USING CASE "
+                    f"WHEN COALESCE({column}::text, '') IN ('1', 'true', 't', 'yes', 'y', 'on') THEN TRUE "
+                    f"ELSE FALSE END"
                 )
-            except Exception:
-                pass
-        db.commit()
+                db.commit()
+            except Exception as exc:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                print(f"Warning: could not cast {table}.{column} to boolean: {exc}")
+
+            try:
+                db.execute(f"ALTER TABLE {table} ALTER COLUMN {column} SET DEFAULT {default}")
+                db.commit()
+            except Exception as exc:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
+                print(f"Warning: could not set default for {table}.{column}: {exc}")
     except Exception as exc:
         print(f"Warning: could not ensure PostgreSQL boolean columns: {exc}")
 
@@ -1206,6 +1276,7 @@ def ensure_postgres_wallet_columns():
         try:
             db.execute("UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0), alta_tokens = COALESCE(alta_tokens, 0)")
             db.execute("UPDATE posts SET view_count = COALESCE(view_count, 0), virality_score = COALESCE(virality_score, 0.0)")
+            _backfill_missing_wallet_ids(db)
         except Exception:
             # If the update fails for any reason, ignore to avoid aborting startup
             pass
@@ -1800,12 +1871,14 @@ def photo_url(value):
     value = str(value).strip().replace("\\", "/")
     if not value:
         return None
-    if value.startswith("http://") or value.startswith("https://") or value.startswith("/"):
+    if value.startswith(("http://", "https://", "/")):
         return value
     if value.startswith("static/"):
         value = value[len("static/"):]
     if value.startswith("uploads/"):
         value = value[len("uploads/"):]
+    if value.startswith("/uploads/"):
+        value = value[len("/uploads/"):]
     try:
         return url_for("uploaded_file", filename=value)
     except RuntimeError:
@@ -2190,23 +2263,6 @@ def _generate_code(length=6):
     return f"{secrets.randbelow(10 ** length):0{length}d}"
 
 
-def _generate_wallet_id(db):
-    """Return a unique wallet ID for a new user.
-
-    Generates a random alphanumeric wallet ID and ensures it does not already
-    exist in the users table. Raises RuntimeError only if a unique ID cannot be
-    generated after several attempts.
-    """
-    for _ in range(10):
-        wallet_id = f"WAL{secrets.randbelow(10**9):09d}"
-        existing = db.execute(
-            "SELECT id FROM users WHERE wallet_id = ?", (wallet_id,)
-        ).fetchone()
-        if existing is None:
-            return wallet_id
-    raise RuntimeError("Unable to generate a unique wallet ID. Please try again.")
-
-
 def _normalize_username(username):
     return (username or "").strip().casefold()
 
@@ -2504,15 +2560,32 @@ def feed():
     def build_post_payload(rows):
         payload = []
         for p in rows:
+            if not hasattr(p, "keys") and not isinstance(p, dict):
+                continue
+            row = dict(p) if hasattr(p, "keys") else dict(p)
+            row.setdefault("id", None)
+            row.setdefault("user_id", None)
+            row.setdefault("content", "")
+            row.setdefault("photo", None)
+            row.setdefault("post_type", "general")
+            row.setdefault("created_at", "")
+            row.setdefault("view_count", 0)
+            row.setdefault("full_name", row.get("username") or "Unknown")
+            row.setdefault("username", "unknown")
+            row.setdefault("avatar", None)
+            row.setdefault("like_count", 0)
+            row.setdefault("comment_count", 0)
+            row.setdefault("is_verified", False)
+            row.setdefault("is_vip", False)
             payload.append({
-                "post": p,
-                "author_name": p["full_name"] or p["username"] or "Unknown",
-                "like_count": p.get("like_count", 0),
-                "comment_count": p.get("comment_count", 0),
-                "liked": p["id"] in liked_ids,
-                "saved": p["id"] in saved_ids,
-                "following": p["user_id"] in following_ids,
-                "applied": p["id"] in applied_ids,
+                "post": row,
+                "author_name": row.get("full_name") or row.get("username") or "Unknown",
+                "like_count": row.get("like_count", 0),
+                "comment_count": row.get("comment_count", 0),
+                "liked": row.get("id") in liked_ids,
+                "saved": row.get("id") in saved_ids,
+                "following": row.get("user_id") in following_ids,
+                "applied": row.get("id") in applied_ids,
             })
         return payload
 
@@ -3031,6 +3104,19 @@ def profile(user_id):
     ).fetchone()
     if not profile_user:
         abort(404)
+
+    if hasattr(profile_user, "keys"):
+        profile_user = dict(profile_user)
+    else:
+        profile_user = dict(profile_user)
+    profile_user.setdefault("avatar", None)
+    profile_user.setdefault("bio", "")
+    profile_user.setdefault("phone", "")
+    profile_user.setdefault("skills", "")
+    profile_user.setdefault("experience", "")
+    profile_user.setdefault("points", 0)
+    profile_user.setdefault("user_type", "worker")
+    profile_user.setdefault("full_name", profile_user.get("username") or "User")
 
     posts = db.execute(
         """SELECT posts.*, users.username, users.full_name, users.avatar, users.user_type,
@@ -3696,6 +3782,11 @@ def wallet():
     except Exception:
         history = []
 
+    has_pending_withdrawal = bool(db.execute(
+        "SELECT id FROM wallet_transactions WHERE user_id = ? AND tx_type = 'withdrawal' AND status = 'pending' LIMIT 1",
+        (user["id"],),
+    ).fetchone())
+
     try:
         gifts_received = db.execute(
             "SELECT COALESCE(SUM(amount - platform_cut), 0) total FROM gifts WHERE receiver_id = ?",
@@ -3717,6 +3808,7 @@ def wallet():
         vip_now=is_currently_vip(user),
         challenge_status=challenge_status,
         banks=get_active_banks(),
+        has_pending_withdrawal=has_pending_withdrawal,
     )
 
 
@@ -3777,24 +3869,24 @@ def wallet_transfer():
 
     db = get_db()
     sender = get_current_user()
+    sender_id = _get_row_value(sender, "id", session.get("user_id"))
+    sender_balance = float(_get_row_value(sender, "balance", _get_row_value(sender, "wallet_balance", 0)) or 0)
+
     recipient = db.execute(
         "SELECT * FROM users WHERE lower(username) = lower(?) OR lower(email) = lower(?) OR lower(phone) = lower(?) OR wallet_id = ?",
         (recipient_identifier, recipient_identifier, recipient_identifier, recipient_identifier),
     ).fetchone()
-    if not recipient or recipient["id"] == sender["id"]:
+    if not recipient or _get_row_value(recipient, "id") == sender_id:
         flash("Recipient could not be found")
         return redirect(url_for("wallet"))
+
+    recipient_id = _get_row_value(recipient, "id")
+    recipient_wallet_id = _get_row_value(recipient, "wallet_id")
+    sender_wallet_id = _get_row_value(sender, "wallet_id")
 
     if getattr(db, "is_sqlite", False):
         db.execute("BEGIN IMMEDIATE")
     try:
-        # If wallet columns don't exist on this DB, disallow transfers for now.
-        if 'wallet_balance' not in sender and 'wallet_balance' not in (sender.keys() if hasattr(sender, 'keys') else []):
-            db.rollback()
-            flash("Wallet transfers are not available on this database schema.")
-            return redirect(url_for("wallet"))
-
-        sender_balance = float(sender.get("balance", sender.get("wallet_balance", 0)) or 0)
         if sender_balance < amount:
             db.rollback()
             flash("insufficient_balance")
@@ -3802,20 +3894,45 @@ def wallet_transfer():
 
         db.execute(
             "UPDATE users SET balance = balance - ?, wallet_balance = wallet_balance - ? WHERE id = ?",
-            (amount, amount, sender["id"]),
+            (amount, amount, sender_id),
         )
         db.execute(
             "UPDATE users SET balance = balance + ?, wallet_balance = wallet_balance + ? WHERE id = ?",
-            (amount, amount, recipient["id"]),
+            (amount, amount, recipient_id),
         )
-        db.execute(
-            "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, recipient_wallet_id, status, created_at) VALUES (?, 'transfer', ?, ?, ?, 'approved', ?)",
-            (sender["id"], amount, f"Sent to {recipient['username']}", recipient.get("wallet_id"), datetime.datetime.utcnow().isoformat()),
+
+        wallet_columns = _get_table_columns(db, "wallet_transactions")
+        send_note = f"Sent to {_get_row_value(recipient, 'username', recipient_identifier)}"
+        receive_note = f"Received from {_get_row_value(sender, 'username', 'user')}"
+        tx_columns = ["user_id", "tx_type", "amount", "note", "status", "created_at"]
+        tx_values = [sender_id, "transfer", amount, send_note, "approved", datetime.datetime.utcnow().isoformat()]
+        if "recipient_wallet_id" in wallet_columns:
+            tx_columns.append("recipient_wallet_id")
+            tx_values.append(recipient_wallet_id)
+        if "recipient_id" in wallet_columns:
+            tx_columns.append("recipient_id")
+            tx_values.append(recipient_id)
+
+        send_sql = (
+            f"INSERT INTO wallet_transactions ({', '.join(tx_columns)}) "
+            f"VALUES ({', '.join(['?'] * len(tx_columns))})"
         )
-        db.execute(
-            "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, recipient_wallet_id, status, created_at) VALUES (?, 'transfer', ?, ?, ?, 'approved', ?)",
-            (recipient["id"], amount, f"Received from {sender['username']}", sender.get("wallet_id"), datetime.datetime.utcnow().isoformat()),
+        db.execute(send_sql, tuple(tx_values))
+
+        receive_columns = ["user_id", "tx_type", "amount", "note", "status", "created_at"]
+        receive_values = [recipient_id, "transfer", amount, receive_note, "approved", datetime.datetime.utcnow().isoformat()]
+        if "recipient_wallet_id" in wallet_columns:
+            receive_columns.append("recipient_wallet_id")
+            receive_values.append(sender_wallet_id)
+        if "recipient_id" in wallet_columns:
+            receive_columns.append("recipient_id")
+            receive_values.append(sender_id)
+
+        receive_sql = (
+            f"INSERT INTO wallet_transactions ({', '.join(receive_columns)}) "
+            f"VALUES ({', '.join(['?'] * len(receive_columns))})"
         )
+        db.execute(receive_sql, tuple(receive_values))
         db.commit()
         flash("P2P transfer sent")
     except Exception as exc:
@@ -3829,7 +3946,7 @@ def wallet_transfer():
 @login_required
 def wallet_deposit():
     amount = float(request.form.get("amount", 0) or 0)
-    bank_id = request.form.get("bank_id")
+    bank_id = request.form.get("bank_id") or request.form.get("bankId") or request.form.get("bank")
     ref = request.form.get("transaction_ref", "").strip()
     note = request.form.get("note", "").strip()
     receipt_photo = save_photo(request.files.get("receipt_photo"))
@@ -3853,21 +3970,43 @@ def wallet_deposit():
             flash("Please select an active bank account.")
             return redirect(url_for("wallet"))
 
-        bank_name = bank.get("bank_name") if hasattr(bank, "get") else bank["bank_name"]
-        account_number = bank.get("account_number") if hasattr(bank, "get") else bank["account_number"]
-        account_name = bank.get("account_holder_name") if hasattr(bank, "get") else bank.get("account_name") if hasattr(bank, "get") else None
+        bank_name = _get_row_value(bank, "bank_name")
+        account_number = _get_row_value(bank, "account_number")
+        account_name = _get_row_value(bank, "account_holder_name") or _get_row_value(bank, "account_name")
         if not account_name:
-            account_name = bank.get("account_name") if hasattr(bank, "get") else None
+            account_name = _get_row_value(bank, "account_name")
 
-        db.execute(
-            """INSERT INTO wallet_transactions
-               (user_id, tx_type, amount, transaction_ref, bank, note, receipt_photo, receipt_image_path, account_number, account_name, status, created_at)
-               VALUES (?, 'deposit', ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)""",
-            (
-                session["user_id"], amount, ref, bank_name, note, receipt_photo, receipt_photo,
-                account_number, account_name, datetime.datetime.utcnow().isoformat(),
-            ),
+        wallet_columns = _get_table_columns(db, "wallet_transactions")
+        insert_columns = ["user_id", "tx_type", "amount", "status", "created_at"]
+        insert_values = [session["user_id"], "deposit", amount, "pending", datetime.datetime.utcnow().isoformat()]
+
+        if "transaction_ref" in wallet_columns:
+            insert_columns.append("transaction_ref")
+            insert_values.append(ref)
+        if "bank" in wallet_columns:
+            insert_columns.append("bank")
+            insert_values.append(bank_name)
+        if "note" in wallet_columns:
+            insert_columns.append("note")
+            insert_values.append(note)
+        if "receipt_photo" in wallet_columns:
+            insert_columns.append("receipt_photo")
+            insert_values.append(receipt_photo)
+        if "receipt_image_path" in wallet_columns:
+            insert_columns.append("receipt_image_path")
+            insert_values.append(receipt_photo)
+        if "account_number" in wallet_columns:
+            insert_columns.append("account_number")
+            insert_values.append(account_number)
+        if "account_name" in wallet_columns:
+            insert_columns.append("account_name")
+            insert_values.append(account_name)
+
+        insert_sql = (
+            f"INSERT INTO wallet_transactions ({', '.join(insert_columns)}) "
+            f"VALUES ({', '.join(['?'] * len(insert_columns))})"
         )
+        db.execute(insert_sql, tuple(insert_values))
         db.commit()
         flash("Deposit request submitted for review.")
     except Exception as exc:
@@ -3911,20 +4050,38 @@ def _submit_withdrawal_request(user_id, amount, bank_name, account_number, accou
     if balance < amount:
         return False, "insufficient_balance"
 
+    pending_exists = db.execute(
+        "SELECT id FROM wallet_transactions WHERE user_id = ? AND tx_type = 'withdrawal' AND status = 'pending' LIMIT 1",
+        (user_id,),
+    ).fetchone()
+    if pending_exists:
+        return False, "pending_withdrawal_exists"
+
     if getattr(db, "is_sqlite", False):
         db.execute("BEGIN IMMEDIATE")
     try:
-        db.execute(
-            "UPDATE users SET balance = balance - ?, wallet_balance = wallet_balance - ? WHERE id = ?",
-            (amount, amount, user_id),
-        )
         note = f"Account: {account_name} | Account Number: {account_number}"
-        db.execute(
-            """INSERT INTO wallet_transactions
-               (user_id, tx_type, amount, bank, note, account_number, account_name, status, created_at)
-               VALUES (?, 'withdrawal', ?, ?, ?, ?, ?, 'approved', ?)""",
-            (user_id, amount, bank_name, note, account_number, account_name, datetime.datetime.utcnow().isoformat()),
+        wallet_columns = _get_table_columns(db, "wallet_transactions")
+        insert_columns = ["user_id", "tx_type", "amount", "status", "created_at"]
+        insert_values = [user_id, "withdrawal", amount, "pending", datetime.datetime.utcnow().isoformat()]
+        if "bank" in wallet_columns:
+            insert_columns.append("bank")
+            insert_values.append(bank_name)
+        if "note" in wallet_columns:
+            insert_columns.append("note")
+            insert_values.append(note)
+        if "account_number" in wallet_columns:
+            insert_columns.append("account_number")
+            insert_values.append(account_number)
+        if "account_name" in wallet_columns:
+            insert_columns.append("account_name")
+            insert_values.append(account_name)
+
+        insert_sql = (
+            f"INSERT INTO wallet_transactions ({', '.join(insert_columns)}) "
+            f"VALUES ({', '.join(['?'] * len(insert_columns))})"
         )
+        db.execute(insert_sql, tuple(insert_values))
         db.commit()
         return True, None
     except Exception:
@@ -3936,18 +4093,42 @@ def _submit_withdrawal_request(user_id, amount, bank_name, account_number, accou
 @login_required
 def withdraw_request():
     amount = request.form.get("amount", 0)
-    bank_name = request.form.get("bankName", "")
-    account_number = request.form.get("accountNumber", "")
-    account_name = request.form.get("accountName", "")
+    bank_selection = (
+        request.form.get("bankSelection")
+        or request.form.get("bankName")
+        or request.form.get("bank_name")
+        or request.form.get("destination")
+        or ""
+    )
+    manual_bank_name = (
+        request.form.get("bankNameManual")
+        or request.form.get("bank_name_manual")
+        or ""
+    )
+    account_number = (
+        request.form.get("accountNumber")
+        or request.form.get("account_number")
+        or ""
+    )
+    account_name = (
+        request.form.get("accountName")
+        or request.form.get("account_name")
+        or ""
+    )
+
+    bank_name = manual_bank_name if str(bank_selection).strip().lower() in {"other", "manual", "manual entry"} else str(bank_selection).strip()
 
     try:
         success, error = _submit_withdrawal_request(
             session["user_id"], amount, bank_name, account_number, account_name
         )
         if not success:
-            flash(error or "invalid_withdrawal_request")
+            if error == "pending_withdrawal_exists":
+                flash("You already have a pending withdrawal request. Please wait for admin approval before submitting another.")
+            else:
+                flash(error or "invalid_withdrawal_request")
         else:
-            flash("payment_pending")
+            flash("Withdrawal request submitted and is pending admin approval.")
     except Exception as exc:
         print(f"Withdrawal request failed: {exc}")
         flash("We couldn't process your withdrawal request right now.")
@@ -4918,9 +5099,12 @@ def approve_withdrawal(tx_id):
     if getattr(db, "is_sqlite", False):
         db.execute("BEGIN IMMEDIATE")
     try:
-        # Funds were already reserved (deducted) when the withdrawal was
-        # requested in wallet_withdraw() - approving just finalizes status.
-        _claim_pending_transaction(db, tx_id, "withdrawal", "approved")
+        tx = _claim_pending_transaction(db, tx_id, "withdrawal", "approved")
+        if tx:
+            db.execute(
+                "UPDATE users SET balance = balance - ?, wallet_balance = wallet_balance - ? WHERE id = ?",
+                (tx["amount"], tx["amount"], tx["user_id"]),
+            )
         db.commit()
     except Exception:
         db.rollback()
@@ -4939,10 +5123,9 @@ def reject_withdrawal(tx_id):
     try:
         tx = _claim_pending_transaction(db, tx_id, "withdrawal", "rejected")
         if tx:
-            # Refund the reserved funds back to the user's wallet.
             db.execute(
-                "UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
-                (tx["amount"], tx["user_id"]),
+                "UPDATE users SET balance = balance + ?, wallet_balance = wallet_balance + ? WHERE id = ?",
+                (tx["amount"], tx["amount"], tx["user_id"]),
             )
             msg = f"Your withdrawal request of {tx['amount']} ETB was rejected and the funds were returned to your wallet."
             if reason:
@@ -5458,7 +5641,10 @@ def admin_revenue():
 
 @app.route("/uploads/<filename>")
 def uploaded_file(filename):
-    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+    safe_name = str(filename).replace("\\", "/").lstrip("/")
+    if safe_name.startswith("..") or "/../" in safe_name:
+        abort(404)
+    return send_from_directory(app.config["UPLOAD_FOLDER"], safe_name)
 
 
 if __name__ == "__main__":

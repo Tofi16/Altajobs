@@ -92,25 +92,32 @@
 
 {% for item in posts_data %}
   {% set post = item.post %}
-  <div class="card post-card {{ 'post-card-job' if post['post_type'] == 'job' }}" data-post-type="{{ post['post_type'] }}">
+  {% set post_id = post.get('id') if post is mapping else post['id'] %}
+  {% set post_user_id = post.get('user_id') if post is mapping else post['user_id'] %}
+  {% set post_type = post.get('post_type', 'general') if post is mapping else post['post_type'] %}
+  {% set post_content = post.get('content', '') if post is mapping else post['content'] %}
+  {% set post_photo = post.get('photo') if post is mapping else post['photo'] %}
+  {% set post_created_at = post.get('created_at', '') if post is mapping else post['created_at'] %}
+  {% set post_view_count = post.get('view_count', 0) if post is mapping else post['view_count'] %}
+  <div class="card post-card {{ 'post-card-job' if post_type == 'job' }}" data-post-type="{{ post_type }}">
     <button type="button" class="post-menu-btn js-post-menu-btn"
-            data-post-id="{{ post['id'] }}"
-            data-can-delete="{{ '1' if (post['user_id'] == current_user['id'] or current_user['is_admin']) else '0' }}"
-            data-can-report="{{ '0' if post['user_id'] == current_user['id'] else '1' }}"
+            data-post-id="{{ post_id }}"
+            data-can-delete="{{ '1' if (post_user_id == current_user['id'] or current_user['is_admin']) else '0' }}"
+            data-can-report="{{ '0' if post_user_id == current_user['id'] else '1' }}"
             aria-label="More options">
       <i class='bx bx-dots-vertical-rounded'></i>
     </button>
     <div class="post-header">
-      <a href="{{ url_for('profile', user_id=post['user_id']) }}" class="avatar">
-        {% if post['avatar'] %}
-          <img src="{{ photo_url(post['avatar']) }}">
+      <a href="{{ url_for('profile', user_id=post_user_id) }}" class="avatar">
+        {% if post.get('avatar') %}
+          <img src="{{ photo_url(post.get('avatar')) }}">
         {% else %}
           {{ item.author_name[0] if item.author_name else 'U' }}
         {% endif %}
       </a>
       <div style="flex:1;min-width:0">
         <div class="post-header-meta">
-          <a href="{{ url_for('profile', user_id=post['user_id']) }}" class="post-author">
+          <a href="{{ url_for('profile', user_id=post_user_id) }}" class="post-author">
             {{ item.author_name }}
           </a>
           {{ badge_html_for(post) }}
@@ -120,36 +127,36 @@
             </span>
           {% endif %}
           {% if is_vip_now(post) %}<span class="badge-icon-vip" title="{{ t.vip }}">👑</span>{% endif %}
-          {% if post['user_id'] != current_user['id'] %}
+          {% if post_user_id != current_user['id'] %}
             <button type="button" class="follow-btn js-follow-btn {{ 'following' if item.following }}"
-                    data-user-id="{{ post['user_id'] }}"
+                    data-user-id="{{ post_user_id }}"
                     data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
               {{ t.unfollow if item.following else t.follow }}
             </button>
           {% endif %}
         </div>
-        <span class="badge badge-{{ post['post_type'] }}">
-          {% if post['post_type'] == 'job' %}{{ t.post_job }}
-          {% elif post['post_type'] == 'skill' %}{{ t.job_seeker_post }}
+        <span class="badge badge-{{ post_type }}">
+          {% if post_type == 'job' %}{{ t.post_job }}
+          {% elif post_type == 'skill' %}{{ t.job_seeker_post }}
           {% else %}{{ t.feed }}{% endif %}
         </span>
-        <div class="post-meta">{{ post['created_at'][:16].replace('T',' ') }} · <i class='bx bx-show'></i> {{ post['view_count'] }}</div>
+        <div class="post-meta">{{ post_created_at[:16].replace('T',' ') if post_created_at else '' }} · <i class='bx bx-show'></i> {{ post_view_count }}</div>
       </div>
     </div>
 
-    {% if post['post_type'] == 'job' and post['content'] %}
-      {% set job_lines = post['content'].split('\n') %}
+    {% if post_type == 'job' and post_content %}
+      {% set job_lines = post_content.split('\n') %}
       <div class="job-eyebrow"><i class='bx bxs-briefcase'></i> Job Opportunity</div>
       <h3 class="job-title">{{ job_lines[0] }}</h3>
       {% if job_lines|length > 1 %}
         <p class="post-content job-description">{{ job_lines[1:] | join('\n') | trim }}</p>
       {% endif %}
-    {% elif post['content'] %}
-      <p class="post-content">{{ post['content'] }}</p>
+    {% elif post_content %}
+      <p class="post-content">{{ post_content }}</p>
     {% endif %}
-    {% if post['photo'] %}
-      <div class="post-media" data-post-id="{{ post['id'] }}">
-        <img class="post-photo" src="{{ photo_url(post['photo']) }}" alt="Product preview">
+    {% if post_photo %}
+      <div class="post-media" data-post-id="{{ post_id }}">
+        <img class="post-photo" src="{{ photo_url(post_photo) }}" alt="Product preview">
         <div class="double-tap-heart" aria-hidden="true"><i class='bx bxs-heart'></i></div>
       </div>
     {% endif %}
@@ -157,20 +164,20 @@
     <div class="product-engagement-card">
       <div class="engagement-bar post-footer">
         <button type="button" class="post-action-btn js-like-btn {{ 'liked' if item.liked }}"
-                data-post-id="{{ post['id'] }}" aria-label="Like">
+                data-post-id="{{ post_id }}" aria-label="Like">
           <svg viewBox="0 0 24 24" class="post-action-icon" aria-hidden="true"><path d="M12 21s-7.33-4.07-10-7.72C-1.8 9.55.9 4.97 5.4 4.97c2.9 0 4.3 1.9 6.6 4.68C13.3 6.87 14.7 4.97 17.6 4.97c4.5 0 7.2 4.58 3.4 8.31C19.33 16.93 12 21 12 21z"></path></svg>
           <span>{{ item.like_count }}</span>
         </button>
-        <a href="{{ url_for('post_detail', post_id=post['id']) }}#comments" class="post-action-btn" aria-label="Comment">
+        <a href="{{ url_for('post_detail', post_id=post_id) }}#comments" class="post-action-btn" aria-label="Comment">
           <svg viewBox="0 0 24 24" class="post-action-icon" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"></path></svg>
           <span>{{ item.comment_count }}</span>
         </a>
-        <form method="POST" action="{{ url_for('share_post', post_id=post['id']) }}">
+        <form method="POST" action="{{ url_for('share_post', post_id=post_id) }}">
           <button type="submit" class="post-action-btn" aria-label="Share">
             <svg viewBox="0 0 24 24" class="post-action-icon" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>
           </button>
         </form>
-        <form method="POST" action="{{ url_for('save_post', post_id=post['id']) }}">
+        <form method="POST" action="{{ url_for('save_post', post_id=post_id) }}">
           <button type="submit" class="post-action-btn {{ 'saved' if item.saved }}" aria-label="Save">
             <svg viewBox="0 0 24 24" class="post-action-icon" aria-hidden="true"><path d="M6 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18l-6-4-6 4V4Z"></path></svg>
           </button>
@@ -178,23 +185,23 @@
       </div>
     </div>
 
-    {% if post['post_type'] == 'job' %}
+    {% if post_type == 'job' %}
       <div class="job-actions">
-        {% if post['user_id'] == current_user['id'] %}
-          <a href="{{ url_for('view_applicants', post_id=post['id']) }}" class="btn-apply" style="text-decoration:none;display:block"><i class='bx bxs-user-detail'></i> {{ t.applicants }}</a>
+        {% if post_user_id == current_user['id'] %}
+          <a href="{{ url_for('view_applicants', post_id=post_id) }}" class="btn-apply" style="text-decoration:none;display:block"><i class='bx bxs-user-detail'></i> {{ t.applicants }}</a>
         {% elif item.applied %}
           <button class="btn-apply" disabled style="opacity:0.6"><i class='bx bx-check'></i> {{ t.applied }}</button>
         {% else %}
-          <form method="POST" action="{{ url_for('apply_to_job', post_id=post['id']) }}" style="flex:1.4">
+          <form method="POST" action="{{ url_for('apply_to_job', post_id=post_id) }}" style="flex:1.4">
             <button type="submit" class="btn-apply" style="width:100%">{{ t.apply_now }}</button>
           </form>
         {% endif %}
-        <form method="POST" action="{{ url_for('save_post', post_id=post['id']) }}" style="flex:1">
+        <form method="POST" action="{{ url_for('save_post', post_id=post_id) }}" style="flex:1">
           <button type="submit" class="btn-save {{ 'saved' if item.saved }}" style="width:100%">
             <i class='bx {{ "bxs-bookmark" if item.saved else "bx-bookmark" }}'></i>
           </button>
         </form>
-        <form method="POST" action="{{ url_for('share_post', post_id=post['id']) }}">
+        <form method="POST" action="{{ url_for('share_post', post_id=post_id) }}">
           <button type="submit" class="btn-share"><i class='bx bx-share-alt'></i></button>
         </form>
       </div>

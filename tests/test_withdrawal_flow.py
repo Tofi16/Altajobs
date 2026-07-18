@@ -37,7 +37,8 @@ class WithdrawalFlowTests(unittest.TestCase):
         db.commit()
 
         response = self.client.post('/withdraw', data={
-            'bankName': 'CBE',
+            'bankSelection': 'CBE',
+            'bankNameManual': '',
             'accountNumber': '1234567890',
             'accountName': 'Tester User',
             'amount': '25'
@@ -49,12 +50,73 @@ class WithdrawalFlowTests(unittest.TestCase):
         self.assertIsNotNone(row)
         self.assertEqual(row['amount'], 25)
         self.assertEqual(row['bank'], 'CBE')
+        self.assertEqual(row['status'], 'pending')
         self.assertEqual(row['note'], 'Account: Tester User | Account Number: 1234567890')
         self.assertEqual(row['account_number'], '1234567890')
         self.assertEqual(row['account_name'], 'Tester User')
 
         balance = db.execute("SELECT wallet_balance FROM users WHERE id = ?", (1,)).fetchone()[0]
-        self.assertEqual(balance, 75)
+        self.assertEqual(balance, 100)
+
+    def test_withdrawal_form_accepts_modal_field_names(self):
+        with self.client.session_transaction() as session:
+            session['user_id'] = 1
+
+        db = app_module.get_db()
+        db.execute("DELETE FROM users WHERE id = ?", (1,))
+        db.execute("INSERT INTO users (id, username, email, password_hash, full_name, user_type, created_at, wallet_balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                   (1, 'tester', 'tester@example.com', 'hash', 'Tester', 'worker', '2024-01-01T00:00:00', 100))
+        db.commit()
+
+        response = self.client.post('/withdraw', data={
+            'amount': '25',
+            'bankSelection': 'CBE',
+            'bankNameManual': '',
+            'auth_pin': 'secret',
+            'accountName': 'Tester User',
+            'accountNumber': '1234567890',
+        }, follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+
+        row = db.execute("SELECT * FROM wallet_transactions WHERE user_id = ? AND tx_type = 'withdrawal' ORDER BY id DESC LIMIT 1", (1,)).fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row['amount'], 25)
+        self.assertEqual(row['bank'], 'CBE')
+        self.assertEqual(row['status'], 'pending')
+        self.assertEqual(row['account_number'], '1234567890')
+        self.assertEqual(row['account_name'], 'Tester User')
+
+    def test_duplicate_pending_withdrawal_is_blocked(self):
+        with self.client.session_transaction() as session:
+            session['user_id'] = 1
+
+        db = app_module.get_db()
+        db.execute("DELETE FROM users WHERE id = ?", (1,))
+        db.execute("INSERT INTO users (id, username, email, password_hash, full_name, user_type, created_at, wallet_balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                   (1, 'tester', 'tester@example.com', 'hash', 'Tester', 'worker', '2024-01-01T00:00:00', 100))
+        db.commit()
+
+        first = self.client.post('/withdraw', data={
+            'bankSelection': 'CBE',
+            'bankNameManual': '',
+            'accountNumber': '1234567890',
+            'accountName': 'Tester User',
+            'amount': '25'
+        }, follow_redirects=True)
+        second = self.client.post('/withdraw', data={
+            'bankSelection': 'CBE',
+            'bankNameManual': '',
+            'accountNumber': '1234567890',
+            'accountName': 'Tester User',
+            'amount': '30'
+        }, follow_redirects=True)
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        pending_rows = db.execute("SELECT * FROM wallet_transactions WHERE user_id = ? AND tx_type = 'withdrawal' AND status = 'pending'", (1,)).fetchall()
+        self.assertEqual(len(pending_rows), 1)
+        self.assertIn('pending withdrawal', second.get_data(as_text=True).lower())
 
     def test_wallet_page_renders_without_optional_user_columns(self):
         with self.client.session_transaction() as session:

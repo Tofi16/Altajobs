@@ -16,18 +16,26 @@
       </div>
     </section>
 
-    <div class="admin-card" style="padding:18px 24px;">
-      <form method="GET" action="{{ url_for('admin_users') }}" class="admin-action-group" style="flex-wrap:wrap; gap:12px;">
-        <input type="text" name="q" value="{{ q }}" placeholder="Search by username, phone, or full name" style="max-width:320px; min-width:240px;">
+    <div class="admin-card admin-search-card">
+      <form method="GET" action="{{ url_for('admin_users') }}" class="admin-search-form">
+        <div class="admin-search-input-wrap">
+          <i class='bx bx-search'></i>
+          <input type="text" name="q" value="{{ q }}" placeholder="Search by username, phone, or full name">
+        </div>
         <button type="submit" class="btn btn-primary btn-small">Search users</button>
       </form>
     </div>
 
     {% if generated_for %}
-    <div class="admin-card admin-alert-card" style="border:1px solid rgba(56,189,248,0.15);">
-      <strong>Temporary Password Generated</strong>
-      <p>For user <b>{{ generated_for }}</b>:</p>
-      <p style="font-size:1.1rem;font-weight:700;letter-spacing:0.03em;margin:8px 0;">{{ generated_password }}</p>
+    <div class="admin-card admin-alert-card admin-password-card">
+      <div class="admin-password-head">
+        <div>
+          <strong>Temporary Password Generated</strong>
+          <p>For user <b>{{ generated_for }}</b></p>
+        </div>
+        <span class="admin-pill"><i class='bx bx-key'></i> Secure reset</span>
+      </div>
+      <p class="admin-password-value">{{ generated_password }}</p>
       <p class="post-meta">Share this password with the user now. They should log in and change it immediately.</p>
     </div>
     {% endif %}
@@ -53,39 +61,41 @@
           {% for u in users %}
           <tr>
             <td>
-              <div style="display:flex;flex-direction:column;gap:4px;">
-                <span style="font-weight:700;color:#e2e8f0;">{{ u['full_name'] or u['username'] }}</span>
+              <div class="admin-user-cell">
+                <span class="admin-user-name">{{ u['full_name'] or u['username'] }}</span>
                 <span class="post-meta">@{{ u['username'] }}</span>
               </div>
             </td>
             <td>{{ u['phone'] or '—' }}</td>
             <td><strong>{{ u['balance'] }} ETB</strong></td>
-            <td>{{ u['wallet_id'] or '—' }}</td>
+            <td><span class="admin-wallet-id">{{ u['wallet_id'] or '—' }}</span></td>
             <td>{{ u['created_at'][:10] }}</td>
             <td>
-              {% if u['is_banned'] %}
-                <span class="admin-badge">Banned</span>
-              {% elif is_currently_banned(u) %}
-                <span class="admin-badge">Suspended</span>
-              {% else %}
-                <span class="admin-badge">Active</span>
-              {% endif %}
-              {% if u['is_verified'] %}<span class="admin-badge" style="background:rgba(29,155,240,.16);color:#7dd3fc;">Verified</span>{% endif %}
-              {% if u['is_admin'] %}<span class="admin-badge" style="background:rgba(240,224,58,.12);color:#facc15;">Admin</span>{% endif %}
+              <div class="admin-user-status-group">
+                {% if u['is_banned'] %}
+                  <span class="admin-badge admin-badge-danger">Banned</span>
+                {% elif is_currently_banned(u) %}
+                  <span class="admin-badge admin-badge-warning">Suspended</span>
+                {% else %}
+                  <span class="admin-badge admin-badge-success">Active</span>
+                {% endif %}
+                {% if u['is_verified'] %}<span class="admin-badge admin-badge-info">Verified</span>{% endif %}
+                {% if u['is_admin'] %}<span class="admin-badge admin-badge-admin">Admin</span>{% endif %}
+              </div>
             </td>
             <td>
-              <div class="admin-action-group" style="flex-direction:column;">
+              <div class="admin-action-group admin-user-actions">
                 {% if not u['is_admin'] %}
                 <form method="POST" action="{{ url_for('generate_temp_password', user_id=u['id']) }}">
-                  <button type="submit" class="btn btn-small btn-outline">Generate Temp Password</button>
+                  <button type="submit" class="btn btn-small btn-outline admin-inline-btn">Generate Temp Password</button>
                 </form>
-                <form method="POST" action="{{ url_for('warn_user', user_id=u['id']) }}" style="display:flex;gap:6px;flex-wrap:wrap;">
-                  <input type="text" name="message" placeholder="Warning message" required style="min-width:170px;">
+                <form method="POST" action="{{ url_for('warn_user', user_id=u['id']) }}" class="admin-inline-form">
+                  <input type="text" name="message" placeholder="Warning message" required>
                   <button type="submit" class="btn btn-small">Warn</button>
                 </form>
-                <form method="POST" action="{{ url_for('temp_ban_user', user_id=u['id']) }}" style="display:flex;gap:6px;flex-wrap:wrap;">
-                  <input type="number" name="days" value="3" min="1" style="width:72px;">
-                  <input type="text" name="reason" placeholder="Ban reason" style="min-width:150px;">
+                <form method="POST" action="{{ url_for('temp_ban_user', user_id=u['id']) }}" class="admin-inline-form">
+                  <input type="number" name="days" value="3" min="1">
+                  <input type="text" name="reason" placeholder="Ban reason">
                   <button type="submit" class="btn btn-small btn-outline">Temp Ban</button>
                 </form>
                 {% if u['is_banned'] or is_currently_banned(u) %}
@@ -94,7 +104,7 @@
                 </form>
                 {% else %}
                 <form method="POST" action="{{ url_for('ban_user', user_id=u['id']) }}" onsubmit="return confirm('Permanently ban this user?');">
-                  <button type="submit" class="btn btn-small btn-outline" style="color:#f87171;border-color:#f87171;">Ban</button>
+                  <button type="submit" class="btn btn-small btn-outline admin-danger-btn">Ban</button>
                 </form>
                 {% endif %}
                 {% else %}
@@ -111,11 +121,11 @@
     </div>
 
     {% if total > per_page %}
-    <div class="admin-card" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+    <div class="admin-card admin-pagination-card">
       {% if page > 1 %}
         <a href="{{ url_for('admin_users', q=q, page=page-1) }}" class="btn btn-small btn-outline">← Prev</a>
       {% endif %}
-      <span class="post-meta" style="align-self:center">Page {{ page }} of {{ ((total - 1) // per_page) + 1 }} ({{ total }} users)</span>
+      <span class="post-meta">Page {{ page }} of {{ ((total - 1) // per_page) + 1 }} ({{ total }} users)</span>
       {% if page * per_page < total %}
         <a href="{{ url_for('admin_users', q=q, page=page+1) }}" class="btn btn-small btn-outline">Next →</a>
       {% endif %}

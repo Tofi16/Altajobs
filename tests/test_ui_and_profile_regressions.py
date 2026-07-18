@@ -14,7 +14,7 @@ class UiAndProfileRegressionTests(unittest.TestCase):
         response = client.get('/login')
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
-        self.assertIn('name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"', html)
+        self.assertIn('name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover"', html)
 
     def test_photo_url_supports_uploads_prefix(self):
         url = app_module.photo_url('uploads/avatar.png')

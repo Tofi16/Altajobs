@@ -591,7 +591,7 @@
 <div id="depositModal" class="modal" role="dialog" aria-hidden="true">
   <h3>💰 Deposit Funds</h3>
   <p class="post-meta" style="margin-bottom: 18px;">Deposits are processed through secure external payment providers.</p>
-  <form id="depositModalForm" method="POST" action="{{ url_for('deposit') }}" enctype="multipart/form-data">
+  <form id="depositModalForm" method="POST" action="{{ url_for('wallet_deposit') }}" enctype="multipart/form-data">
     <div class="form-group">
       <label>Amount (ETB)</label>
       <input type="number" name="amount" min="1" step="1" placeholder="Enter amount" required>
@@ -632,6 +632,9 @@
 <!-- Withdraw Modal -->
 <div id="withdrawModal" class="modal" role="dialog" aria-hidden="true">
   <h3>📤 Withdraw Funds</h3>
+  {% if has_pending_withdrawal %}
+    <div class="alert-banner" style="margin-bottom:16px;">A pending withdrawal request is already in progress. Please wait for admin approval before submitting another.</div>
+  {% endif %}
   <form id="withdrawModalForm" method="POST" action="{{ url_for('withdraw_request') }}">
     <div class="form-group">
       <label>Amount (ETB)</label>
@@ -639,7 +642,25 @@
     </div>
     <div class="form-group">
       <label>Bank / Destination</label>
-      <input type="text" name="destination" placeholder="Bank name or destination account" required>
+      <select name="bankSelection" id="withdrawBankSelection" required>
+        <option value="">Select bank</option>
+        {% for bank in banks %}
+        <option value="{{ bank['bank_name'] }}">{{ bank['bank_name'] }}</option>
+        {% endfor %}
+        <option value="other">Other (Manual Entry)</option>
+      </select>
+    </div>
+    <div class="form-group" id="withdrawBankManualWrap" style="display:none;">
+      <label>Manual Bank Name</label>
+      <input type="text" name="bankNameManual" id="withdrawBankManual" placeholder="Enter bank name manually">
+    </div>
+    <div class="form-group">
+      <label>Account Number</label>
+      <input type="text" name="accountNumber" placeholder="Account number" required>
+    </div>
+    <div class="form-group">
+      <label>Account Holder Name</label>
+      <input type="text" name="accountName" placeholder="Account holder name" required>
     </div>
     <div class="form-group">
       <label>Confirm Password / PIN</label>
@@ -647,10 +668,30 @@
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
       <button type="button" class="btn btn-outline" onclick="closeModal('withdrawModal')">Cancel</button>
-      <button type="submit" class="btn-premium" style="background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); color: #fff; border: none;">Submit</button>
+      <button type="submit" class="btn-premium" style="background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); color: #fff; border: none;" {% if has_pending_withdrawal %}disabled{% endif %}>Submit</button>
     </div>
   </form>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const bankSelection = document.getElementById('withdrawBankSelection');
+    const bankManualWrap = document.getElementById('withdrawBankManualWrap');
+    const bankManual = document.getElementById('withdrawBankManual');
+    if (bankSelection && bankManualWrap && bankManual) {
+      const syncBankManual = function () {
+        const selected = (bankSelection.value || '').toString().trim().toLowerCase();
+        const showManual = selected === 'other' || selected === 'manual' || selected === 'manual entry';
+        bankManualWrap.style.display = showManual ? 'block' : 'none';
+        if (!showManual) {
+          bankManual.value = '';
+        }
+      };
+      bankSelection.addEventListener('change', syncBankManual);
+      syncBankManual();
+    }
+  });
+</script>
 
 <!-- Transfer Modal -->
 <div id="transferModal" class="modal" role="dialog" aria-hidden="true">
