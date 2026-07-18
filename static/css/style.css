@@ -302,8 +302,8 @@ img, svg, video { max-width: 100%; height: auto; }
   align-items: center;
   justify-content: space-around;
   padding: 0 8px;
-  /* Ensure bottom nav stays on top and remains clickable even when overlays are present */
-  z-index: 99999;
+  /* Ensure bottom nav stays visible but allow in-page actions to overlay it when needed */
+  z-index: 90;
   pointer-events: auto;
 }
 .nav-tab {
@@ -2192,11 +2192,13 @@ html[dir="rtl"] .compose-textarea { padding: 10px 14px 10px 42px; }
   margin: 6px 0 0 52px;
 }
 .new-post-actions.compose-actions-collapsed {
-  max-height: 0;
-  opacity: 0;
-  margin-top: 0;
-  overflow: hidden;
-  pointer-events: none;
+  /* Keep actions accessible even when JS hasn't expanded the compose box.
+     This ensures users can still submit simple text posts (Facebook-like) if JS fails. */
+  max-height: 80px;
+  opacity: 1;
+  margin-top: 12px;
+  overflow: visible;
+  pointer-events: auto;
   transition: max-height 0.25s ease, opacity 0.2s ease, margin-top 0.25s ease;
 }
 .new-post-actions:not(.compose-actions-collapsed) {

@@ -10,6 +10,8 @@
   max-width: 600px;
   margin: 0 auto;
   padding: 16px;
+  /* Leave room for the bottom nav on small screens */
+  padding-bottom: calc(var(--topbar-height) + 28px);
 }
 
 /* ===== Digital Bank Card ===== */
@@ -118,6 +120,8 @@
   margin-bottom: 32px;
   overflow-x: auto;
   padding-bottom: 4px;
+  position: relative;
+  z-index: 200; /* sit above regular content but below modal backdrop (220) */
 }
 
 .wallet-action-block {
@@ -138,6 +142,8 @@
   cursor: pointer;
   color: var(--text);
   text-decoration: none;
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 
 .wallet-action-circle {
@@ -150,6 +156,8 @@
   background: linear-gradient(135deg, rgba(29, 155, 240, 0.95), rgba(88, 80, 248, 0.95));
   box-shadow: 0 14px 32px rgba(15, 23, 42, 0.24);
   transition: transform 0.24s ease, box-shadow 0.24s ease;
+  position: relative;
+  z-index: 201;
 }
 
 .wallet-action-btn-modern:hover .wallet-action-circle,
