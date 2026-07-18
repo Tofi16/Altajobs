@@ -2,6 +2,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -54,6 +55,30 @@ class WithdrawalFlowTests(unittest.TestCase):
 
         balance = db.execute("SELECT wallet_balance FROM users WHERE id = ?", (1,)).fetchone()[0]
         self.assertEqual(balance, 75)
+
+    def test_wallet_page_renders_without_optional_user_columns(self):
+        with self.client.session_transaction() as session:
+            session['user_id'] = 1
+
+        minimal_user = {
+            'id': 1,
+            'username': 'tester',
+            'is_admin': False,
+            'balance': 100,
+            'wallet_balance': 100,
+            'created_at': '2024-01-01T00:00:00',
+            'paid_until': None,
+            'is_verified': False,
+            'is_vip': False,
+        }
+
+        with patch.object(app_module, 'get_current_user', return_value=minimal_user):
+            response = self.client.get('/wallet')
+
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn('Available Balance', html)
+        self.assertIn('No Transactions Yet', html)
 
 
 if __name__ == '__main__':

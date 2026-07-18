@@ -443,7 +443,7 @@
         <div class="wallet-balance-label">Total Balance</div>
         <h1 class="wallet-balance-amount">{{ current_user.get('balance', current_user.get('wallet_balance', 0)) }} ETB</h1>
         <div class="wallet-tokens-display">
-          <strong id="walletTokensCount">{{ current_user['alta_tokens'] }}</strong> {{ t.alta_tokens }}
+          <strong id="walletTokensCount">{{ current_user.get('alta_tokens', 0) }}</strong> {{ t.alta_tokens }}
         </div>
       </div>
 
@@ -530,7 +530,7 @@
       {% if verified_now %}
         <div class="badge-active">✓ Active</div>
         <h4>✔️ {{ t.get_verified }}</h4>
-        <p>Your account is verified until {{ current_user['verified_until'][:10] }}</p>
+        <p>Your account is verified until {{ (current_user.get('verified_until') or '')[:10] }}</p>
       {% else %}
         <h4>✔️ {{ t.get_verified }}</h4>
         <p>Get verified to unlock exclusive features and build trust with your audience.</p>
@@ -546,7 +546,7 @@
       {% if vip_now %}
         <div class="badge-active">✓ Active</div>
         <h4>👑 {{ t.get_vip }}</h4>
-        <p>Your VIP status is active until {{ current_user['vip_until'][:10] }}</p>
+        <p>Your VIP status is active until {{ (current_user.get('vip_until') or '')[:10] }}</p>
       {% else %}
         <h4>👑 {{ t.get_vip }}</h4>
         <p>Unlock VIP perks, priority support, and exclusive badges.</p>

@@ -396,7 +396,8 @@ html[dir="rtl"] .fab { right: auto; left: 18px; }
 
 /* ---------- Layout ---------- */
 .app-shell {
-  max-width: 1100px;
+  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
 }
 .left-sidebar, .right-sidebar { display: none; }
@@ -416,7 +417,7 @@ html[dir="rtl"] .fab { right: auto; left: 18px; }
   }
   .app-nav { display: none; }
   body { padding-bottom: 24px; }
-  .container { max-width: 100%; padding: 0; }
+  .container { width: 100%; max-width: 1200px; padding: 0; }
   .fab { position: sticky; float: right; margin-top: -70px; }
 }
 
@@ -462,7 +463,8 @@ html[dir="rtl"] .fab { right: auto; left: 18px; }
 .sidebar-channel-item .avatar { width: 34px; height: 34px; font-size: 0.9rem; }
 
 .container {
-  max-width: 700px;
+  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 16px 12px 24px;
 }
