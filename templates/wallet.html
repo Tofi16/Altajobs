@@ -109,45 +109,53 @@
   border-top: 1px solid rgba(255, 255, 255, 0.15);
 }
 
-/* ===== Action Buttons Grid ===== */
-.wallet-actions-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+/* ===== Action Buttons Row ===== */
+.wallet-actions-row {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 32px;
+  overflow-x: auto;
+  padding-bottom: 4px;
 }
 
-@media (max-width: 500px) {
-  .wallet-actions-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
+.wallet-action-block {
+  flex: 1 1 0;
+  min-width: 90px;
 }
 
 .wallet-action-btn-modern {
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 18px 12px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
+  gap: 10px;
+  padding: 16px 10px;
+  background: transparent;
+  border: none;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   color: var(--text);
   text-decoration: none;
-  font-size: 12px;
-  font-weight: 600;
-  gap: 10px;
 }
 
-.wallet-action-btn-modern:hover,
-.wallet-action-btn-modern:active {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.25);
-  transform: translateY(-4px);
-  box-shadow: 0 12px 24px rgba(29, 155, 240, 0.2);
+.wallet-action-circle {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(29, 155, 240, 0.95), rgba(88, 80, 248, 0.95));
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.24);
+  transition: transform 0.24s ease, box-shadow 0.24s ease;
+}
+
+.wallet-action-btn-modern:hover .wallet-action-circle,
+.wallet-action-btn-modern:focus-visible .wallet-action-circle {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.32);
 }
 
 .wallet-action-icon {
@@ -156,19 +164,33 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
-  color: #fff;
+  color: #ffffff;
 }
 
-.wallet-action-icon svg {
-  width: 18px;
-  height: 18px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.wallet-action-caption {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+}
+
+@media (max-width: 740px) {
+  .wallet-actions-row {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 520px) {
+  .wallet-actions-row {
+    gap: 12px;
+  }
+  .wallet-action-circle {
+    width: 60px;
+    height: 60px;
+  }
+  .wallet-action-caption {
+    font-size: 11px;
+  }
 }
 
 /* ===== Transaction History ===== */
@@ -298,59 +320,6 @@
   line-height: 1.5;
 }
 
-/* ===== Premium Cards Section ===== */
-.wallet-features-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.feature-card-modern {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  padding: 20px;
-  backdrop-filter: blur(10px);
-  transition: all 0.3s;
-}
-
-.feature-card-modern:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
-}
-
-.feature-card-modern h4 {
-  font-size: 15px;
-  font-weight: 700;
-  margin: 0 0 12px 0;
-  color: var(--text);
-}
-
-.feature-card-modern p {
-  font-size: 13px;
-  color: var(--muted);
-  margin: 0 0 14px 0;
-  line-height: 1.5;
-}
-
-.feature-card-modern .btn {
-  width: 100%;
-}
-
-.badge-active {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-
 /* ===== Buttons ===== */
 .btn-premium {
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
@@ -461,31 +430,39 @@
   </div>
 
   <!-- Action Buttons -->
-  <div class="wallet-actions-grid">
-    <button class="wallet-action-btn-modern" type="button" onclick="openModal('depositModal')">
-      <div class="wallet-action-icon">
-        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-      </div>
-      <span>Deposit</span>
-    </button>
-    <button class="wallet-action-btn-modern" type="button" onclick="openModal('withdrawModal')">
-      <div class="wallet-action-icon">
-        <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12h14"/></svg>
-      </div>
-      <span>Withdraw</span>
-    </button>
-    <button class="wallet-action-btn-modern" type="button" onclick="openModal('transferModal')">
-      <div class="wallet-action-icon">
-        <svg viewBox="0 0 24 24"><path d="M1 8l6-6 6 6M7 2v20M23 16l-6 6-6-6M17 22V2"/></svg>
-      </div>
-      <span>Send</span>
-    </button>
-    <button class="wallet-action-btn-modern" onclick='location.href="{{ url_for("challenges") }}"'>
-      <div class="wallet-action-icon">
-        <svg viewBox="0 0 24 24"><path d="M7 8a3 3 0 100-6 3 3 0 000 6zM17 8a3 3 0 100-6 3 3 0 000 6zM12 16a5 5 0 1010 0 5 5 0 0 0-10 0z"/></svg>
-      </div>
-      <span>Challenge</span>
-    </button>
+  <div class="wallet-actions-row">
+    <div class="wallet-action-block">
+      <button class="wallet-action-btn-modern" type="button" onclick="openModal('depositModal')">
+        <div class="wallet-action-circle">
+          <div class="wallet-action-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+        </div>
+        <span class="wallet-action-caption">Deposit</span>
+      </button>
+    </div>
+    <div class="wallet-action-block">
+      <button class="wallet-action-btn-modern" type="button" onclick="openModal('withdrawModal')">
+        <div class="wallet-action-circle">
+          <div class="wallet-action-icon"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12h14"/></svg></div>
+        </div>
+        <span class="wallet-action-caption">Withdraw</span>
+      </button>
+    </div>
+    <div class="wallet-action-block">
+      <button class="wallet-action-btn-modern" type="button" onclick="openModal('transferModal')">
+        <div class="wallet-action-circle">
+          <div class="wallet-action-icon"><svg viewBox="0 0 24 24"><path d="M16 4l4 4-4 4M8 20l-4-4 4-4M20 8H4v8"/></svg></div>
+        </div>
+        <span class="wallet-action-caption">Send</span>
+      </button>
+    </div>
+    <div class="wallet-action-block">
+      <button class="wallet-action-btn-modern" type="button" onclick='location.href="{{ url_for("challenges") }}"'>
+        <div class="wallet-action-circle">
+          <div class="wallet-action-icon"><svg viewBox="0 0 24 24"><path d="M12 2l2.5 5.5L20 8l-4 3.8L16.5 17 12 14.5 7.5 17 8 11.8 4 8l5.5-.5L12 2z"/></svg></div>
+        </div>
+        <span class="wallet-action-caption">Challenge</span>
+      </button>
+    </div>
   </div>
 
   <!-- Recent Transactions -->
@@ -524,53 +501,6 @@
 
 
   <!-- Premium Features -->
-  <div class="wallet-features-grid">
-    <!-- Verification Card -->
-    <div class="feature-card-modern">
-      {% if verified_now %}
-        <div class="badge-active">✓ Active</div>
-        <h4>✔️ {{ t.get_verified }}</h4>
-        <p>Your account is verified until {{ (current_user.get('verified_until') or '')[:10] }}</p>
-      {% else %}
-        <h4>✔️ {{ t.get_verified }}</h4>
-        <p>Get verified to unlock exclusive features and build trust with your audience.</p>
-        <p style="font-size: 12px; color: var(--accent); font-weight: 600; margin: 0;">{{ verification_price }} ETB/month</p>
-        <form method="POST" action="{{ url_for('buy_verification') }}" style="margin-top: 14px;">
-          <button type="submit" class="btn-premium" style="width: 100%;">Get Verified</button>
-        </form>
-      {% endif %}
-    </div>
-
-    <!-- VIP Card -->
-    <div class="feature-card-modern">
-      {% if vip_now %}
-        <div class="badge-active">✓ Active</div>
-        <h4>👑 {{ t.get_vip }}</h4>
-        <p>Your VIP status is active until {{ (current_user.get('vip_until') or '')[:10] }}</p>
-      {% else %}
-        <h4>👑 {{ t.get_vip }}</h4>
-        <p>Unlock VIP perks, priority support, and exclusive badges.</p>
-        <p style="font-size: 12px; color: var(--accent); font-weight: 600; margin: 0;">{{ vip_price }} ETB/month</p>
-        <form method="POST" action="{{ url_for('buy_vip') }}" style="margin-top: 14px;">
-          <button type="submit" class="btn-premium" style="width: 100%;">Upgrade to VIP</button>
-        </form>
-      {% endif %}
-    </div>
-
-    <!-- Challenge Card -->
-    <div class="feature-card-modern">
-      <h4>🏅 Monthly Challenge</h4>
-      {% if challenge_status %}
-        <p>Tier: <strong>{{ challenge_status['tier_amount'] }} ETB</strong></p>
-        <p>Prize Pool: <strong>{{ challenge_status['prize_pool'] }} ETB</strong></p>
-        <p style="font-size: 12px; color: var(--muted); margin: 8px 0 0;">Status: {{ challenge_status['status'] }}</p>
-      {% else %}
-        <p>Join this month's challenge and compete for the prize pool!</p>
-        <a href="{{ url_for('challenges') }}" class="btn-outline-modern" style="display: inline-block; width: 100%; text-align: center; margin-top: 14px;">Join Challenge</a>
-      {% endif %}
-    </div>
-  </div>
-
   <!-- Info Banner -->
   <div class="info-card-modern">
     <h4>💬 Need Help?</h4>

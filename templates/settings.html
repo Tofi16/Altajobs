@@ -1,6 +1,73 @@
 {% extends "base.html" %}
 {% block content %}
 
+<style>
+.upgrade-list {
+  display: grid;
+  gap: 12px;
+  padding: 0 16px 16px;
+}
+.upgrade-row,
+.upgrade-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  text-decoration: none;
+  color: var(--text);
+}
+.upgrade-row {
+  width: 100%;
+}
+.upgrade-row:hover,
+.upgrade-link:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.upgrade-icon {
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(29,155,240,0.14), rgba(88,80,248,0.18));
+  color: var(--accent);
+  font-size: 1.2rem;
+}
+.upgrade-copy {
+  flex: 1;
+  min-width: 0;
+}
+.upgrade-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.upgrade-desc {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+.upgrade-action {
+  white-space: nowrap;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+.upgrade-action:hover,
+.upgrade-action:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 18px rgba(29,155,240,0.18);
+}
+</style>
+
 <h2 style="margin-bottom:14px"><i class='bx bxs-cog'></i> {{ t.tab_settings }}</h2>
 
 <div class="card" style="padding:0">
@@ -19,14 +86,37 @@
   </a>
 </div>
 
-<a href="{{ url_for('wallet') }}" class="card" style="display:block;text-decoration:none;padding:0;overflow:hidden">
-  <div style="background:linear-gradient(135deg, var(--accent), var(--accent-dark));padding:16px;color:#ffffff">
-    <div style="font-weight:800;font-size:1.05rem">✨ {{ t.upgrade_to_premium }}</div>
-    {% if not current_user['paid_until'] %}
-      <div style="font-size:0.85rem;margin-top:4px;opacity:0.85">🎁 {{ t.days_left }}: {{ trial_days_left }}</div>
-    {% endif %}
+<div class="card" style="padding:0;">
+  <div class="settings-section-title">Premium Upgrades</div>
+  <div class="upgrade-list">
+    <form method="POST" action="{{ url_for('buy_verification') }}" class="upgrade-row">
+      <div class="upgrade-icon"><i class='bx bx-check-shield'></i></div>
+      <div class="upgrade-copy">
+        <div class="upgrade-title">{{ t.get_verified }}</div>
+        <div class="upgrade-desc">Get a verified badge for trust and visibility.</div>
+      </div>
+      <button type="submit" class="upgrade-action">Upgrade</button>
+    </form>
+
+    <form method="POST" action="{{ url_for('buy_vip') }}" class="upgrade-row">
+      <div class="upgrade-icon"><i class='bx bx-crown'></i></div>
+      <div class="upgrade-copy">
+        <div class="upgrade-title">{{ t.get_vip }}</div>
+        <div class="upgrade-desc">Unlock VIP benefits, premium support, and exclusive features.</div>
+      </div>
+      <button type="submit" class="upgrade-action">Become VIP</button>
+    </form>
+
+    <a href="{{ url_for('challenges') }}" class="upgrade-row upgrade-link">
+      <div class="upgrade-icon"><i class='bx bx-trophy'></i></div>
+      <div class="upgrade-copy">
+        <div class="upgrade-title">{{ t.monthly_challenge_title }}</div>
+        <div class="upgrade-desc">Join the challenge to compete for rewards and boost your rank.</div>
+      </div>
+      <span class="upgrade-action">Join</span>
+    </a>
   </div>
-</a>
+</div>
 
 <div class="card" style="padding:0">
   <div class="settings-section-title">{{ t.tab_settings }}</div>
