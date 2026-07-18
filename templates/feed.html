@@ -156,7 +156,7 @@
     {% endif %}
     {% if post_photo %}
       <div class="post-media" data-post-id="{{ post_id }}">
-        <img class="post-photo" src="{{ photo_url(post_photo) }}" alt="Product preview">
+        <img class="post-photo" src="{{ photo_url(post_photo) }}" alt="Product preview" loading="lazy" decoding="async">
         <div class="double-tap-heart" aria-hidden="true"><i class='bx bxs-heart'></i></div>
       </div>
     {% endif %}

@@ -203,10 +203,20 @@ document.addEventListener("DOMContentLoaded", function () {
     if (bellPopover) bellPopover.classList.remove("open");
   };
 
-  const lockState = { modal: 0, drawer: 0 };
+  const lockState = { modal: false, drawer: false };
 
   const syncScrollLock = function () {
-    const locked = lockState.modal > 0 || lockState.drawer > 0;
+    const locked = lockState.modal || lockState.drawer;
+    if (locked) {
+      const scrollY = window.scrollY || window.pageYOffset || 0;
+      document.body.dataset.scrollY = scrollY;
+      document.body.style.top = `-${scrollY}px`;
+    } else {
+      const storedY = parseInt(document.body.dataset.scrollY || "0", 10);
+      document.body.style.top = "";
+      window.scrollTo(0, storedY);
+      delete document.body.dataset.scrollY;
+    }
     document.body.classList.toggle("no-scroll", locked);
     document.documentElement.classList.toggle("no-scroll", locked);
   };
@@ -218,7 +228,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     if (sidebarOverlay) sidebarOverlay.classList.remove("open");
     document.body.classList.remove("drawer-open");
-    lockState.drawer = 0;
+    lockState.drawer = false;
     syncScrollLock();
   };
 
@@ -288,7 +298,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const modal = document.getElementById(id);
     if (backdrop) backdrop.classList.add('open');
     if (modal) modal.classList.add('open');
-    lockState.modal += 1;
+    lockState.modal = true;
     syncScrollLock();
   }
   window.closeModal = function (id) {
@@ -296,7 +306,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const modal = document.getElementById(id);
     if (backdrop) backdrop.classList.remove('open');
     if (modal) modal.classList.remove('open');
-    lockState.modal = Math.max(0, lockState.modal - 1);
+    lockState.modal = false;
     syncScrollLock();
   }
   window.closeAllModals = function () {
@@ -305,9 +315,14 @@ document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll('.modal.open').forEach(function (modal) {
       modal.classList.remove('open');
     });
-    lockState.modal = 0;
+    lockState.modal = false;
     syncScrollLock();
   }
+
+  // Ensure any stale scroll-lock state is cleared when the page loads.
+  lockState.modal = false;
+  lockState.drawer = false;
+  syncScrollLock();
 
   // Wallet: animate balance count on wallet page
   try {
