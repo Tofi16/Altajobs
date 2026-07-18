@@ -3862,53 +3862,53 @@ def api_wallet_balance():
 @login_required
 def wallet_transfer():
     amount = float(request.form.get("amount", 0) or 0)
-    recipient_identifier = (request.form.get("recipient_identifier") or "").strip()
-    if amount <= 0 or not recipient_identifier:
-        flash("Please enter a valid amount and recipient")
+    recipient_wallet_id = (request.form.get("recipient_wallet_id") or request.form.get("recipient_identifier") or "").strip()
+    if amount <= 0 or not recipient_wallet_id:
+        flash("Please enter a valid token amount and recipient wallet number")
         return redirect(url_for("wallet"))
 
     db = get_db()
     sender = get_current_user()
     sender_id = _get_row_value(sender, "id", session.get("user_id"))
-    sender_balance = float(_get_row_value(sender, "balance", _get_row_value(sender, "wallet_balance", 0)) or 0)
+    sender_tokens = float(_get_row_value(sender, "alta_tokens", 0) or 0)
 
     recipient = db.execute(
-        "SELECT * FROM users WHERE lower(username) = lower(?) OR lower(email) = lower(?) OR lower(phone) = lower(?) OR wallet_id = ?",
-        (recipient_identifier, recipient_identifier, recipient_identifier, recipient_identifier),
+        "SELECT * FROM users WHERE wallet_id = ? OR lower(username) = lower(?) OR lower(email) = lower(?) OR lower(phone) = lower(?)",
+        (recipient_wallet_id, recipient_wallet_id, recipient_wallet_id, recipient_wallet_id),
     ).fetchone()
     if not recipient or _get_row_value(recipient, "id") == sender_id:
-        flash("Recipient could not be found")
+        flash("Recipient wallet number could not be found")
         return redirect(url_for("wallet"))
 
     recipient_id = _get_row_value(recipient, "id")
-    recipient_wallet_id = _get_row_value(recipient, "wallet_id")
-    sender_wallet_id = _get_row_value(sender, "wallet_id")
+    recipient_wallet_number = _get_row_value(recipient, "wallet_id")
+    sender_wallet_number = _get_row_value(sender, "wallet_id")
 
     if getattr(db, "is_sqlite", False):
         db.execute("BEGIN IMMEDIATE")
     try:
-        if sender_balance < amount:
+        if sender_tokens < amount:
             db.rollback()
-            flash("insufficient_balance")
+            flash("insufficient_tokens")
             return redirect(url_for("wallet"))
 
         db.execute(
-            "UPDATE users SET balance = balance - ?, wallet_balance = wallet_balance - ? WHERE id = ?",
-            (amount, amount, sender_id),
+            "UPDATE users SET alta_tokens = alta_tokens - ? WHERE id = ?",
+            (amount, sender_id),
         )
         db.execute(
-            "UPDATE users SET balance = balance + ?, wallet_balance = wallet_balance + ? WHERE id = ?",
-            (amount, amount, recipient_id),
+            "UPDATE users SET alta_tokens = alta_tokens + ? WHERE id = ?",
+            (amount, recipient_id),
         )
 
         wallet_columns = _get_table_columns(db, "wallet_transactions")
-        send_note = f"Sent to {_get_row_value(recipient, 'username', recipient_identifier)}"
-        receive_note = f"Received from {_get_row_value(sender, 'username', 'user')}"
+        send_note = f"Sent tokens to {recipient_wallet_number or recipient_wallet_id}"
+        receive_note = f"Received tokens from {sender_wallet_number or 'sender'}"
         tx_columns = ["user_id", "tx_type", "amount", "note", "status", "created_at"]
         tx_values = [sender_id, "transfer", amount, send_note, "approved", datetime.datetime.utcnow().isoformat()]
         if "recipient_wallet_id" in wallet_columns:
             tx_columns.append("recipient_wallet_id")
-            tx_values.append(recipient_wallet_id)
+            tx_values.append(recipient_wallet_number)
         if "recipient_id" in wallet_columns:
             tx_columns.append("recipient_id")
             tx_values.append(recipient_id)
@@ -3923,7 +3923,7 @@ def wallet_transfer():
         receive_values = [recipient_id, "transfer", amount, receive_note, "approved", datetime.datetime.utcnow().isoformat()]
         if "recipient_wallet_id" in wallet_columns:
             receive_columns.append("recipient_wallet_id")
-            receive_values.append(sender_wallet_id)
+            receive_values.append(sender_wallet_number)
         if "recipient_id" in wallet_columns:
             receive_columns.append("recipient_id")
             receive_values.append(sender_id)
@@ -4093,13 +4093,7 @@ def _submit_withdrawal_request(user_id, amount, bank_name, account_number, accou
 @login_required
 def withdraw_request():
     amount = request.form.get("amount", 0)
-    bank_selection = (
-        request.form.get("bankSelection")
-        or request.form.get("bankName")
-        or request.form.get("bank_name")
-        or request.form.get("destination")
-        or ""
-    )
+    bank_selection = request.form.get("bankSelection") or ""
     manual_bank_name = (
         request.form.get("bankNameManual")
         or request.form.get("bank_name_manual")
@@ -4116,7 +4110,34 @@ def withdraw_request():
         or ""
     )
 
-    bank_name = manual_bank_name if str(bank_selection).strip().lower() in {"other", "manual", "manual entry"} else str(bank_selection).strip()
+    bank_name = ""
+    bank_id = None
+    bank_selection_value = str(bank_selection).strip()
+    if bank_selection_value and bank_selection_value.lower() not in {"other", "manual", "manual entry"}:
+        try:
+            bank_id = int(bank_selection_value)
+        except (TypeError, ValueError):
+            bank_id = None
+            bank_name = bank_selection_value
+
+    if bank_id is not None:
+        db = get_db()
+        bank = db.execute(
+            "SELECT * FROM bank_accounts WHERE id = ? AND is_active = true",
+            (bank_id,),
+        ).fetchone()
+        if bank:
+            bank_name = _get_row_value(bank, "bank_name") or ""
+        else:
+            flash("Please select an active bank or enter a bank destination.")
+            return redirect(url_for("wallet"))
+
+    if not bank_name:
+        bank_name = manual_bank_name.strip()
+
+    if not bank_name:
+        flash("Please select an active bank or enter a bank destination.")
+        return redirect(url_for("wallet"))
 
     try:
         success, error = _submit_withdrawal_request(
@@ -4125,6 +4146,10 @@ def withdraw_request():
         if not success:
             if error == "pending_withdrawal_exists":
                 flash("You already have a pending withdrawal request. Please wait for admin approval before submitting another.")
+            elif error == "insufficient_balance":
+                flash("You do not have enough wallet balance to cover this withdrawal.")
+            elif error == "amount_too_small":
+                flash("Withdrawal amount must be at least 10 ETB.")
             else:
                 flash(error or "invalid_withdrawal_request")
         else:

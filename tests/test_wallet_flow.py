@@ -69,33 +69,31 @@ class WalletFlowTests(unittest.TestCase):
         self.assertTrue(row and row['wallet_id'])
         self.assertTrue(row['wallet_id'].startswith('WAL'))
 
-    def test_send_funds_works_with_sqlite_row_recipient(self):
+    def test_send_tokens_by_wallet_number_updates_alta_tokens(self):
         with self.client.session_transaction() as session:
             session['user_id'] = 1
 
         self.db.execute("DELETE FROM users WHERE id IN (?, ?)", (1, 2))
         self.db.execute(
-            "INSERT INTO users (id, username, email, password_hash, full_name, user_type, created_at, wallet_balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (1, 'sender', 'sender@example.com', 'hash', 'Sender', 'worker', '2024-01-01T00:00:00', 100),
+            "INSERT INTO users (id, username, email, password_hash, full_name, user_type, created_at, wallet_balance, alta_tokens, wallet_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (1, 'sender', 'sender@example.com', 'hash', 'Sender', 'worker', '2024-01-01T00:00:00', 100, 100, 'WAL000000001'),
         )
         self.db.execute(
-            "INSERT INTO users (id, username, email, password_hash, full_name, user_type, created_at, wallet_balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (2, 'recipient', 'recipient@example.com', 'hash', 'Recipient', 'worker', '2024-01-01T00:00:00', 0),
+            "INSERT INTO users (id, username, email, password_hash, full_name, user_type, created_at, wallet_balance, alta_tokens, wallet_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (2, 'recipient', 'recipient@example.com', 'hash', 'Recipient', 'worker', '2024-01-01T00:00:00', 0, 0, 'WAL000000002'),
         )
         self.db.commit()
 
         response = self.client.post('/wallet/transfer', data={
             'amount': '20',
-            'recipient_identifier': 'recipient',
+            'recipient_wallet_id': 'WAL000000002',
         }, follow_redirects=True)
 
         self.assertEqual(response.status_code, 200)
-        sender_row = self.db.execute("SELECT balance, wallet_balance FROM users WHERE id = ?", (1,)).fetchone()
-        recipient_row = self.db.execute("SELECT balance, wallet_balance FROM users WHERE id = ?", (2,)).fetchone()
-        self.assertEqual(sender_row['balance'], 80)
-        self.assertEqual(sender_row['wallet_balance'], 80)
-        self.assertEqual(recipient_row['balance'], 20)
-        self.assertEqual(recipient_row['wallet_balance'], 20)
+        sender_row = self.db.execute("SELECT alta_tokens FROM users WHERE id = ?", (1,)).fetchone()
+        recipient_row = self.db.execute("SELECT alta_tokens FROM users WHERE id = ?", (2,)).fetchone()
+        self.assertEqual(sender_row['alta_tokens'], 80)
+        self.assertEqual(recipient_row['alta_tokens'], 20)
 
     def test_wallet_page_returns_safe_response_if_db_errors(self):
         with self.client.session_transaction() as session:

@@ -343,6 +343,70 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   } catch (e) {}
 
+  const depositBankSelect = document.getElementById('depositBankSelect');
+  const depositBankDetails = document.getElementById('depositBankDetails');
+  const depositBankName = document.getElementById('depositBankName');
+  const depositAccountName = document.getElementById('depositAccountName');
+  const depositAccountNumber = document.getElementById('depositAccountNumber');
+
+  const withdrawBankSelect = document.getElementById('withdrawBankSelection');
+  const withdrawBankDetails = document.getElementById('withdrawBankDetails');
+  const withdrawBankName = document.getElementById('withdrawBankName');
+  const withdrawAccountName = document.getElementById('withdrawAccountName');
+  const withdrawAccountNumber = document.getElementById('withdrawAccountNumber');
+  const withdrawBankManualWrap = document.getElementById('withdrawBankManualWrap');
+  const withdrawBankManual = document.getElementById('withdrawBankManual');
+
+  const updateDepositBankDetails = function () {
+    if (!depositBankSelect || !depositBankDetails) return;
+    const option = depositBankSelect.selectedOptions[0];
+    const bankName = option ? option.dataset.bankName || '' : '';
+    const accountName = option ? option.dataset.accountName || '' : '';
+    const accountNumber = option ? option.dataset.accountNumber || '' : '';
+
+    if (bankName && accountName && accountNumber) {
+      depositBankName.textContent = bankName;
+      depositAccountName.textContent = accountName;
+      depositAccountNumber.textContent = accountNumber;
+      depositBankDetails.style.display = 'block';
+    } else {
+      depositBankDetails.style.display = 'none';
+    }
+  };
+
+  const updateWithdrawBankDetails = function () {
+    if (!withdrawBankSelect || !withdrawBankDetails || !withdrawBankManualWrap || !withdrawBankManual) return;
+    const option = withdrawBankSelect.selectedOptions[0];
+    const bankName = option ? option.dataset.bankName || '' : '';
+    const accountName = option ? option.dataset.accountName || '' : '';
+    const accountNumber = option ? option.dataset.accountNumber || '' : '';
+    const selectedValue = (withdrawBankSelect.value || '').toString().trim().toLowerCase();
+    const showManual = selectedValue === 'other';
+
+    withdrawBankManualWrap.style.display = showManual ? 'block' : 'none';
+    if (!showManual) {
+      withdrawBankManual.value = '';
+    }
+
+    if (bankName && accountNumber) {
+      withdrawBankName.textContent = bankName;
+      withdrawAccountName.textContent = accountName || '—';
+      withdrawAccountNumber.textContent = accountNumber;
+      withdrawBankDetails.style.display = 'block';
+    } else {
+      withdrawBankDetails.style.display = 'none';
+    }
+  };
+
+  if (depositBankSelect) {
+    depositBankSelect.addEventListener('change', updateDepositBankDetails);
+    updateDepositBankDetails();
+  }
+  if (withdrawBankSelect) {
+    withdrawBankSelect.addEventListener('change', updateWithdrawBankDetails);
+    updateWithdrawBankDetails();
+  }
+
   // Ensure any stale scroll-lock state is cleared when the page loads.
   lockState.modal = false;
   lockState.drawer = false;
