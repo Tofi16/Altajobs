@@ -37,9 +37,109 @@
       <input type="text" name="social_discord_url" value="{{ social_discord_url }}" placeholder="https://discord.gg/yourserver">
     </fieldset>
 
+    <div class="card" style="margin-top:20px;">
+      <h3 style="margin-bottom:10px;">Deposit Bank Accounts</h3>
+      <p class="post-meta" style="margin:0 0 12px;">Manage active bank accounts that users can select when making deposits.</p>
+      {% if banks and banks|length > 0 %}
+      <div style="display:grid;gap:10px;">
+        {% for bank in banks %}
+        <div style="border:1px solid rgba(79,143,255,0.18);padding:12px;border-radius:14px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+          <div>
+            <strong>{{ bank['bank_name'] }}</strong>
+            <p style="margin:4px 0 0;">Account: {{ bank['account_holder_name'] if bank['account_holder_name'] else bank['account_name'] }}</p>
+            <p style="margin:4px 0 0;">Number: {{ bank['account_number'] }}</p>
+            <p style="margin:4px 0 0;font-size:12px;color:var(--muted);">Status: {% if bank['is_active'] %}Active{% else %}Inactive{% endif %}</p>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <form method="POST" action="{{ url_for('admin_settings') }}" style="margin:0;">
+              <input type="hidden" name="action" value="toggle_bank">
+              <input type="hidden" name="bank_id" value="{{ bank['id'] }}">
+              <input type="hidden" name="is_active" value="{{ 0 if bank['is_active'] else 1 }}">
+              <button type="submit" class="btn btn-small" style="background:{{ 'var(--accent)' if not bank['is_active'] else 'transparent' }};color:{{ 'white' if not bank['is_active'] else 'var(--accent)' }};border:1px solid var(--accent);">{{ 'Activate' if not bank['is_active'] else 'Deactivate' }}</button>
+            </form>
+            <form method="POST" action="{{ url_for('admin_settings') }}" style="margin:0;">
+              <input type="hidden" name="action" value="delete_bank">
+              <input type="hidden" name="bank_id" value="{{ bank['id'] }}">
+              <button type="submit" class="btn btn-small btn-outline">Delete</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="margin:0 0 12px;">No deposit bank accounts configured yet.</p>
+      {% endif %}
+
+      <div style="margin-top:18px;border-top:1px solid rgba(79,143,255,0.12);padding-top:18px;">
+        <h4 style="margin:0 0 10px;">Add Bank Account</h4>
+        <label>Bank Name</label>
+        <input type="text" name="bank_name" placeholder="e.g. Awash Bank" style="width:100%;margin-bottom:10px;">
+        <label>Account Number</label>
+        <input type="text" name="account_number" placeholder="e.g. 013XXXXXXXXXX" style="width:100%;margin-bottom:10px;">
+        <label>Account Holder Name</label>
+        <input type="text" name="account_holder_name" placeholder="e.g. AltaJobs" style="width:100%;margin-bottom:10px;">
+        <label style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+          <input type="checkbox" name="is_active" value="1" checked>
+          <span>Mark as active</span>
+        </label>
+        <input type="hidden" name="action" value="create_bank">
+        <button type="submit" class="btn" style="background:var(--accent);color:white;width:100%;">Add Bank Account</button>
+      </div>
+    </div>
+
     <div>
       <button type="submit" class="btn" style="background:var(--accent);color:white">Save Settings</button>
     </div>
+  </form>
+</div>
+
+<div class="card" style="margin-top:20px;">
+  <h3 style="margin-bottom:10px;">Deposit Bank Accounts</h3>
+  <p class="post-meta" style="margin:0 0 12px;">Manage active bank accounts that users can select when making deposits.</p>
+  {% if banks and banks|length > 0 %}
+  <div style="display:grid;gap:10px;">
+    {% for bank in banks %}
+    <div style="border:1px solid rgba(79,143,255,0.18);padding:12px;border-radius:14px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+      <div>
+        <strong>{{ bank['bank_name'] }}</strong>
+        <p style="margin:4px 0 0;">Account: {{ bank['account_holder_name'] if bank['account_holder_name'] else bank['account_name'] }}</p>
+        <p style="margin:4px 0 0;">Number: {{ bank['account_number'] }}</p>
+        <p style="margin:4px 0 0;font-size:12px;color:var(--muted);">Status: {% if bank['is_active'] %}Active{% else %}Inactive{% endif %}</p>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <form method="POST" action="{{ url_for('admin_settings') }}" style="margin:0;">
+          <input type="hidden" name="action" value="toggle_bank">
+          <input type="hidden" name="bank_id" value="{{ bank['id'] }}">
+          <input type="hidden" name="is_active" value="{{ 0 if bank['is_active'] else 1 }}">
+          <button type="submit" class="btn btn-small" style="background:{{ 'var(--accent)' if not bank['is_active'] else 'transparent' }};color:{{ 'white' if not bank['is_active'] else 'var(--accent)' }};border:1px solid var(--accent);">{{ 'Activate' if not bank['is_active'] else 'Deactivate' }}</button>
+        </form>
+        <form method="POST" action="{{ url_for('admin_settings') }}" style="margin:0;">
+          <input type="hidden" name="action" value="delete_bank">
+          <input type="hidden" name="bank_id" value="{{ bank['id'] }}">
+          <button type="submit" class="btn btn-small btn-outline">Delete</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="margin:0 0 12px;">No deposit bank accounts configured yet.</p>
+  {% endif %}
+
+  <form method="POST" action="{{ url_for('admin_settings') }}" style="margin-top:18px;border-top:1px solid rgba(79,143,255,0.12);padding-top:18px;display:flex;flex-direction:column;gap:10px;">
+    <h4 style="margin:0 0 10px;">Add Bank Account</h4>
+    <label>Bank Name</label>
+    <input type="text" name="bank_name" placeholder="e.g. Awash Bank" style="width:100%;margin-bottom:10px;">
+    <label>Account Number</label>
+    <input type="text" name="account_number" placeholder="e.g. 013XXXXXXXXXX" style="width:100%;margin-bottom:10px;">
+    <label>Account Holder Name</label>
+    <input type="text" name="account_holder_name" placeholder="e.g. AltaJobs" style="width:100%;margin-bottom:10px;">
+    <label style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+      <input type="checkbox" name="is_active" value="1" checked>
+      <span>Mark as active</span>
+    </label>
+    <input type="hidden" name="action" value="create_bank">
+    <button type="submit" class="btn" style="background:var(--accent);color:white;width:100%;">Add Bank Account</button>
   </form>
 </div>
 

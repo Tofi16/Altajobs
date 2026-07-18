@@ -34,9 +34,10 @@ SQL_STATEMENTS = [
     "-- Add post engagement tracking columns",
     "ALTER TABLE posts ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0;",
     "ALTER TABLE posts ADD COLUMN IF NOT EXISTS virality_score REAL DEFAULT 0.0;",
+    "ALTER TABLE posts ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'approved';",
     "-- Initialize any NULLs for safety",
     "UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0), alta_tokens = COALESCE(alta_tokens, 0);",
-    "UPDATE posts SET view_count = COALESCE(view_count, 0), virality_score = COALESCE(virality_score, 0.0);",
+    "UPDATE posts SET view_count = COALESCE(view_count, 0), virality_score = COALESCE(virality_score, 0.0), status = COALESCE(status, 'approved');",
 ]
 
 

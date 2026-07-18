@@ -591,14 +591,42 @@
 <div id="depositModal" class="modal" role="dialog" aria-hidden="true">
   <h3>💰 Deposit Funds</h3>
   <p class="post-meta" style="margin-bottom: 18px;">Deposits are processed through secure external payment providers.</p>
-  <div class="form-group">
-    <label>Amount (ETB)</label>
-    <input type="number" id="depositAmount" min="1" step="1" placeholder="Enter amount">
-  </div>
-  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
-    <button type="button" class="btn btn-outline" onclick="closeModal('depositModal')">Cancel</button>
-    <button type="button" class="btn-premium" onclick="(function(){alert('Deposit process initiated');closeModal('depositModal');})()" style="background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); color: #fff; border: none;">Proceed</button>
-  </div>
+  <form id="depositModalForm" method="POST" action="{{ url_for('deposit') }}" enctype="multipart/form-data">
+    <div class="form-group">
+      <label>Amount (ETB)</label>
+      <input type="number" name="amount" min="1" step="1" placeholder="Enter amount" required>
+    </div>
+    <div class="form-group">
+      <label>Bank</label>
+      {% if banks and banks|length > 0 %}
+      <select name="bank_id" required>
+        <option value="">Select bank</option>
+        {% for bank in banks %}
+        <option value="{{ bank['id'] }}">{{ bank['bank_name'] }} — {{ bank['account_holder_name'] if bank['account_holder_name'] else bank['account_name'] }} / {{ bank['account_number'] }}</option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <p style="margin:0.5rem 0 0;color:var(--muted);">No active bank accounts are configured. Please contact support.</p>
+      {% endif %}
+    </div>
+    {% if not banks or banks|length == 0 %}
+    <div style="margin-top:18px;">
+      <button type="button" class="btn btn-outline" disabled>No bank available for deposit</button>
+    </div>
+    {% endif %}
+    <div class="form-group">
+      <label>Transaction Ref</label>
+      <input type="text" name="transaction_ref" placeholder="Reference or receipt code" required>
+    </div>
+    <div class="form-group">
+      <label>Receipt Photo (optional)</label>
+      <input type="file" name="receipt_photo" accept="image/*">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
+      <button type="button" class="btn btn-outline" onclick="closeModal('depositModal')">Cancel</button>
+      <button type="submit" class="btn-premium" style="background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); color: #fff; border: none;" {% if not banks or banks|length == 0 %}disabled{% endif %}>Submit Deposit</button>
+    </div>
+  </form>
 </div>
 
 <!-- Withdraw Modal -->
@@ -650,7 +678,22 @@
 <script>
   // Modal backdrop interaction
   document.getElementById('modalBackdrop').addEventListener('click', function() {
-    closeAllModals();
+    if (typeof closeAllModals === 'function') {
+      closeAllModals();
+    }
+  });
+
+  // Auto-open modal when redirected from /deposit or /send
+  document.addEventListener('DOMContentLoaded', function () {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    if (action === 'deposit') {
+      openModal('depositModal');
+    } else if (action === 'withdraw') {
+      openModal('withdrawModal');
+    } else if (action === 'transfer') {
+      openModal('transferModal');
+    }
   });
 
   // Copy functionality

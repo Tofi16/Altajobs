@@ -193,6 +193,7 @@ def get_db():
             "ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS account_name TEXT DEFAULT NULL",
             "ALTER TABLE posts ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0",
             "ALTER TABLE posts ADD COLUMN IF NOT EXISTS virality_score REAL DEFAULT 0.0",
+            "ALTER TABLE posts ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'approved'",
         ]
         for s in stmts:
             try:
@@ -253,6 +254,14 @@ def init_postgres_db():
             wallet_id TEXT UNIQUE DEFAULT NULL,
             referral_code TEXT DEFAULT NULL,
             is_admin BOOLEAN DEFAULT FALSE,
+            is_verified BOOLEAN DEFAULT FALSE,
+            verified_until TEXT DEFAULT NULL,
+            is_vip BOOLEAN DEFAULT FALSE,
+            vip_until TEXT DEFAULT NULL,
+            is_banned BOOLEAN DEFAULT FALSE,
+            banned_until TEXT DEFAULT NULL,
+            ban_reason TEXT DEFAULT NULL,
+            is_suspended BOOLEAN DEFAULT FALSE,
             created_at TEXT NOT NULL,
             plan TEXT DEFAULT NULL,
             paid_until TEXT DEFAULT NULL,
@@ -270,6 +279,7 @@ def init_postgres_db():
             photo TEXT,
             post_type TEXT DEFAULT 'general',
             share_count INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'approved',
             created_at TEXT NOT NULL,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         );
@@ -533,7 +543,7 @@ def init_postgres_db():
             bank_name TEXT NOT NULL,
             account_number TEXT NOT NULL,
             account_holder_name TEXT NOT NULL,
-            is_active INTEGER DEFAULT 1,
+            is_active BOOLEAN DEFAULT TRUE,
             created_at TEXT NOT NULL
         );
 
@@ -697,9 +707,9 @@ def migrate_db():
             )
         else:
             if "role" in user_cols:
-                db.execute("UPDATE users SET role = ?, is_admin = 1 WHERE username = ?", ("admin", "Tofik"))
+                db.execute("UPDATE users SET role = ?, is_admin = true WHERE username = ?", ("admin", "Tofik"))
             else:
-                db.execute("UPDATE users SET is_admin = 1 WHERE username = ?", ("Tofik",))
+                db.execute("UPDATE users SET is_admin = true WHERE username = ?", ("Tofik",))
         db.commit()
     except Exception as exc:
         print(f"Warning: could not seed admin user: {exc}")
@@ -773,6 +783,7 @@ def migrate_db():
     post_cols = {row[1] for row in db.execute("PRAGMA table_info(posts)")}
     post_new_columns = {
         "view_count": "INTEGER DEFAULT 0",
+        "status": "TEXT DEFAULT 'approved'",
     }
     for col, coltype in post_new_columns.items():
         if col not in post_cols:
@@ -951,10 +962,37 @@ def ensure_postgres_admin_user():
 
     try:
         db = get_db()
-        db.execute("UPDATE users SET is_admin = 1 WHERE username = ?", ("Tofik",))
+        db.execute("UPDATE users SET is_admin = true WHERE username = ?", ("Tofik",))
         db.commit()
     except Exception as exc:
         print(f"Warning: could not set Tofik as admin in PostgreSQL: {exc}")
+
+
+def ensure_postgres_boolean_columns():
+    if is_sqlite_database():
+        return
+
+    try:
+        db = get_db()
+        boolean_columns = [
+            ("users", "is_admin", "FALSE"),
+            ("users", "is_verified", "FALSE"),
+            ("users", "is_vip", "FALSE"),
+            ("users", "is_banned", "FALSE"),
+            ("users", "is_suspended", "FALSE"),
+            ("bank_accounts", "is_active", "FALSE"),
+        ]
+        for table, column, default in boolean_columns:
+            db.execute(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {column} BOOLEAN DEFAULT {default}")
+            try:
+                db.execute(
+                    f"ALTER TABLE {table} ALTER COLUMN {column} TYPE BOOLEAN USING CASE WHEN {column} IN (1, '1', TRUE, 'true', 't', 'yes') THEN TRUE ELSE FALSE END"
+                )
+            except Exception:
+                pass
+        db.commit()
+    except Exception as exc:
+        print(f"Warning: could not ensure PostgreSQL boolean columns: {exc}")
 
 
 def ensure_postgres_wallet_columns():
@@ -967,9 +1005,19 @@ def ensure_postgres_wallet_columns():
         db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_id TEXT UNIQUE DEFAULT NULL")
         db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_balance INTEGER DEFAULT 0")
         db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS alta_tokens INTEGER DEFAULT 0")
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE")
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS verified_until TEXT DEFAULT NULL")
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_vip BOOLEAN DEFAULT FALSE")
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS vip_until TEXT DEFAULT NULL")
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE")
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_until TEXT DEFAULT NULL")
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT DEFAULT NULL")
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN DEFAULT FALSE")
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code TEXT DEFAULT NULL")
         db.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS receipt_image_path TEXT DEFAULT NULL")
         db.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS recipient_wallet_id TEXT DEFAULT NULL")
         db.execute("ALTER TABLE bank_accounts ADD COLUMN IF NOT EXISTS account_name TEXT DEFAULT NULL")
+        db.execute("ALTER TABLE bank_accounts ALTER COLUMN is_active TYPE BOOLEAN USING is_active::BOOLEAN")
         # Add posts engagement columns
         db.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0")
         db.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS virality_score REAL DEFAULT 0.0")
@@ -1000,6 +1048,7 @@ with app.app_context():
     print(f"Using SQLite={USE_SQLITE} DATABASE={DATABASE}")
     ensure_database_schema()
     ensure_postgres_admin_user()
+    ensure_postgres_boolean_columns()
     ensure_postgres_wallet_columns()
 
 
@@ -1254,7 +1303,7 @@ def add_strike(db, user_id, reason="policy_violation"):
     new_strikes = (user["strikes"] or 0) + 1
     db.execute("UPDATE users SET strikes = ? WHERE id = ?", (new_strikes, user_id))
     if new_strikes >= 3:
-        db.execute("UPDATE users SET is_suspended = 1 WHERE id = ?", (user_id,))
+        db.execute("UPDATE users SET is_suspended = true WHERE id = ?", (user_id,))
         add_notification(db, user_id, "Your account has been suspended after repeated policy violations.", ntype="ban")
     else:
         add_notification(db, user_id, f"A post was removed for violating community rules. Strike {new_strikes}/3.", ntype="warning")
@@ -1634,12 +1683,25 @@ def get_active_banks():
     db = get_db()
     try:
         return db.execute(
-            "SELECT id, bank_name, account_name, account_number, account_holder_name, is_active, created_at FROM bank_accounts WHERE is_active = 1 ORDER BY bank_name"
+            "SELECT id, bank_name, account_name, account_number, account_holder_name, is_active, created_at FROM bank_accounts WHERE is_active = true ORDER BY bank_name"
         ).fetchall()
     except Exception:
         # Fallback for older DB schemas without account_name/account_holder_name
         return db.execute(
-            "SELECT id, bank_name, account_number, is_active, created_at FROM bank_accounts WHERE is_active = 1 ORDER BY bank_name"
+            "SELECT id, bank_name, account_number, NULL AS account_holder_name, NULL AS account_name, is_active, created_at FROM bank_accounts WHERE is_active = true ORDER BY bank_name"
+        ).fetchall()
+
+
+def get_all_banks():
+    """Returns all configured admin-managed deposit bank accounts."""
+    db = get_db()
+    try:
+        return db.execute(
+            "SELECT id, bank_name, account_name, account_number, account_holder_name, is_active, created_at FROM bank_accounts ORDER BY bank_name"
+        ).fetchall()
+    except Exception:
+        return db.execute(
+            "SELECT id, bank_name, account_number, NULL AS account_holder_name, NULL AS account_name, is_active, created_at FROM bank_accounts ORDER BY bank_name"
         ).fetchall()
 
 
@@ -1805,6 +1867,8 @@ def award_task_reward(db, user_id, kind, post_id=None):
       once, closing the exploit.
     - The combined daily task cap (DAILY_TASK_CAP) still applies on top.
     Returns the reward amount if it was awarded, or None if blocked."""
+    if kind not in TASK_REWARDS:
+        return None
     if kind == "profile_completion":
         if has_completed_task(db, user_id, kind):
             return None
@@ -1869,6 +1933,23 @@ def _now_iso():
 
 def _generate_code(length=6):
     return f"{secrets.randbelow(10 ** length):0{length}d}"
+
+
+def _generate_wallet_id(db):
+    """Return a unique wallet ID for a new user.
+
+    Generates a random alphanumeric wallet ID and ensures it does not already
+    exist in the users table. Raises RuntimeError only if a unique ID cannot be
+    generated after several attempts.
+    """
+    for _ in range(10):
+        wallet_id = f"WAL{secrets.randbelow(10**9):09d}"
+        existing = db.execute(
+            "SELECT id FROM users WHERE wallet_id = ?", (wallet_id,)
+        ).fetchone()
+        if existing is None:
+            return wallet_id
+    raise RuntimeError("Unable to generate a unique wallet ID. Please try again.")
 
 
 def _normalize_username(username):
@@ -1974,17 +2055,21 @@ def register():
             new_user = db.execute(
                 "SELECT id FROM users WHERE lower(username) = ?", (normalized_username,)
             ).fetchone()
-            if new_user:
-                wallet_id = _generate_wallet_id(db)
-                db.execute(
-                    "UPDATE users SET balance = 0.0, wallet_id = ? WHERE id = ?",
-                    (wallet_id, new_user["id"]),
-                )
-                db.execute(
-                    "INSERT INTO wallets (user_id, balance, escrow_balance, created_at) VALUES (?, 0.00, 0.00, ?)",
-                    (new_user["id"], _now_iso()),
-                )
-                db.commit()
+            if not new_user:
+                db.rollback()
+                flash("Registration failed. Please try again.")
+                return redirect(url_for("register"))
+
+            wallet_id = _generate_wallet_id(db)
+            db.execute(
+                "UPDATE users SET balance = 0.0, wallet_id = ? WHERE id = ?",
+                (wallet_id, new_user["id"]),
+            )
+            db.execute(
+                "INSERT INTO wallets (user_id, balance, escrow_balance, created_at) VALUES (?, 0.00, 0.00, ?)",
+                (new_user["id"], _now_iso()),
+            )
+            db.commit()
             session["user_id"] = new_user["id"]
             flash(get_translator(session.get("lang", DEFAULT_LANG))["login"])
 
@@ -2088,6 +2173,7 @@ def feed():
         posts = db.execute(
             """WITH latest_posts AS (
                    SELECT * FROM posts
+                   WHERE status = 'approved'
                    ORDER BY created_at DESC
                    LIMIT ? OFFSET ?
                )
@@ -2219,7 +2305,7 @@ def new_post():
             (user["id"], f"Blocked: contains restricted word '{blocked_word}'", datetime.datetime.utcnow().isoformat()),
         )
         add_notification(db, user["id"], f"Your post was blocked because it contains the restricted word '{blocked_word}'.", ntype="warning")
-        for admin in db.execute("SELECT id FROM users WHERE is_admin = 1").fetchall():
+        for admin in db.execute("SELECT id FROM users WHERE is_admin = true").fetchall():
             add_notification(db, admin["id"], f"New post by {user['username']} was blocked for policy review.", ntype="warning")
         db.commit()
         flash("Your post was blocked for policy review.")
@@ -3109,7 +3195,7 @@ def buy_channel_verification(channel_id):
 
     db.execute("UPDATE users SET wallet_balance = ? WHERE id = ?", (new_balance, user["id"]))
     db.execute(
-        "UPDATE channels SET is_verified = 1, verified_until = ? WHERE id = ?",
+        "UPDATE channels SET is_verified = true, verified_until = ? WHERE id = ?",
         (verified_until.isoformat(), channel_id),
     )
     db.commit()
@@ -3366,6 +3452,22 @@ def wallet():
     )
 
 
+@app.route("/deposit", methods=["GET", "POST"])
+@login_required
+def deposit():
+    if request.method == "GET":
+        return redirect(url_for("wallet", action="deposit"))
+    return wallet_deposit()
+
+
+@app.route("/send", methods=["GET", "POST"])
+@login_required
+def send_funds():
+    if request.method == "GET":
+        return redirect(url_for("wallet", action="transfer"))
+    return wallet_transfer()
+
+
 @app.route('/api/wallet/balance')
 @login_required
 def api_wallet_balance():
@@ -3448,24 +3550,46 @@ def wallet_transfer():
 @login_required
 def wallet_deposit():
     amount = float(request.form.get("amount", 0) or 0)
-    bank = request.form.get("bank", "").strip()
+    bank_id = request.form.get("bank_id")
     ref = request.form.get("transaction_ref", "").strip()
     note = request.form.get("note", "").strip()
     receipt_photo = save_photo(request.files.get("receipt_photo"))
 
-    active_bank_names = {b["bank_name"] for b in get_active_banks()}
-    if amount > 0 and bank and bank in active_bank_names and ref:
-        db = get_db()
-        db.execute(
-            """INSERT INTO wallet_transactions
-               (user_id, tx_type, amount, transaction_ref, bank, note, receipt_photo, receipt_image_path, status, created_at)
-               VALUES (?, 'deposit', ?, ?, ?, ?, ?, ?, 'pending', ?)""",
-            (session["user_id"], amount, ref, bank, note, receipt_photo, receipt_photo, datetime.datetime.utcnow().isoformat()),
-        )
-        db.commit()
-        flash("Deposit request submitted for review.")
-    else:
+    try:
+        bank_id = int(bank_id)
+    except (TypeError, ValueError):
+        bank_id = None
+
+    if amount <= 0 or not bank_id or not ref:
         flash("Please select a valid bank, amount, and transaction reference.")
+        return redirect(url_for("wallet"))
+
+    db = get_db()
+    bank = db.execute(
+        "SELECT * FROM bank_accounts WHERE id = ? AND is_active = true",
+        (bank_id,),
+    ).fetchone()
+    if not bank:
+        flash("Please select an active bank account.")
+        return redirect(url_for("wallet"))
+
+    bank_name = bank.get("bank_name") if hasattr(bank, "get") else bank["bank_name"]
+    account_number = bank.get("account_number") if hasattr(bank, "get") else bank["account_number"]
+    account_name = bank.get("account_holder_name") if hasattr(bank, "get") else bank.get("account_name") if hasattr(bank, "get") else None
+    if not account_name:
+        account_name = bank.get("account_name") if hasattr(bank, "get") else None
+
+    db.execute(
+        """INSERT INTO wallet_transactions
+           (user_id, tx_type, amount, transaction_ref, bank, note, receipt_photo, receipt_image_path, account_number, account_name, status, created_at)
+           VALUES (?, 'deposit', ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)""",
+        (
+            session["user_id"], amount, ref, bank_name, note, receipt_photo, receipt_photo,
+            account_number, account_name, datetime.datetime.utcnow().isoformat(),
+        ),
+    )
+    db.commit()
+    flash("Deposit request submitted for review.")
     return redirect(url_for("wallet"))
 
 
@@ -3574,7 +3698,7 @@ def buy_verification():
             base = datetime.datetime.fromisoformat(fresh["verified_until"]) if fresh["verified_until"] else base
         verified_until = base + datetime.timedelta(days=30)
         db.execute(
-            "UPDATE users SET is_verified = 1, verified_until = ? WHERE id = ?",
+            "UPDATE users SET is_verified = true, verified_until = ? WHERE id = ?",
             (verified_until.isoformat(), user["id"]),
         )
         # Award points for obtaining Blue Tick verification
@@ -3583,7 +3707,7 @@ def buy_verification():
         except Exception:
             pass
         admin_user = db.execute(
-            "SELECT * FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1"
+            "SELECT * FROM users WHERE is_admin = true ORDER BY id LIMIT 1"
         ).fetchone()
         if admin_user:
             db.execute(
@@ -3628,7 +3752,7 @@ def buy_vip():
             base = datetime.datetime.fromisoformat(fresh["vip_until"]) if fresh["vip_until"] else base
         vip_until = base + datetime.timedelta(days=30)
         db.execute(
-            "UPDATE users SET is_vip = 1, vip_until = ? WHERE id = ?",
+            "UPDATE users SET is_vip = true, vip_until = ? WHERE id = ?",
             (vip_until.isoformat(), user["id"]),
         )
         db.execute(
@@ -3776,6 +3900,13 @@ def challenge_invite():
 def log_share():
     platform = request.form.get("platform", "other")
     db = get_db()
+    existing = db.execute(
+        "SELECT id FROM challenge_shares WHERE user_id = ? AND platform = ?",
+        (session["user_id"], platform),
+    ).fetchone()
+    if existing:
+        # Avoid duplicate shares to the same platform being counted repeatedly.
+        return redirect(request.referrer or url_for("challenge_invite"))
     db.execute(
         "INSERT INTO challenge_shares (user_id, platform, created_at) VALUES (?, ?, ?)",
         (session["user_id"], platform, datetime.datetime.utcnow().isoformat()),
@@ -4212,17 +4343,17 @@ def admin_panel():
                LIMIT 100"""
         ).fetchall()
         total_users = db.execute("SELECT COUNT(*) c FROM users").fetchone()["c"]
-        pending_unverified_users = db.execute("SELECT COUNT(*) c FROM users WHERE is_verified = 0").fetchone()["c"]
+        pending_unverified_users = db.execute("SELECT COUNT(*) c FROM users WHERE is_verified = false").fetchone()["c"]
         pending_deposits_count = db.execute("SELECT COUNT(*) c FROM wallet_transactions WHERE status = 'pending' AND tx_type = 'deposit'").fetchone()["c"]
         pending_withdrawals_count = db.execute("SELECT COUNT(*) c FROM wallet_transactions WHERE status = 'pending' AND tx_type = 'withdrawal'").fetchone()["c"]
         gift_earnings = db.execute(
             "SELECT COALESCE(SUM(platform_cut), 0) total FROM gifts"
         ).fetchone()["total"]
         verified_users_count = db.execute(
-            "SELECT COUNT(*) c FROM users WHERE is_verified = 1"
+            "SELECT COUNT(*) c FROM users WHERE is_verified = true"
         ).fetchone()["c"]
         vip_users_count = db.execute(
-            "SELECT COUNT(*) c FROM users WHERE is_vip = 1"
+            "SELECT COUNT(*) c FROM users WHERE is_vip = true"
         ).fetchone()["c"]
         subscription_revenue = db.execute(
             "SELECT COALESCE(SUM(amount), 0) total FROM payments WHERE status = 'approved'"
@@ -4259,17 +4390,67 @@ def admin_panel():
 def admin_settings():
     db = get_db()
     if request.method == "POST":
-        maintenance = request.form.get("maintenance_mode") == "1"
-        set_setting("maintenance_mode", "1" if maintenance else "0")
-        set_setting("verification_price", request.form.get("verification_price", str(VERIFICATION_MONTHLY_PRICE)))
-        set_setting("vip_price", request.form.get("vip_price", str(VIP_MONTHLY_PRICE)))
-        set_setting("extra_product_fee", request.form.get("extra_product_fee", "0"))
-        set_setting("social_auth_enabled", request.form.get("social_auth_enabled") == "1" and "1" or "0")
-        set_setting("social_google_url", request.form.get("social_google_url", "").strip())
-        set_setting("social_telegram_url", request.form.get("social_telegram_url", "").strip())
-        set_setting("social_discord_url", request.form.get("social_discord_url", "").strip())
-        flash("Settings updated.")
-        return redirect(url_for("admin_settings"))
+        action = request.form.get("action", "save_settings")
+        if action == "save_settings":
+            maintenance = request.form.get("maintenance_mode") == "1"
+            set_setting("maintenance_mode", "1" if maintenance else "0")
+            set_setting("verification_price", request.form.get("verification_price", str(VERIFICATION_MONTHLY_PRICE)))
+            set_setting("vip_price", request.form.get("vip_price", str(VIP_MONTHLY_PRICE)))
+            set_setting("extra_product_fee", request.form.get("extra_product_fee", "0"))
+            set_setting("social_auth_enabled", request.form.get("social_auth_enabled") == "1" and "1" or "0")
+            set_setting("social_google_url", request.form.get("social_google_url", "").strip())
+            set_setting("social_telegram_url", request.form.get("social_telegram_url", "").strip())
+            set_setting("social_discord_url", request.form.get("social_discord_url", "").strip())
+            flash("Settings updated.")
+            return redirect(url_for("admin_settings"))
+
+        if action == "create_bank":
+            bank_name = (request.form.get("bank_name") or "").strip()
+            account_number = (request.form.get("account_number") or "").strip()
+            account_holder_name = (request.form.get("account_holder_name") or "").strip()
+            is_active = request.form.get("is_active") == "1"
+            if not bank_name or not account_number or not account_holder_name:
+                flash("Bank name, account number, and account holder name are required.")
+                return redirect(url_for("admin_settings"))
+            db.execute(
+                "INSERT INTO bank_accounts (bank_name, account_number, account_holder_name, is_active, created_at) VALUES (?, ?, ?, ?, ?)",
+                (bank_name, account_number, account_holder_name, True if is_active else False, datetime.datetime.utcnow().isoformat()),
+            )
+            db.commit()
+            flash("Bank account added.")
+            return redirect(url_for("admin_settings"))
+
+        if action == "toggle_bank":
+            bank_id = request.form.get("bank_id")
+            try:
+                bank_id = int(bank_id)
+            except (TypeError, ValueError):
+                bank_id = None
+            if bank_id is None:
+                flash("Could not update bank account status.")
+                return redirect(url_for("admin_settings"))
+            is_active = request.form.get("is_active") == "1"
+            db.execute(
+                "UPDATE bank_accounts SET is_active = ? WHERE id = ?",
+                (True if is_active else False, bank_id),
+            )
+            db.commit()
+            flash("Bank account status updated.")
+            return redirect(url_for("admin_settings"))
+
+        if action == "delete_bank":
+            bank_id = request.form.get("bank_id")
+            try:
+                bank_id = int(bank_id)
+            except (TypeError, ValueError):
+                bank_id = None
+            if bank_id is None:
+                flash("Could not delete bank account.")
+                return redirect(url_for("admin_settings"))
+            db.execute("DELETE FROM bank_accounts WHERE id = ?", (bank_id,))
+            db.commit()
+            flash("Bank account removed.")
+            return redirect(url_for("admin_settings"))
 
     maintenance_mode = get_setting("maintenance_mode", "0") == "1"
     verification_price = float(get_setting("verification_price", VERIFICATION_MONTHLY_PRICE) or VERIFICATION_MONTHLY_PRICE)
@@ -4279,6 +4460,7 @@ def admin_settings():
     google_url = get_setting("social_google_url", "") or ""
     telegram_url = get_setting("social_telegram_url", "") or ""
     discord_url = get_setting("social_discord_url", "") or ""
+    banks = get_all_banks()
     return render_template(
         "admin_settings.html",
         maintenance_mode=maintenance_mode,
@@ -4289,6 +4471,7 @@ def admin_settings():
         social_google_url=google_url,
         social_telegram_url=telegram_url,
         social_discord_url=discord_url,
+        banks=banks,
     )
 
 
@@ -4340,7 +4523,7 @@ def admin_dashboard():
             "admin_dashboard.html",
             pending_deposits=pending_deposits,
             pending_withdrawals=pending_withdrawals,
-            telebirr_number=get_setting("telebirr_wallet_number", TELEBIRR_WALLET_NUMBER),
+            active_bank_count=len(get_active_banks()),
         )
     except Exception as exc:
         print(f"Admin dashboard page error: {exc}")
@@ -4349,7 +4532,7 @@ def admin_dashboard():
             "admin_dashboard.html",
             pending_deposits=[],
             pending_withdrawals=[],
-            telebirr_number=get_setting("telebirr_wallet_number", TELEBIRR_WALLET_NUMBER),
+            active_bank_count=len(get_active_banks()),
         )
 
 
@@ -4572,7 +4755,7 @@ def ban_user(user_id):
     target = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     if target and not target["is_admin"]:
         db.execute(
-            "UPDATE users SET is_banned = 1, banned_until = NULL, ban_reason = ? WHERE id = ?",
+            "UPDATE users SET is_banned = true, banned_until = NULL, ban_reason = ? WHERE id = ?",
             (request.form.get("reason") or "Permanently banned by admin.", user_id),
         )
         db.commit()
@@ -4585,7 +4768,7 @@ def ban_user(user_id):
 def unban_user(user_id):
     db = get_db()
     db.execute(
-        "UPDATE users SET is_banned = 0, banned_until = NULL, ban_reason = NULL WHERE id = ?",
+        "UPDATE users SET is_banned = false, banned_until = NULL, ban_reason = NULL WHERE id = ?",
         (user_id,),
     )
     db.commit()
@@ -4735,7 +4918,7 @@ def admin_verify():
             ).fetchall()
         verified_users = db.execute(
             """SELECT id, username, full_name, verified_until FROM users
-               WHERE is_verified = 1 ORDER BY verified_until DESC LIMIT 50"""
+               WHERE is_verified = true ORDER BY verified_until DESC LIMIT 50"""
         ).fetchall()
         return render_template(
             "admin_verify.html", q=q, results=results, verified_users=verified_users,
@@ -4763,7 +4946,7 @@ def grant_verified(user_id):
     if target:
         until = datetime.datetime.utcnow() + datetime.timedelta(days=days)
         db.execute(
-            "UPDATE users SET is_verified = 1, verified_until = ? WHERE id = ?",
+            "UPDATE users SET is_verified = true, verified_until = ? WHERE id = ?",
             (until.isoformat(), user_id),
         )
         add_notification(
@@ -4781,7 +4964,7 @@ def grant_verified(user_id):
 def revoke_verified(user_id):
     db = get_db()
     db.execute(
-        "UPDATE users SET is_verified = 0, verified_until = NULL WHERE id = ?",
+        "UPDATE users SET is_verified = false, verified_until = NULL WHERE id = ?",
         (user_id,),
     )
     db.commit()

@@ -287,6 +287,14 @@ document.addEventListener("DOMContentLoaded", function () {
     if (modal) modal.classList.remove('open');
     document.body.classList.remove('no-scroll');
   }
+  window.closeAllModals = function () {
+    const backdrop = document.getElementById('modalBackdrop');
+    if (backdrop) backdrop.classList.remove('open');
+    document.querySelectorAll('.modal.open').forEach(function (modal) {
+      modal.classList.remove('open');
+    });
+    document.body.classList.remove('no-scroll');
+  }
 
   // Wallet: animate balance count on wallet page
   try {
