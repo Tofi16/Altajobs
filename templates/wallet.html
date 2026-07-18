@@ -7,7 +7,7 @@
    ============================================ */
 
 .wallet-container {
-  max-width: 600px;
+  max-width: 540px;
   margin: 0 auto;
   padding: 16px;
   /* Leave room for the bottom nav on small screens */
@@ -16,44 +16,59 @@
 
 /* ===== Compact Wallet Balance Header ===== */
 .wallet-balance-panel {
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 24px;
-  padding: 24px 22px;
+  position: relative;
+  background: linear-gradient(180deg, #0a62e4 0%, #0454b2 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 28px;
+  padding: 26px 22px;
   margin-bottom: 24px;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 22px 50px rgba(4, 50, 110, 0.28);
+  overflow: hidden;
+  color: #ffffff;
+}
+
+.wallet-balance-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 54%;
+  background: radial-gradient(circle at top center, rgba(255, 255, 255, 0.18), transparent 55%);
+  pointer-events: none;
 }
 
 .wallet-balance-header {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 .wallet-balance-title {
   font-size: 0.85rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.78);
   font-weight: 700;
 }
 
 .wallet-balance-amount {
   font-size: clamp(2.4rem, 5vw, 4rem);
   font-weight: 800;
-  color: var(--text);
+  color: #ffffff;
   line-height: 1;
   margin: 0;
 }
 
 .wallet-balance-secondary {
   font-size: 0.95rem;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .wallet-balance-secondary strong {
-  color: var(--text);
+  color: #ffffff;
   font-weight: 700;
 }
 
@@ -73,7 +88,7 @@
   min-width: 90px;
 }
 
-.wallet-action-btn-modern {
+..wallet-action-btn-modern {
   width: 100%;
   display: flex;
   flex-direction: column;
@@ -81,36 +96,35 @@
   justify-content: center;
   gap: 10px;
   padding: 16px 10px;
-  background: transparent;
-  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 22px;
   cursor: pointer;
-  color: var(--text);
+  color: #ffffff;
   text-decoration: none;
   pointer-events: auto;
   touch-action: manipulation;
+  transition: background 0.3s ease, border-color 0.3s ease, transform 0.24s ease;
+}
+
+.wallet-action-btn-modern:hover,
+.wallet-action-btn-modern:focus-visible {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.28);
+  transform: translateY(-2px);
 }
 
 .wallet-action-circle {
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(29, 155, 240, 0.95), rgba(88, 80, 248, 0.95));
-  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.24);
-  transition: transform 0.24s ease, box-shadow 0.24s ease;
-  position: relative;
-  z-index: 201;
-}
-
-.wallet-action-btn-modern:hover .wallet-action-circle,
-.wallet-action-btn-modern:focus-visible .wallet-action-circle {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.32);
-}
-
-.wallet-action-icon {
+  background: linear-gradient(180deg, #ffffff 0%, #e6f2ff 100%);
+  box-shadow: 0 18px 30px rgba(0, 0, 0, 0.16);
+    position: relative;
+    z-index: 201;
   width: 32px;
   height: 32px;
   display: flex;
@@ -400,42 +414,6 @@
           <span class="wallet-action-caption">Send</span>
         </button>
       </div>
-    </div>
-  </div>
-
-  <!-- Recent Transactions -->
-  <div class="wallet-actions-row">
-    <div class="wallet-action-block">
-      <button class="wallet-action-btn-modern" type="button" data-modal-target="depositModal" aria-controls="depositModal" title="Deposit funds" aria-label="Deposit funds">
-        <div class="wallet-action-circle">
-          <div class="wallet-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M8 11l4 4 4-4"/><path d="M6 19h12"/></svg></div>
-        </div>
-        <span class="wallet-action-caption">Deposit</span>
-      </button>
-    </div>
-    <div class="wallet-action-block">
-      <button class="wallet-action-btn-modern" type="button" data-modal-target="withdrawModal" aria-controls="withdrawModal" title="Withdraw funds" aria-label="Withdraw funds">
-        <div class="wallet-action-circle">
-          <div class="wallet-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V10"/><path d="M8 13l4-4 4 4"/><path d="M6 5h12"/></svg></div>
-        </div>
-        <span class="wallet-action-caption">Withdraw</span>
-      </button>
-    </div>
-    <div class="wallet-action-block">
-      <button class="wallet-action-btn-modern" type="button" data-modal-target="transferModal" aria-controls="transferModal" title="Send funds" aria-label="Send funds">
-        <div class="wallet-action-circle">
-          <div class="wallet-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg></div>
-        </div>
-        <span class="wallet-action-caption">Send</span>
-      </button>
-    </div>
-    <div class="wallet-action-block">
-      <button class="wallet-action-btn-modern" type="button" onclick='location.href="{{ url_for("challenges") }}"' title="Open challenges" aria-label="Open challenges">
-        <div class="wallet-action-circle">
-          <div class="wallet-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8v4H8z"/><path d="M6 6h12v6a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V6z"/><path d="M9 22h6"/></svg></div>
-        </div>
-        <span class="wallet-action-caption">Challenge</span>
-      </button>
     </div>
   </div>
 
