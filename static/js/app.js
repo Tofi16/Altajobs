@@ -319,6 +319,15 @@ document.addEventListener("DOMContentLoaded", function () {
     syncScrollLock();
   }
 
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  if (modalBackdrop) {
+    modalBackdrop.addEventListener('click', function (e) {
+      if (e.target === modalBackdrop) {
+        window.closeAllModals();
+      }
+    });
+  }
+
   document.addEventListener('click', function (e) {
     const btn = e.target.closest('[data-modal-target]');
     if (!btn) return;
@@ -368,9 +377,9 @@ document.addEventListener("DOMContentLoaded", function () {
       depositBankName.textContent = bankName;
       depositAccountName.textContent = accountName;
       depositAccountNumber.textContent = accountNumber;
-      depositBankDetails.style.display = 'block';
+      depositBankDetails.classList.remove('hidden');
     } else {
-      depositBankDetails.style.display = 'none';
+      depositBankDetails.classList.add('hidden');
     }
   };
 
@@ -384,6 +393,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const showManual = selectedValue === 'other';
 
     withdrawBankManualWrap.style.display = showManual ? 'block' : 'none';
+    withdrawBankManual.required = showManual;
     if (!showManual) {
       withdrawBankManual.value = '';
     }
@@ -392,9 +402,9 @@ document.addEventListener("DOMContentLoaded", function () {
       withdrawBankName.textContent = bankName;
       withdrawAccountName.textContent = accountName || '—';
       withdrawAccountNumber.textContent = accountNumber;
-      withdrawBankDetails.style.display = 'block';
+      withdrawBankDetails.classList.remove('hidden');
     } else {
-      withdrawBankDetails.style.display = 'none';
+      withdrawBankDetails.classList.add('hidden');
     }
   };
 

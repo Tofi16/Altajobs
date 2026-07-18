@@ -1,53 +1,122 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card" style="margin-bottom:14px; background:linear-gradient(135deg, rgba(29,155,240,0.16), rgba(15,23,42,0.96)); border:1px solid rgba(125,211,252,0.2);">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
-    <div>
-      <h2 style="margin:0 0 6px">🛍️ Altajobs Marketplace</h2>
-      <p class="post-meta" style="margin:0">List trusted products, discover local offers, and keep the experience fully inside Altajobs.</p>
+
+<div class="marketplace-page">
+  <div class="marketplace-hero card">
+    <div class="marketplace-hero-copy">
+      <div>
+        <h2>🛍️ Alta Market</h2>
+        <p>Discover trusted products and trusted sellers inside AltaJobs. Browse, list, and connect without leaving the platform.</p>
+      </div>
+      <span class="badge badge-market">AltaJobs Marketplace</span>
     </div>
-    <div class="badge" style="background:rgba(29,155,240,0.14);color:var(--accent)">Premium blue</div>
+    <div class="marketplace-hero-actions">
+      <a href="#newListing" class="btn btn-primary">Post a listing</a>
+      <a href="{{ url_for('chat_inbox') }}" class="btn btn-outline">Connect with sellers</a>
+    </div>
+  </div>
+
+  <div class="marketplace-grid">
+    <section class="marketplace-panel marketplace-panel-form card" id="newListing">
+      <div class="marketplace-panel-head">
+        <div>
+          <h3>List a product</h3>
+          <p>Create a premium listing and share it with buyers across AltaJobs.</p>
+        </div>
+      </div>
+      <form method="POST" enctype="multipart/form-data" class="marketplace-form">
+        <div class="form-row">
+          <label class="form-group">
+            <span>{{ t.product_title if t.product_title is defined else 'Title' }}</span>
+            <input type="text" name="title" placeholder="Product title" required>
+          </label>
+          <label class="form-group">
+            <span>{{ t.price if t.price is defined else 'Price' }}</span>
+            <input type="number" step="0.01" name="price" placeholder="Price (ETB)" required>
+          </label>
+        </div>
+        <label class="form-group">
+          <span>{{ t.product_description if t.product_description is defined else 'Description' }}</span>
+          <textarea name="description" rows="4" placeholder="Describe your product"></textarea>
+        </label>
+        <div class="form-row">
+          <label class="form-group">
+            <span>{{ t.location if t.location is defined else 'Location' }}</span>
+            <input type="text" name="location" placeholder="Location" value="Addis Ababa">
+          </label>
+          <label class="form-group">
+            <span>{{ t.photo if t.photo is defined else 'Photo' }}</span>
+            <input type="file" name="photo" accept="image/*">
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">{{ t.publish_listing if t.publish_listing is defined else 'Publish listing' }}</button>
+      </form>
+    </section>
+
+    <section class="marketplace-panel card">
+      <div class="marketplace-panel-head marketplace-panel-head-border">
+        <div>
+          <h3>Search Alta Market</h3>
+          <p>Filter by keywords, categories, and location to find the best offers.</p>
+        </div>
+      </div>
+
+      <form method="GET" action="{{ url_for('marketplace') }}" class="marketplace-search-form">
+        <label class="marketplace-search-input">
+          <i class='bx bx-search'></i>
+          <input type="search" name="q" placeholder="Search listings" value="{{ request.args.get('q', '') }}">
+        </label>
+      </form>
+
+      <div class="marketplace-filters">
+        <button type="button" class="category-pill active">All</button>
+        <button type="button" class="category-pill">Equipment</button>
+        <button type="button" class="category-pill">Services</button>
+        <button type="button" class="category-pill">Learning</button>
+        <button type="button" class="category-pill">Remote</button>
+      </div>
+
+      <div class="marketplace-grid-list">
+        {% if not listings %}
+          <div class="inbox-empty-state">
+            <div class="marketplace-empty-icon">🛒</div>
+            <div class="inbox-empty-title">No listings yet</div>
+            <div class="inbox-empty-sub">Publish your first listing and let the AltaJobs community discover it.</div>
+          </div>
+        {% else %}
+          {% for item in listings %}
+            <article class="marketplace-item-card">
+              {% if item['photo'] %}
+                <div class="marketplace-card-image">
+                  <img src="{{ photo_url(item['photo']) }}" alt="{{ item['title'] }}">
+                </div>
+              {% endif %}
+
+              <div class="marketplace-card-body">
+                <div class="marketplace-card-meta">
+                  <div>
+                    <h4 class="marketplace-item-title">{{ item['title'] }}</h4>
+                    <p class="marketplace-item-seller">
+                      {{ item['full_name'] or item['username'] }} · {{ item['location'] or 'Addis Ababa' }}
+                    </p>
+                    <div class="marketplace-item-status">Status: {{ item['status'] }}</div>
+                  </div>
+                  <div class="marketplace-price">{{ item['price'] }} ETB</div>
+                </div>
+                {% if item['description'] %}
+                  <p class="marketplace-item-description">{{ item['description'] }}</p>
+                {% endif %}
+                <div class="marketplace-item-actions">
+                  <a href="{{ url_for('profile', user_id=item['user_id']) }}" class="btn btn-outline btn-small">View seller</a>
+                  <button type="button" class="btn btn-primary btn-small">Buy now</button>
+                </div>
+              </div>
+            </article>
+          {% endfor %}
+        {% endif %}
+      </div>
+    </section>
   </div>
 </div>
 
-<div class="card" style="margin-bottom:14px">
-  <h3 style="margin:0 0 10px">List a product</h3>
-  <form method="POST" enctype="multipart/form-data">
-    <input type="text" name="title" placeholder="Product title" required style="margin-bottom:10px">
-    <textarea name="description" rows="4" placeholder="Describe your product" style="margin-bottom:10px"></textarea>
-    <input type="number" step="0.01" name="price" placeholder="Price" required style="margin-bottom:10px">
-    <input type="text" name="location" placeholder="Location" value="Addis Ababa" style="margin-bottom:10px">
-    <input type="file" name="photo" accept="image/*" style="margin-bottom:10px">
-    <button type="submit" class="btn">Publish listing</button>
-  </form>
-</div>
-
-<div class="card">
-  <h3 style="margin:0 0 10px">Recent listings</h3>
-  {% if not listings %}
-    <p class="post-meta">No listings yet. Be the first to publish one.</p>
-  {% else %}
-    {% for item in listings %}
-      <div class="card marketplace-card" style="margin-bottom:10px; padding:18px;">
-        {% if item['photo'] %}
-          <div class="marketplace-media">
-            <img src="{{ photo_url(item['photo']) }}" alt="{{ item['title'] }}" />
-          </div>
-        {% endif %}
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-top:14px;">
-          <div>
-            <div style="font-weight:800; font-size:1.05rem; color:#ffffff;">{{ item['title'] }}</div>
-            <div class="post-meta">{{ item['full_name'] or item['username'] }} • {{ item['location'] or 'Addis Ababa' }}</div>
-            {{ badge_html_for(item) }}
-          </div>
-          <div style="font-weight:800;color:var(--accent); font-size:1.02rem;">{{ item['price'] }} ETB</div>
-        </div>
-        {% if item['description'] %}
-          <p style="margin:12px 0 0; color: var(--text); line-height: 1.7;">{{ item['description'] }}</p>
-        {% endif %}
-        <div class="post-meta" style="margin-top:10px;">Status: {{ item['status'] }}</div>
-      </div>
-    {% endfor %}
-  {% endif %}
-</div>
 {% endblock %}

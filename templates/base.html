@@ -2,7 +2,7 @@
 <html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>{{ t.app_name }} - {{ t.tagline }}</title>
 {% if current_lang == 'ar' %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,7 +12,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="preload" href="{{ url_for('static', filename='css/style.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"></noscript>
 </head>
 <body class="{% if request.path.startswith('/admin') %}admin-page{% endif %}">
 
@@ -76,13 +77,13 @@
 
 {% if current_user %}
 <aside class="left-sidebar">
-  <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="sidebar-card" style="display:block;text-decoration:none">
-    <div class="avatar gradient" style="width:48px;height:48px;margin-bottom:8px">
+  <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="sidebar-card sidebar-profile-card">
+    <div class="avatar gradient sidebar-profile-avatar">
       {% set user_name = (current_user.get('full_name') or current_user.get('username') or 'U') %}
       {% if current_user.get('avatar') %}<img src="{{ photo_url(current_user.get('avatar')) }}">{% else %}{{ user_name[0] }}{% endif %}
     </div>
-    <div style="font-weight:800;color:var(--text)">{{ user_name }}</div>
-    {% if current_user.get('username') %}<div class="post-meta">@{{ current_user.get('username') }}</div>{% endif %}
+    <div class="sidebar-profile-name">{{ user_name }}</div>
+    {% if current_user.get('username') %}<div class="sidebar-profile-username">@{{ current_user.get('username') }}</div>{% endif %}
   </a>
 
   <div class="sidebar-card">
@@ -102,11 +103,13 @@
 {% endif %}
 
 <main class="container">
-  {% with messages = get_flashed_messages() %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      <div class="flash-box">
-        {% for m in messages %}
-          <p>{{ t.get(m, m) }}</p>
+      <div class="flash-panel">
+        {% for category, m in messages %}
+          <div class="flash-box flash-{{ category or 'info' }}" role="alert">
+            <p>{{ t.get(m, m) }}</p>
+          </div>
         {% endfor %}
       </div>
     {% endif %}
@@ -222,7 +225,7 @@
 </script>
 {% endif %}
 
-<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 
 </body>
 </html>

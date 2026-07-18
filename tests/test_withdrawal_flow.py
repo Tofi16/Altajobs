@@ -58,6 +58,37 @@ class WithdrawalFlowTests(unittest.TestCase):
         balance = db.execute("SELECT wallet_balance FROM users WHERE id = ?", (1,)).fetchone()[0]
         self.assertEqual(balance, 100)
 
+    def test_withdrawal_form_submits_with_active_bank_id(self):
+        with self.client.session_transaction() as session:
+            session['user_id'] = 1
+
+        db = app_module.get_db()
+        db.execute("DELETE FROM users WHERE id = ?", (1,))
+        db.execute(
+            "INSERT INTO users (id, username, email, password_hash, full_name, user_type, created_at, wallet_balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (1, 'tester', 'tester@example.com', 'hash', 'Tester', 'worker', '2024-01-01T00:00:00', 100),
+        )
+        db.execute(
+            "INSERT INTO bank_accounts (bank_name, account_number, account_holder_name, is_active, created_at) VALUES (?, ?, ?, ?, ?)",
+            ('CBE', '1234567890', 'Tester User', 1, '2024-01-01T00:00:00'),
+        )
+        bank_id = db.execute("SELECT id FROM bank_accounts WHERE bank_name = ?", ('CBE',)).fetchone()[0]
+        db.commit()
+
+        response = self.client.post('/withdraw', data={
+            'bank_id': str(bank_id),
+            'amount': '25',
+            'accountNumber': '1234567890',
+            'accountName': 'Tester User'
+        }, follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        row = db.execute("SELECT * FROM wallet_transactions WHERE user_id = ? AND tx_type = 'withdrawal' ORDER BY id DESC LIMIT 1", (1,)).fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row['bank'], 'CBE')
+        self.assertEqual(row['account_number'], '1234567890')
+        self.assertEqual(row['account_name'], 'Tester User')
+
     def test_withdrawal_form_accepts_modal_field_names(self):
         with self.client.session_transaction() as session:
             session['user_id'] = 1

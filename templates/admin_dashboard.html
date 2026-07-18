@@ -19,14 +19,16 @@
         <div class="admin-metric-icon"><i class='bx bx-transfer-alt'></i></div>
         <div>
           <h3>Pending Deposits</h3>
-          <p>{{ pending_deposits|length }}</p>
+          <p>{{ pending_deposit_count }}</p>
+          <span class="admin-pill">Page {{ deposit_page }} of {{ deposit_pages }}</span>
         </div>
       </div>
       <div class="admin-metric-card">
         <div class="admin-metric-icon"><i class='bx bx-money-withdraw'></i></div>
         <div>
           <h3>Pending Withdrawals</h3>
-          <p>{{ pending_withdrawals|length }}</p>
+          <p>{{ pending_withdrawal_count }}</p>
+          <span class="admin-pill">Page {{ withdrawal_page }} of {{ withdrawal_pages }}</span>
         </div>
       </div>
       <div class="admin-metric-card">
@@ -42,7 +44,7 @@
       <div class="admin-card-header">
         <div>
           <h2>Pending Deposit Approvals</h2>
-          <p>Review each payment request before funds are released.</p>
+          <p>Review each payment request before releasing funds to the user wallet.</p>
         </div>
       </div>
       <div class="admin-table-shell">
@@ -58,33 +60,50 @@
             </tr>
           </thead>
           <tbody>
-            {% for tx in pending_deposits %}
-            <tr>
-              <td>{{ tx['username'] }}</td>
-              <td><strong>{{ tx['amount'] }} ETB</strong></td>
-              <td>{{ tx['bank'] or '—' }}</td>
-              <td>{{ tx['transaction_ref'] or '—' }}</td>
-              <td>{{ tx['created_at'][:16].replace('T',' ') }}</td>
-              <td class="admin-action-group">
-                <form method="POST" action="{{ url_for('approve_deposit', tx_id=tx['id']) }}">
-                  <button type="submit" class="btn btn-small admin-action-btn">Approve</button>
-                </form>
-                <form method="POST" action="{{ url_for('reject_deposit', tx_id=tx['id']) }}">
-                  <button type="submit" class="btn btn-small btn-outline admin-action-btn">Reject</button>
-                </form>
-              </td>
-            </tr>
-            {% endfor %}
+            {% if pending_deposits %}
+              {% for tx in pending_deposits %}
+              <tr>
+                <td>{{ tx['username'] }}</td>
+                <td><strong>{{ tx['amount'] }} ETB</strong></td>
+                <td>{{ tx['bank'] or '—' }}</td>
+                <td>{{ tx['transaction_ref'] or '—' }}</td>
+                <td>{{ tx['created_at'][:16].replace('T',' ') }}</td>
+                <td class="admin-action-group">
+                  <form method="POST" action="{{ url_for('approve_deposit', tx_id=tx['id']) }}">
+                    <button type="submit" class="btn btn-success btn-small admin-action-btn">Approve</button>
+                  </form>
+                  <form method="POST" action="{{ url_for('reject_deposit', tx_id=tx['id']) }}">
+                    <button type="submit" class="btn btn-danger btn-small admin-action-btn">Reject</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="6" class="admin-empty-state">There are no pending deposits right now.</td>
+              </tr>
+            {% endif %}
           </tbody>
         </table>
       </div>
+      {% if deposit_pages > 1 %}
+      <div class="admin-pagination-card">
+        {% if deposit_page > 1 %}
+          <a href="{{ url_for('admin_dashboard', deposit_page=deposit_page-1, withdrawal_page=withdrawal_page) }}" class="btn btn-outline btn-small">Previous</a>
+        {% endif %}
+        <span class="admin-pill">Showing {{ pending_deposits|length }} of {{ pending_deposit_count }} pending deposits</span>
+        {% if deposit_page < deposit_pages %}
+          <a href="{{ url_for('admin_dashboard', deposit_page=deposit_page+1, withdrawal_page=withdrawal_page) }}" class="btn btn-outline btn-small">Next</a>
+        {% endif %}
+      </div>
+      {% endif %}
     </section>
 
     <section class="admin-card">
       <div class="admin-card-header">
         <div>
           <h2>Pending Withdrawals</h2>
-          <p>Confirm payout requests with a polished review flow.</p>
+          <p>Confirm payout requests and keep the finance dashboard moving.</p>
         </div>
       </div>
       <div class="admin-table-shell">
@@ -98,24 +117,41 @@
             </tr>
           </thead>
           <tbody>
-            {% for tx in pending_withdrawals %}
-            <tr>
-              <td>{{ tx['username'] }}</td>
-              <td><strong>{{ tx['amount'] }} ETB</strong></td>
-              <td>{{ tx['created_at'][:16].replace('T',' ') }}</td>
-              <td class="admin-action-group">
-                <form method="POST" action="{{ url_for('approve_withdrawal', tx_id=tx['id']) }}">
-                  <button type="submit" class="btn btn-small admin-action-btn">Approve</button>
-                </form>
-                <form method="POST" action="{{ url_for('reject_withdrawal', tx_id=tx['id']) }}">
-                  <button type="submit" class="btn btn-small btn-outline admin-action-btn">Reject</button>
-                </form>
-              </td>
-            </tr>
-            {% endfor %}
+            {% if pending_withdrawals %}
+              {% for tx in pending_withdrawals %}
+              <tr>
+                <td>{{ tx['username'] }}</td>
+                <td><strong>{{ tx['amount'] }} ETB</strong></td>
+                <td>{{ tx['created_at'][:16].replace('T',' ') }}</td>
+                <td class="admin-action-group">
+                  <form method="POST" action="{{ url_for('approve_withdrawal', tx_id=tx['id']) }}">
+                    <button type="submit" class="btn btn-success btn-small admin-action-btn">Approve</button>
+                  </form>
+                  <form method="POST" action="{{ url_for('reject_withdrawal', tx_id=tx['id']) }}">
+                    <button type="submit" class="btn btn-danger btn-small admin-action-btn">Reject</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="4" class="admin-empty-state">There are no pending withdrawals right now.</td>
+              </tr>
+            {% endif %}
           </tbody>
         </table>
       </div>
+      {% if withdrawal_pages > 1 %}
+      <div class="admin-pagination-card">
+        {% if withdrawal_page > 1 %}
+          <a href="{{ url_for('admin_dashboard', deposit_page=deposit_page, withdrawal_page=withdrawal_page-1) }}" class="btn btn-outline btn-small">Previous</a>
+        {% endif %}
+        <span class="admin-pill">Showing {{ pending_withdrawals|length }} of {{ pending_withdrawal_count }} pending withdrawals</span>
+        {% if withdrawal_page < withdrawal_pages %}
+          <a href="{{ url_for('admin_dashboard', deposit_page=deposit_page, withdrawal_page=withdrawal_page+1) }}" class="btn btn-outline btn-small">Next</a>
+        {% endif %}
+      </div>
+      {% endif %}
     </section>
   </main>
 </div>

@@ -105,10 +105,21 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
   font-size: 13px;
-  opacity: 0.75;
+  opacity: 0.85;
   padding-top: 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.wallet-card-footer-group {
+  min-width: 140px;
+}
+
+.wallet-card-footer-value {
+  font-weight: 700;
+  color: #ffffff;
 }
 
 /* ===== Action Buttons Row ===== */
@@ -441,13 +452,13 @@
       </div>
 
       <div class="wallet-card-footer">
-        <div>
-          <div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Card Number</div>
-          <div style="font-weight: 600;">{{ current_user.get('wallet_id') or '—' }}</div>
+        <div class="wallet-card-footer-group">
+          <div class="wallet-card-footer-label">Card Number</div>
+          <div class="wallet-card-footer-value">{{ current_user.get('wallet_id') or '—' }}</div>
         </div>
-        <div style="text-align: right;">
-          <div style="font-size: 11px; opacity: 0.7; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Valid Thru</div>
-          <div style="font-weight: 600;">12/27</div>
+        <div class="wallet-card-footer-group">
+          <div class="wallet-card-footer-label">Valid Thru</div>
+          <div class="wallet-card-footer-value">12/27</div>
         </div>
       </div>
     </div>
@@ -544,7 +555,7 @@
 <!-- Deposit Modal -->
 <div id="depositModal" class="modal" role="dialog" aria-hidden="true">
   <h3>💰 Deposit Funds</h3>
-  <p class="post-meta" style="margin-bottom: 18px;">Deposits are processed through secure external payment providers.</p>
+  <p class="modal-intro">Deposits are processed through secure external payment providers.</p>
   <form id="depositModalForm" method="POST" action="{{ url_for('wallet_deposit') }}" enctype="multipart/form-data">
     <div class="form-group">
       <label>Amount (ETB)</label>
@@ -562,11 +573,11 @@
         {% endfor %}
       </select>
       {% else %}
-      <p style="margin:0.5rem 0 0;color:var(--muted);">No active bank accounts are configured. Please contact support.</p>
+      <p class="helper-text">No active bank accounts are configured. Please contact support.</p>
       {% endif %}
     </div>
 
-    <div class="deposit-bank-details" id="depositBankDetails" style="display:none;">
+    <div class="deposit-bank-details hidden" id="depositBankDetails">
       <div class="deposit-bank-row">
         <div class="deposit-bank-label">Bank</div>
         <div class="deposit-bank-value" id="depositBankName">—</div>
@@ -579,10 +590,10 @@
         <div class="deposit-bank-label">Account number</div>
         <div class="deposit-bank-value" id="depositAccountNumber">—</div>
       </div>
-      <div class="deposit-bank-note" style="margin-top:8px;color:var(--muted);font-size:0.88rem;">Send the funds to the selected bank account and enter the reference above. Attach a receipt if available.</div>
+      <div class="deposit-bank-note helper-text">Send the funds to the selected bank account and enter the reference above. Attach a receipt if available.</div>
     </div>
     {% if not banks or banks|length == 0 %}
-    <div style="margin-top:18px;">
+    <div class="modal-actions">
       <button type="button" class="btn btn-outline" disabled>No bank available for deposit</button>
     </div>
     {% endif %}
@@ -594,9 +605,9 @@
       <label>Receipt Photo (optional)</label>
       <input type="file" name="receipt_photo" accept="image/*">
     </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
+    <div class="form-actions">
       <button type="button" class="btn btn-outline" onclick="closeModal('depositModal')">Cancel</button>
-      <button type="submit" class="btn-premium" style="background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); color: #fff; border: none;" {% if not banks or banks|length == 0 %}disabled{% endif %}>Submit Deposit</button>
+      <button type="submit" class="btn-premium" {% if not banks or banks|length == 0 %}disabled{% endif %}>Submit Deposit</button>
     </div>
   </form>
 </div>
@@ -605,7 +616,7 @@
 <div id="withdrawModal" class="modal" role="dialog" aria-hidden="true">
   <h3>📤 Withdraw Funds</h3>
   {% if has_pending_withdrawal %}
-    <div class="alert-banner" style="margin-bottom:16px;">A pending withdrawal request is already in progress. Please wait for admin approval before submitting another.</div>
+    <div class="alert-banner">A pending withdrawal request is already in progress. Please wait for admin approval before submitting another.</div>
   {% endif %}
   <form id="withdrawModalForm" method="POST" action="{{ url_for('withdraw_request') }}">
     <div class="form-group">
@@ -614,7 +625,7 @@
     </div>
     <div class="form-group">
       <label>Bank / Destination</label>
-      <select name="bankSelection" id="withdrawBankSelection" required>
+      <select name="bank_id" id="withdrawBankSelection" required>
         <option value="" data-bank-name="" data-account-name="" data-account-number="">Select bank</option>
         {% for bank in banks %}
         <option value="{{ bank['id'] }}" data-bank-name="{{ bank['bank_name'] }}" data-account-name="{{ bank['account_holder_name'] if bank['account_holder_name'] else bank['account_name'] }}" data-account-number="{{ bank['account_number'] }}">
@@ -624,7 +635,7 @@
         <option value="other">Other (Manual Entry)</option>
       </select>
     </div>
-    <div class="deposit-bank-details" id="withdrawBankDetails" style="display:none;">
+    <div class="deposit-bank-details hidden" id="withdrawBankDetails">
       <div class="deposit-bank-row">
         <div class="deposit-bank-label">Bank</div>
         <div class="deposit-bank-value" id="withdrawBankName">—</div>
@@ -638,21 +649,21 @@
         <div class="deposit-bank-value" id="withdrawAccountNumber">—</div>
       </div>
     </div>
-    <div class="form-group" id="withdrawBankManualWrap" style="display:none;">
+    <div class="form-group hidden" id="withdrawBankManualWrap">
       <label>Manual Bank Name</label>
       <input type="text" name="bankNameManual" id="withdrawBankManual" placeholder="Enter bank name manually">
     </div>
     <div class="form-group">
       <label>Account Number</label>
-      <input type="text" name="accountNumber" placeholder="Account number" required>
+      <input type="text" inputmode="numeric" name="accountNumber" placeholder="Account number" required>
     </div>
     <div class="form-group">
       <label>Account Holder Name</label>
       <input type="text" name="accountName" placeholder="Account holder name" required>
     </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
+    <div class="modal-actions">
       <button type="button" class="btn btn-outline" onclick="closeModal('withdrawModal')">Cancel</button>
-      <button type="submit" class="btn-premium" style="background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); color: #fff; border: none;" {% if has_pending_withdrawal %}disabled{% endif %}>Submit</button>
+      <button type="submit" id="withdrawSubmitButton" class="btn-premium" {% if has_pending_withdrawal %}disabled{% endif %}>Request Withdrawal</button>
     </div>
   </form>
 </div>
@@ -667,12 +678,26 @@
         const selected = (bankSelection.value || '').toString().trim().toLowerCase();
         const showManual = selected === 'other' || selected === 'manual' || selected === 'manual entry';
         bankManualWrap.style.display = showManual ? 'block' : 'none';
+        bankManual.required = showManual;
         if (!showManual) {
           bankManual.value = '';
         }
       };
       bankSelection.addEventListener('change', syncBankManual);
       syncBankManual();
+    }
+
+    const withdrawForm = document.getElementById('withdrawModalForm');
+    const withdrawSubmit = document.getElementById('withdrawSubmitButton');
+    if (withdrawForm && withdrawSubmit) {
+      withdrawForm.addEventListener('submit', function (event) {
+        if (withdrawSubmit.disabled) {
+          event.preventDefault();
+          return;
+        }
+        withdrawSubmit.disabled = true;
+        withdrawSubmit.textContent = 'Submitting...';
+      });
     }
   });
 </script>
@@ -683,15 +708,16 @@
   <form id="transferModalForm" method="POST" action="{{ url_for('wallet_transfer') }}">
     <div class="form-group">
       <label>Recipient Wallet Number</label>
-      <input type="text" name="recipient_wallet_id" placeholder="Enter recipient wallet number" required>
+      <input type="text" name="recipient_wallet_id" placeholder="Enter recipient wallet number" autocomplete="off" required>
+      <span class="helper-text">Use the recipient's wallet ID only, not username or email.</span>
     </div>
     <div class="form-group">
       <label>Amount (Tokens)</label>
       <input type="number" name="amount" min="1" step="1" placeholder="Enter token amount" required>
     </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
+    <div class="modal-actions">
       <button type="button" class="btn btn-outline" onclick="closeModal('transferModal')">Cancel</button>
-      <button type="submit" class="btn-premium" style="background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); color: #fff; border: none;">Send Tokens</button>
+      <button type="submit" class="btn-premium">Send Tokens</button>
     </div>
   </form>
 </div>

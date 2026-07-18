@@ -1,91 +1,85 @@
 {% extends "base.html" %}
 {% block content %}
 
-<style>
-  .inbox-empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 48px 20px;
-    gap: 10px;
-  }
-  .inbox-empty-state svg { width: 140px; height: 140px; opacity: .85; }
-  .inbox-empty-title { font-weight: 700; font-size: 1.05rem; margin-top: 4px; }
-  .inbox-empty-sub { font-size: 0.85rem; opacity: .65; max-width: 280px; }
-
-  .chat-list-item { position: relative; }
-  .chat-unread-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 20px;
-    height: 20px;
-    padding: 0 6px;
-    border-radius: 999px;
-    background: var(--accent);
-    color: #fff;
-    font-size: 0.7rem;
-    font-weight: 800;
-    flex-shrink: 0;
-  }
-</style>
-
-<h2 style="margin-bottom:14px">💬 {{ t.messages }}</h2>
-
-{% if requests_in %}
-<div class="card" style="padding:0">
-  <div class="settings-section-title">{{ t.message_requests }} ({{ requests_in|length }})</div>
-  {% for item in requests_in %}
-    {% set c = item.convo %}
-    <a href="{{ url_for('chat_thread', conversation_id=c['id']) }}" class="chat-list-item">
-      <div class="avatar">
-        {% if c['avatar'] %}<img src="{{ photo_url(c['avatar']) }}">{% else %}{{ (c['full_name'] or c['username'])[0] }}{% endif %}
-      </div>
-      <div class="chat-preview">
-        <b>{{ c['full_name'] or c['username'] }}</b>
-        <p>{{ item.last_msg['content'] if item.last_msg else '' }}</p>
-      </div>
-      <span class="badge badge-job">{{ t.pending }}</span>
-    </a>
-  {% endfor %}
-</div>
-{% endif %}
-
-<div class="card" style="padding:0">
-  <div class="settings-section-title">{{ t.messages }}</div>
-
-  {% if not active %}
-    <div class="inbox-empty-state">
-      <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <circle cx="100" cy="100" r="90" fill="rgba(29,155,240,0.08)"/>
-        <rect x="45" y="65" width="110" height="80" rx="14" fill="none" stroke="#8a8f98" stroke-width="4"/>
-        <path d="M45 75 L100 115 L155 75" fill="none" stroke="#8a8f98" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="140" cy="60" r="18" fill="var(--accent)"/>
-        <path d="M132 60 h16 M140 52 v16" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
-      </svg>
-      <div class="inbox-empty-title">{{ t.no_conversations }}</div>
-      <div class="inbox-empty-sub">
-        {{ t.messages_empty_hint if t.messages_empty_hint is defined else 'When someone messages you or you start a conversation, it will show up here.' }}
-      </div>
+<div class="messages-page">
+  <div class="messages-header">
+    <div>
+      <h2>💬 {{ t.messages }}</h2>
+      <p class="messages-subtitle">{{ t.messages_subtitle if t.messages_subtitle is defined else 'Connect with your network through secure AltaJobs chat.' }}</p>
     </div>
+  </div>
+
+  {% if requests_in %}
+  <div class="messages-card messages-requests-card">
+    <div class="messages-card-head">
+      <span>{{ t.message_requests }}</span>
+      <span class="badge badge-job">{{ requests_in|length }}</span>
+    </div>
+    <div class="chat-list">
+      {% for item in requests_in %}
+        {% set c = item.convo %}
+        <a href="{{ url_for('chat_thread', conversation_id=c['id']) }}" class="chat-list-item">
+          <div class="avatar">
+            {% if c['avatar'] %}
+              <img src="{{ photo_url(c['avatar']) }}" alt="{{ c['full_name'] or c['username'] }}">
+            {% else %}
+              {{ (c['full_name'] or c['username'])[0] }}
+            {% endif %}
+          </div>
+          <div class="chat-preview">
+            <b>{{ c['full_name'] or c['username'] }}</b>
+            <p>{{ item.last_msg['content'] if item.last_msg else '' }}</p>
+          </div>
+          <span class="badge badge-job">{{ t.pending }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
   {% endif %}
 
-  {% for item in active %}
-    {% set c = item.convo %}
-    <a href="{{ url_for('chat_thread', conversation_id=c['id']) }}" class="chat-list-item">
-      <div class="avatar">
-        {% if c['avatar'] %}<img src="{{ photo_url(c['avatar']) }}">{% else %}{{ (c['full_name'] or c['username'])[0] }}{% endif %}
+  <div class="messages-card messages-conversations-card">
+    <div class="messages-card-head">
+      <span>{{ t.messages }}</span>
+    </div>
+
+    {% if not active %}
+      <div class="inbox-empty-state">
+        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="100" cy="100" r="90" fill="rgba(29,155,240,0.08)"/>
+          <rect x="45" y="65" width="110" height="80" rx="14" fill="none" stroke="#8a8f98" stroke-width="4"/>
+          <path d="M45 75 L100 115 L155 75" fill="none" stroke="#8a8f98" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="140" cy="60" r="18" fill="var(--accent)"/>
+          <path d="M132 60 h16 M140 52 v16" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+        <div class="inbox-empty-title">{{ t.no_conversations }}</div>
+        <div class="inbox-empty-sub">
+          {{ t.messages_empty_hint if t.messages_empty_hint is defined else 'When someone messages you or you start a conversation, it will show up here.' }}
+        </div>
       </div>
-      <div class="chat-preview">
-        <b>{{ c['full_name'] or c['username'] }}</b>
-        <p>{{ item.last_msg['content'] if item.last_msg else '' }}</p>
-      </div>
-      {% if item.unread > 0 %}
-        <span class="chat-unread-badge">{{ item.unread if item.unread <= 9 else '9+' }}</span>
-      {% endif %}
-    </a>
-  {% endfor %}
+    {% endif %}
+
+    <div class="chat-list">
+      {% for item in active %}
+        {% set c = item.convo %}
+        <a href="{{ url_for('chat_thread', conversation_id=c['id']) }}" class="chat-list-item">
+          <div class="avatar">
+            {% if c['avatar'] %}
+              <img src="{{ photo_url(c['avatar']) }}" alt="{{ c['full_name'] or c['username'] }}">
+            {% else %}
+              {{ (c['full_name'] or c['username'])[0] }}
+            {% endif %}
+          </div>
+          <div class="chat-preview">
+            <b>{{ c['full_name'] or c['username'] }}</b>
+            <p>{{ item.last_msg['content'] if item.last_msg else '' }}</p>
+          </div>
+          {% if item.unread > 0 %}
+            <span class="chat-unread-badge">{{ item.unread if item.unread <= 9 else '9+' }}</span>
+          {% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  </div>
 </div>
 
 {% endblock %}

@@ -1,205 +1,38 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-  html, body {
-    min-height: 100%;
-    margin: 0;
-    font-family: 'Inter', sans-serif;
-    background: #0F172A;
-    color: #e2e8f0;
-    direction: ltr !important;
-  }
-
-  body > * {
-    direction: ltr !important;
-    transform: none !important;
-  }
-
-  .page-shell {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 16px;
-    background: #0F172A;
-  }
-
-  .auth-card {
-    width: 100%;
-    max-width: 440px;
-    background: #1E293B;
-    padding: 24px;
-    border-radius: 24px;
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
-  }
-
-  .auth-header {
-    margin-bottom: 20px;
-  }
-
-  .auth-title {
-    margin: 0;
-    color: #f8fafc;
-    font-size: 1.75rem;
-    font-weight: 700;
-    line-height: 1.1;
-  }
-
-  .auth-copy {
-    margin-top: 10px;
-    color: #cbd5e1;
-    font-size: 0.95rem;
-    line-height: 1.7;
-  }
-
-  .auth-form {
-    display: grid;
-    gap: 14px;
-  }
-
-  .auth-form label {
-    display: block;
-    color: #cbd5e1;
-    font-size: 0.95rem;
-    margin-bottom: 6px;
-  }
-
-  .auth-input,
-  .auth-select {
-    width: 100%;
-    height: 48px;
-    padding: 0 14px;
-    border-radius: 14px;
-    border: 1px solid #334155;
-    background: #0F172A;
-    color: #f8fafc;
-    font-size: 16px;
-    outline: none;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  }
-
-  .auth-input:focus,
-  .auth-select:focus {
-    border-color: #1D9BF0;
-    box-shadow: 0 0 0 4px rgba(29, 155, 240, 0.18);
-  }
-
-  .auth-actions {
-    margin-top: 4px;
-  }
-
-  .auth-btn {
-    width: 100%;
-    height: 48px;
-    border-radius: 14px;
-    border: none;
-    background: #1D9BF0;
-    color: #ffffff;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s ease, transform 0.15s ease;
-  }
-
-  .auth-btn:hover {
-    background: #1785d7;
-    transform: translateY(-1px);
-  }
-
-  .auth-footer {
-    margin-top: 22px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    color: #94a3b8;
-    font-size: 0.94rem;
-  }
-
-  .auth-footer a,
-  .auth-footer button {
-    color: #1D9BF0;
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    font-weight: 600;
-    text-decoration: none;
-  }
-
-  .auth-footer button:hover,
-  .auth-footer a:hover {
-    text-decoration: underline;
-  }
-
-  .social-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    margin-top: 14px;
-  }
-
-  .social-item {
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    border-radius: 14px;
-    border: 1px solid #334155;
-    background: #0F172A;
-    color: #e2e8f0;
-    padding: 12px 10px;
-    font-size: 0.95rem;
-    text-decoration: none;
-    transition: border-color 0.2s ease, background 0.2s ease;
-  }
-
-  .social-item:hover {
-    border-color: #1D9BF0;
-    background: rgba(29, 155, 240, 0.08);
-  }
-
-  @media (max-width: 480px) {
-    .auth-card {
-      padding: 20px;
-    }
-
-    .social-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>
-
-<div class="page-shell">
+<div class="page-shell auth-page-shell">
   <div class="auth-card">
-    <div class="auth-header">
-      <h1 class="auth-title">Create your AltaJobs account</h1>
-      <p class="auth-copy">Join the premium job marketplace and get started in seconds.</p>
+    <div class="auth-brand">
+      <span class="brand-mark">A</span>
+      <div>
+        <p class="auth-brand-label">AltaJobs</p>
+        <p class="auth-subtitle">Join the premium talent marketplace and launch your account in seconds.</p>
+      </div>
     </div>
+
+    <h1 class="auth-title">Create your account</h1>
+    <p class="auth-copy">Get hiring, apply faster, and access trusted opportunities.</p>
 
     <form class="auth-form" method="POST" action="{{ url_for('register') }}">
       <input type="hidden" name="ref_code" value="{{ ref_code if ref_code is defined else request.args.get('ref', '') }}">
 
-      <div>
+      <div class="auth-field">
         <label for="full_name">{{ t.full_name }}</label>
         <input id="full_name" class="auth-input" type="text" name="full_name" autocomplete="name" required>
       </div>
-      <div>
+      <div class="auth-field">
         <label for="username">{{ t.username }}</label>
         <input id="username" class="auth-input" type="text" name="username" autocomplete="username" required>
       </div>
-      <div>
+      <div class="auth-field">
         <label for="password">{{ t.password }}</label>
         <input id="password" class="auth-input" type="password" name="password" autocomplete="new-password" required>
       </div>
-      <div>
+      <div class="auth-field">
         <label for="confirm_password">Confirm Password</label>
         <input id="confirm_password" class="auth-input" type="password" name="confirm_password" autocomplete="new-password" required>
       </div>
-      <div>
+      <div class="auth-field">
         <label for="user_type">Account type</label>
         <select id="user_type" class="auth-select" name="user_type">
           <option value="worker">Worker</option>
@@ -236,8 +69,8 @@
     {% endif %}
 
     <div class="auth-footer">
-      <div>Already have an account?</div>
-      <a href="{{ url_for('login') }}">Sign in</a>
+      <div>{{ t.get('already_have_account', 'Already have an account?') }}</div>
+      <a class="auth-link" href="{{ url_for('login') }}">{{ t.login }}</a>
     </div>
   </div>
 </div>

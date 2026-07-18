@@ -6,7 +6,7 @@
     <div class="compose-row">
       <div class="avatar compose-avatar">
         {% if current_user['avatar'] %}
-          <img src="{{ photo_url(current_user['avatar']) }}">
+          <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}">
         {% else %}
           {{ (current_user['full_name'] or current_user['username'])[0] }}
         {% endif %}
@@ -38,57 +38,43 @@
   <button type="button" class="filter-pill" data-filter="general,skill">Experiences 💬</button>
 </div>
 
-<div class="card waitlist-banner" id="waitlistBanner">
-  <div class="waitlist-banner-glow"></div>
-  <div class="waitlist-banner-content">
-    <div class="waitlist-banner-icon"><i class='bx bx-search-alt-2'></i></div>
-    <div class="waitlist-banner-text">
-      <div class="waitlist-banner-tag">Smart discovery</div>
-      <h3>Find the right opportunity faster</h3>
-      <p>Use the new search bar to filter jobs, experiences, and trusted creators instantly.</p>
+<div class="feed-shell">
+  <div class="feed-skeleton-shell" id="feedSkeletonShell" aria-hidden="true">
+    <div class="feed-skeleton-card">
+      <div class="feed-skeleton-row"></div>
+      <div class="feed-skeleton-row short"></div>
+      <div class="feed-skeleton-media"></div>
+      <div class="feed-skeleton-row"></div>
+      <div class="feed-skeleton-row short"></div>
     </div>
-    <a href="{{ url_for('wallet') }}" class="btn waitlist-notify-btn">
-      <i class='bx bx-wallet'></i> Boost visibility
-    </a>
-  </div>
-</div>
-
-<div class="feed-skeleton-shell" id="feedSkeletonShell" aria-hidden="true">
-  <div class="feed-skeleton-card">
-    <div class="feed-skeleton-row"></div>
-    <div class="feed-skeleton-row short"></div>
-    <div class="feed-skeleton-media"></div>
-    <div class="feed-skeleton-row"></div>
-    <div class="feed-skeleton-row short"></div>
-  </div>
-  <div class="feed-skeleton-card">
-    <div class="feed-skeleton-row"></div>
-    <div class="feed-skeleton-row short"></div>
-    <div class="feed-skeleton-media"></div>
-    <div class="feed-skeleton-row"></div>
-  </div>
-</div>
-
-{% if active_announcement %}
-<div class="announcement-banner" id="announcementBanner">
-  <div class="announcement-banner-gradient"></div>
-  <div class="announcement-banner-content">
-    <div>
-      <div class="announcement-banner-tag">Live update</div>
-      <h3>{{ active_announcement['title'] }}</h3>
-      <p>{{ active_announcement['content'] }}</p>
+    <div class="feed-skeleton-card">
+      <div class="feed-skeleton-row"></div>
+      <div class="feed-skeleton-row short"></div>
+      <div class="feed-skeleton-media"></div>
+      <div class="feed-skeleton-row"></div>
     </div>
-    <form method="POST" action="{{ url_for('dismiss_announcement', announcement_id=active_announcement['id']) }}" class="announcement-dismiss-form">
-      <button type="submit" class="announcement-dismiss-btn">Dismiss</button>
-    </form>
   </div>
-</div>
-{% endif %}
 
-{% if not posts_data %}
-  <p style="text-align:center;color:var(--muted)" id="noPostsMsg">{{ t.no_posts }}</p>
-{% endif %}
-<p style="text-align:center;color:var(--muted);display:none" id="noFilterResultsMsg">No posts match this filter yet.</p>
+  {% if active_announcement %}
+  <div class="announcement-banner" id="announcementBanner">
+    <div class="announcement-banner-gradient"></div>
+    <div class="announcement-banner-content">
+      <div>
+        <div class="announcement-banner-tag">Live update</div>
+        <h3>{{ active_announcement['title'] }}</h3>
+        <p>{{ active_announcement['content'] }}</p>
+      </div>
+      <form method="POST" action="{{ url_for('dismiss_announcement', announcement_id=active_announcement['id']) }}" class="announcement-dismiss-form">
+        <button type="submit" class="announcement-dismiss-btn">Dismiss</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if not posts_data %}
+    <p class="empty-state-note" id="noPostsMsg">{{ t.no_posts }}</p>
+  {% endif %}
+  <p class="empty-state-note empty-state-note-hidden" id="noFilterResultsMsg">No posts match this filter yet.</p>
 
 {% for item in posts_data %}
   {% set post = item.post %}
@@ -110,12 +96,12 @@
     <div class="post-header">
       <a href="{{ url_for('profile', user_id=post_user_id) }}" class="avatar">
         {% if post.get('avatar') %}
-          <img src="{{ photo_url(post.get('avatar')) }}">
+          <img src="{{ photo_url(post.get('avatar')) }}" loading="lazy" decoding="async" alt="{{ item.author_name }}">
         {% else %}
           {{ item.author_name[0] if item.author_name else 'U' }}
         {% endif %}
       </a>
-      <div style="flex:1;min-width:0">
+      <div class="post-header-body">
         <div class="post-header-meta">
           <a href="{{ url_for('profile', user_id=post_user_id) }}" class="post-author">
             {{ item.author_name }}
@@ -156,7 +142,7 @@
     {% endif %}
     {% if post_photo %}
       <div class="post-media" data-post-id="{{ post_id }}">
-        <img class="post-photo" src="{{ photo_url(post_photo) }}" alt="Product preview" loading="lazy" decoding="async">
+        <img class="post-photo" src="{{ photo_url(post_photo) }}" alt="Product preview" loading="lazy" decoding="async" fetchpriority="low">
         <div class="double-tap-heart" aria-hidden="true"><i class='bx bxs-heart'></i></div>
       </div>
     {% endif %}
@@ -188,30 +174,35 @@
     {% if post_type == 'job' %}
       <div class="job-actions">
         {% if post_user_id == current_user['id'] %}
-          <a href="{{ url_for('view_applicants', post_id=post_id) }}" class="btn-apply" style="text-decoration:none;display:block"><i class='bx bxs-user-detail'></i> {{ t.applicants }}</a>
+          <a href="{{ url_for('view_applicants', post_id=post_id) }}" class="btn-apply btn-full">
+            <i class='bx bxs-user-detail'></i> {{ t.applicants }}
+          </a>
         {% elif item.applied %}
-          <button class="btn-apply" disabled style="opacity:0.6"><i class='bx bx-check'></i> {{ t.applied }}</button>
+          <button class="btn-apply btn-disabled" disabled>
+            <i class='bx bx-check'></i> {{ t.applied }}
+          </button>
         {% else %}
-          <form method="POST" action="{{ url_for('apply_to_job', post_id=post_id) }}" style="flex:1.4">
-            <button type="submit" class="btn-apply" style="width:100%">{{ t.apply_now }}</button>
+          <form method="POST" action="{{ url_for('apply_to_job', post_id=post_id) }}" class="job-action-form job-action-form-apply">
+            <button type="submit" class="btn-apply btn-full">{{ t.apply_now }}</button>
           </form>
         {% endif %}
-        <form method="POST" action="{{ url_for('save_post', post_id=post_id) }}" style="flex:1">
-          <button type="submit" class="btn-save {{ 'saved' if item.saved }}" style="width:100%">
+        <form method="POST" action="{{ url_for('save_post', post_id=post_id) }}" class="job-action-form">
+          <button type="submit" class="btn-save {{ 'saved' if item.saved }} btn-full">
             <i class='bx {{ "bxs-bookmark" if item.saved else "bx-bookmark" }}'></i>
           </button>
         </form>
-        <form method="POST" action="{{ url_for('share_post', post_id=post_id) }}">
-          <button type="submit" class="btn-share"><i class='bx bx-share-alt'></i></button>
+        <form method="POST" action="{{ url_for('share_post', post_id=post_id) }}" class="job-action-form">
+          <button type="submit" class="btn-share btn-full"> <i class='bx bx-share-alt'></i></button>
         </form>
       </div>
     {% endif %}
 
   </div>
 {% endfor %}
+</div>
 
 {% if page > 1 or has_next %}
-  <div class="feed-pagination" style="display:flex;justify-content:center;gap:12px;margin:24px 0">
+  <div class="feed-pagination">
     {% if page > 1 %}
       <a href="{{ url_for('feed', page=page-1) }}" class="btn btn-outline">← Previous</a>
     {% endif %}

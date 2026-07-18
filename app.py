@@ -1871,7 +1871,9 @@ def photo_url(value):
     value = str(value).strip().replace("\\", "/")
     if not value:
         return None
-    if value.startswith(("http://", "https://", "/")):
+    if value.startswith(("http://", "https://", "//")):
+        return value
+    if value.startswith("/"):
         return value
     if value.startswith("static/"):
         value = value[len("static/"):]
@@ -2012,15 +2014,10 @@ def get_active_banks():
     for display on the wallet deposit form."""
     db = get_db()
     try:
-        rows = db.execute("SELECT * FROM bank_accounts ORDER BY bank_name").fetchall()
+        rows = db.execute("SELECT * FROM bank_accounts WHERE is_active = ? ORDER BY bank_name", (True,)).fetchall()
     except Exception:
         return []
-    banks = []
-    for row in rows:
-        normalized = _normalize_bank_row(row)
-        if normalized and normalized.get("is_active", True):
-            banks.append(normalized)
-    return banks
+    return [_normalize_bank_row(row) for row in rows if _normalize_bank_row(row)]
 
 
 def get_all_banks():
@@ -2470,7 +2467,7 @@ def feed():
             page = 1
     except Exception:
         page = 1
-    page_size = 10
+    page_size = 12
     offset = (page - 1) * page_size
 
     posts = []
@@ -2484,7 +2481,7 @@ def feed():
         posts = db.execute(
             """WITH latest_posts AS (
                    SELECT * FROM posts
-                   WHERE status = 'approved'
+                   WHERE status IN ('approved', 'posted')
                    ORDER BY created_at DESC
                    LIMIT ? OFFSET ?
                )
@@ -2601,6 +2598,141 @@ def feed():
         days_left=trial_days_left(user) if user else 0,
         show_trial_banner=bool(user and not _get_row_value(user, "paid_until")),
     )
+
+
+@app.route("/api/feed")
+@login_required
+def api_feed():
+    db = get_db()
+    user = get_current_user()
+
+    try:
+        page = int(request.args.get("page", 1))
+        if page < 1:
+            page = 1
+    except Exception:
+        page = 1
+    page_size = 12
+    offset = (page - 1) * page_size
+
+    posts = []
+    try:
+        posts = db.execute(
+            """WITH latest_posts AS (
+                   SELECT * FROM posts
+                   WHERE status IN ('approved', 'posted')
+                   ORDER BY created_at DESC
+                   LIMIT ? OFFSET ?
+               )
+               SELECT p.*, u.username, u.full_name, u.avatar, u.user_type,
+                      u.is_verified, u.verified_until, u.is_vip, u.vip_until,
+                      COALESCE(like_counts.like_count, 0) AS like_count,
+                      COALESCE(comment_counts.comment_count, 0) AS comment_count
+               FROM latest_posts p
+               JOIN users u ON p.user_id = u.id
+               LEFT JOIN (
+                   SELECT post_id, COUNT(*) AS like_count
+                   FROM likes
+                   WHERE post_id IN (SELECT id FROM latest_posts)
+                   GROUP BY post_id
+               ) like_counts ON like_counts.post_id = p.id
+               LEFT JOIN (
+                   SELECT post_id, COUNT(*) AS comment_count
+                   FROM comments
+                   WHERE post_id IN (SELECT id FROM latest_posts)
+                   GROUP BY post_id
+               ) comment_counts ON comment_counts.post_id = p.id
+               ORDER BY p.created_at DESC""",
+            (page_size, offset),
+        ).fetchall()
+    except Exception as exc:
+        print(f"Warning: could not load feed posts for API: {exc}")
+        return jsonify({"success": False, "error": "feed_load_failed"}), 500
+
+    post_ids = [p["id"] for p in posts]
+    liked_ids = set()
+    saved_ids = set()
+    following_ids = set()
+    applied_ids = set()
+    author_ids = list({p["user_id"] for p in posts})
+
+    if user and post_ids:
+        try:
+            placeholders = ", ".join("?" for _ in post_ids)
+            liked_ids = {
+                r["post_id"]
+                for r in db.execute(
+                    f"SELECT post_id FROM likes WHERE user_id = ? AND post_id IN ({placeholders})",
+                    tuple([user["id"]] + post_ids),
+                ).fetchall()
+            }
+            saved_ids = {
+                r["post_id"]
+                for r in db.execute(
+                    f"SELECT post_id FROM saved_posts WHERE user_id = ? AND post_id IN ({placeholders})",
+                    tuple([user["id"]] + post_ids),
+                ).fetchall()
+            }
+            applied_ids = {
+                r["post_id"]
+                for r in db.execute(
+                    f"SELECT post_id FROM job_applications WHERE applicant_id = ? AND post_id IN ({placeholders})",
+                    tuple([user["id"]] + post_ids),
+                ).fetchall()
+            }
+            if author_ids:
+                author_placeholders = ", ".join("?" for _ in author_ids)
+                following_ids = {
+                    r["followed_id"]
+                    for r in db.execute(
+                        f"SELECT followed_id FROM follows WHERE follower_id = ? AND followed_id IN ({author_placeholders})",
+                        tuple([user["id"]] + author_ids),
+                    ).fetchall()
+                }
+        except Exception as exc:
+            print(f"Warning: could not load feed metadata for API: {exc}")
+
+    def build_post_payload(rows):
+        payload = []
+        for p in rows:
+            if not hasattr(p, "keys") and not isinstance(p, dict):
+                continue
+            row = dict(p) if hasattr(p, "keys") else dict(p)
+            row.setdefault("id", None)
+            row.setdefault("user_id", None)
+            row.setdefault("content", "")
+            row.setdefault("photo", None)
+            row.setdefault("post_type", "general")
+            row.setdefault("created_at", "")
+            row.setdefault("view_count", 0)
+            row.setdefault("full_name", row.get("username") or "Unknown")
+            row.setdefault("username", "unknown")
+            row.setdefault("avatar", None)
+            row.setdefault("like_count", 0)
+            row.setdefault("comment_count", 0)
+            row.setdefault("is_verified", False)
+            row.setdefault("is_vip", False)
+            payload.append({
+                "post": row,
+                "author_name": row.get("full_name") or row.get("username") or "Unknown",
+                "like_count": row.get("like_count", 0),
+                "comment_count": row.get("comment_count", 0),
+                "liked": row.get("id") in liked_ids,
+                "saved": row.get("id") in saved_ids,
+                "following": row.get("user_id") in following_ids,
+                "applied": row.get("id") in applied_ids,
+            })
+        return payload
+
+    posts_data = build_post_payload(posts)
+    has_next = len(posts) == page_size
+
+    return jsonify({
+        "success": True,
+        "posts": posts_data,
+        "page": page,
+        "has_next": has_next,
+    })
 
 
 @app.route("/home")
@@ -3873,8 +4005,8 @@ def wallet_transfer():
     sender_tokens = float(_get_row_value(sender, "alta_tokens", 0) or 0)
 
     recipient = db.execute(
-        "SELECT * FROM users WHERE wallet_id = ? OR lower(username) = lower(?) OR lower(email) = lower(?) OR lower(phone) = lower(?)",
-        (recipient_wallet_id, recipient_wallet_id, recipient_wallet_id, recipient_wallet_id),
+        "SELECT * FROM users WHERE wallet_id = ?",
+        (recipient_wallet_id,),
     ).fetchone()
     if not recipient or _get_row_value(recipient, "id") == sender_id:
         flash("Recipient wallet number could not be found")
@@ -4093,7 +4225,7 @@ def _submit_withdrawal_request(user_id, amount, bank_name, account_number, accou
 @login_required
 def withdraw_request():
     amount = request.form.get("amount", 0)
-    bank_selection = request.form.get("bankSelection") or ""
+    bank_selection = request.form.get("bank_id") or request.form.get("bankSelection") or ""
     manual_bank_name = (
         request.form.get("bankNameManual")
         or request.form.get("bank_name_manual")
@@ -4991,6 +5123,13 @@ def admin_settings():
 @login_required
 @admin_required
 def admin_dashboard():
+    def _normalize_page(key):
+        try:
+            page_value = int(request.args.get(key, 1))
+            return page_value if page_value >= 1 else 1
+        except Exception:
+            return 1
+
     try:
         db = get_db()
         if not db.is_sqlite:
@@ -4998,6 +5137,23 @@ def admin_dashboard():
                 db.execute("SET LOCAL statement_timeout = 3000")
             except Exception:
                 pass
+
+        deposit_page = _normalize_page("deposit_page")
+        withdrawal_page = _normalize_page("withdrawal_page")
+        page_size = 20
+        deposit_offset = (deposit_page - 1) * page_size
+        withdrawal_offset = (withdrawal_page - 1) * page_size
+
+        total_deposits_row = db.execute(
+            "SELECT COUNT(*) c FROM wallet_transactions WHERE status = 'pending' AND tx_type = 'deposit'"
+        ).fetchone()
+        total_withdrawals_row = db.execute(
+            "SELECT COUNT(*) c FROM wallet_transactions WHERE status = 'pending' AND tx_type = 'withdrawal'"
+        ).fetchone()
+        pending_deposit_count = total_deposits_row["c"] if total_deposits_row else 0
+        pending_withdrawal_count = total_withdrawals_row["c"] if total_withdrawals_row else 0
+        deposit_pages = max(1, (pending_deposit_count + page_size - 1) // page_size)
+        withdrawal_pages = max(1, (pending_withdrawal_count + page_size - 1) // page_size)
 
         pending_deposits = db.execute(
             """SELECT wallet_transactions.id,
@@ -5013,7 +5169,8 @@ def admin_dashboard():
                WHERE wallet_transactions.status = 'pending'
                  AND wallet_transactions.tx_type = 'deposit'
                ORDER BY wallet_transactions.created_at DESC
-               LIMIT 100"""
+               LIMIT ? OFFSET ?""",
+            (page_size, deposit_offset),
         ).fetchall()
         pending_withdrawals = db.execute(
             """SELECT wallet_transactions.id,
@@ -5025,22 +5182,37 @@ def admin_dashboard():
                WHERE wallet_transactions.status = 'pending'
                  AND wallet_transactions.tx_type = 'withdrawal'
                ORDER BY wallet_transactions.created_at DESC
-               LIMIT 100"""
+               LIMIT ? OFFSET ?""",
+            (page_size, withdrawal_offset),
         ).fetchall()
         return render_template(
             "admin_dashboard.html",
             pending_deposits=pending_deposits,
             pending_withdrawals=pending_withdrawals,
             active_bank_count=len(get_active_banks()),
+            pending_deposit_count=pending_deposit_count,
+            pending_withdrawal_count=pending_withdrawal_count,
+            deposit_page=deposit_page,
+            withdrawal_page=withdrawal_page,
+            deposit_pages=deposit_pages,
+            withdrawal_pages=withdrawal_pages,
+            page_size=page_size,
         )
     except Exception as exc:
         print(f"Admin dashboard page error: {exc}")
-        flash("Could not load deposit/withdrawal dashboard at this time.")
+        flash("Could not load deposit/withdrawal dashboard at this time.", "danger")
         return render_template(
             "admin_dashboard.html",
             pending_deposits=[],
             pending_withdrawals=[],
             active_bank_count=len(get_active_banks()),
+            pending_deposit_count=0,
+            pending_withdrawal_count=0,
+            deposit_page=1,
+            withdrawal_page=1,
+            deposit_pages=1,
+            withdrawal_pages=1,
+            page_size=20,
         )
 
 
@@ -5085,6 +5257,9 @@ def approve_deposit(tx_id):
                 f"Your deposit of {tx['amount']} ETB was approved and credited to your wallet.",
                 ntype="deposit",
             )
+            flash("Deposit request approved and credited.", "success")
+        else:
+            flash("Deposit request was already processed or not found.", "warning")
         db.commit()
     except Exception:
         db.rollback()
@@ -5109,6 +5284,9 @@ def reject_deposit(tx_id):
             if reason:
                 msg += f" Reason: {reason}"
             add_notification(db, tx["user_id"], msg, ntype="deposit")
+            flash("Deposit request rejected.", "danger")
+        else:
+            flash("Deposit request was already processed or not found.", "warning")
         db.commit()
     except Exception:
         db.rollback()
@@ -5130,6 +5308,9 @@ def approve_withdrawal(tx_id):
                 "UPDATE users SET balance = balance - ?, wallet_balance = wallet_balance - ? WHERE id = ?",
                 (tx["amount"], tx["amount"], tx["user_id"]),
             )
+            flash("Withdrawal request approved and funds released.", "success")
+        else:
+            flash("Withdrawal request was already processed or not found.", "warning")
         db.commit()
     except Exception:
         db.rollback()
@@ -5156,6 +5337,9 @@ def reject_withdrawal(tx_id):
             if reason:
                 msg += f" Reason: {reason}"
             add_notification(db, tx["user_id"], msg, ntype="withdrawal")
+            flash("Withdrawal request rejected and funds returned.", "danger")
+        else:
+            flash("Withdrawal request was already processed or not found.", "warning")
         db.commit()
     except Exception:
         db.rollback()
@@ -5664,7 +5848,7 @@ def admin_revenue():
     )
 
 
-@app.route("/uploads/<filename>")
+@app.route("/uploads/<path:filename>")
 def uploaded_file(filename):
     safe_name = str(filename).replace("\\", "/").lstrip("/")
     if safe_name.startswith("..") or "/../" in safe_name:
