@@ -319,6 +319,17 @@ document.addEventListener("DOMContentLoaded", function () {
     syncScrollLock();
   }
 
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-modal-target]');
+    if (!btn) return;
+    const target = btn.getAttribute('data-modal-target');
+    if (!target) return;
+    if (typeof window.openModal === 'function') {
+      e.preventDefault();
+      window.openModal(target);
+    }
+  });
+
   // Ensure any stale scroll-lock state is cleared when the page loads.
   lockState.modal = false;
   lockState.drawer = false;

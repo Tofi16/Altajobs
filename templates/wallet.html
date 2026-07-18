@@ -390,10 +390,6 @@
   .wallet-balance-amount {
     font-size: 36px;
   }
-
-  .wallet-features-grid {
-    grid-template-columns: 1fr;
-  }
 }
 </style>
 
@@ -432,33 +428,33 @@
   <!-- Action Buttons -->
   <div class="wallet-actions-row">
     <div class="wallet-action-block">
-      <button class="wallet-action-btn-modern" type="button" onclick="openModal('depositModal')">
+      <button class="wallet-action-btn-modern" type="button" data-modal-target="depositModal" aria-controls="depositModal" title="Deposit funds" aria-label="Deposit funds">
         <div class="wallet-action-circle">
-          <div class="wallet-action-icon"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+          <div class="wallet-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"/><path d="M8 11l4 4 4-4"/><path d="M6 19h12"/></svg></div>
         </div>
         <span class="wallet-action-caption">Deposit</span>
       </button>
     </div>
     <div class="wallet-action-block">
-      <button class="wallet-action-btn-modern" type="button" onclick="openModal('withdrawModal')">
+      <button class="wallet-action-btn-modern" type="button" data-modal-target="withdrawModal" aria-controls="withdrawModal" title="Withdraw funds" aria-label="Withdraw funds">
         <div class="wallet-action-circle">
-          <div class="wallet-action-icon"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12h14"/></svg></div>
+          <div class="wallet-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V10"/><path d="M8 13l4-4 4 4"/><path d="M6 5h12"/></svg></div>
         </div>
         <span class="wallet-action-caption">Withdraw</span>
       </button>
     </div>
     <div class="wallet-action-block">
-      <button class="wallet-action-btn-modern" type="button" onclick="openModal('transferModal')">
+      <button class="wallet-action-btn-modern" type="button" data-modal-target="transferModal" aria-controls="transferModal" title="Send funds" aria-label="Send funds">
         <div class="wallet-action-circle">
-          <div class="wallet-action-icon"><svg viewBox="0 0 24 24"><path d="M16 4l4 4-4 4M8 20l-4-4 4-4M20 8H4v8"/></svg></div>
+          <div class="wallet-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg></div>
         </div>
         <span class="wallet-action-caption">Send</span>
       </button>
     </div>
     <div class="wallet-action-block">
-      <button class="wallet-action-btn-modern" type="button" onclick='location.href="{{ url_for("challenges") }}"'>
+      <button class="wallet-action-btn-modern" type="button" onclick='location.href="{{ url_for("challenges") }}"' title="Open challenges" aria-label="Open challenges">
         <div class="wallet-action-circle">
-          <div class="wallet-action-icon"><svg viewBox="0 0 24 24"><path d="M12 2l2.5 5.5L20 8l-4 3.8L16.5 17 12 14.5 7.5 17 8 11.8 4 8l5.5-.5L12 2z"/></svg></div>
+          <div class="wallet-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8v4H8z"/><path d="M6 6h12v6a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V6z"/><path d="M9 22h6"/></svg></div>
         </div>
         <span class="wallet-action-caption">Challenge</span>
       </button>
