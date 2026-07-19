@@ -4215,6 +4215,31 @@ def wallet_transfer():
     return redirect(url_for("wallet"))
 
 
+@app.route('/wallet/lookup')
+@login_required
+def wallet_lookup():
+    """Lookup a user by wallet id (AJAX helper used by wallet send modal).
+    Returns JSON: {found: bool, wallet_id: str, username: str, full_name: str}
+    """
+    db = get_db()
+    wallet_id = (request.args.get('wallet_id') or '').strip()
+    if not wallet_id:
+        return jsonify({'found': False}), 200
+    try:
+        row = db.execute("SELECT id, username, full_name, wallet_id FROM users WHERE wallet_id = ? LIMIT 1", (wallet_id,)).fetchone()
+        if not row:
+            return jsonify({'found': False}), 200
+        return jsonify({
+            'found': True,
+            'user_id': _get_row_value(row, 'id'),
+            'username': _get_row_value(row, 'username'),
+            'full_name': _get_row_value(row, 'full_name') or _get_row_value(row, 'username'),
+            'wallet_id': _get_row_value(row, 'wallet_id'),
+        })
+    except Exception:
+        return jsonify({'found': False}), 200
+
+
 @app.route("/wallet/deposit", methods=["POST"])
 @login_required
 def wallet_deposit():

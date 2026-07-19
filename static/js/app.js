@@ -128,9 +128,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const updateComposeSubmitState = function () {
     const hasText = textarea.value.trim().length > 0;
+    const hasPhoto = photoInput && photoInput.files && photoInput.files.length > 0;
     if (composeSubmit) {
-      composeSubmit.disabled = !hasText;
-      composeSubmit.classList.toggle('btn-disabled', !hasText);
+      const enabled = hasText || hasPhoto;
+      composeSubmit.disabled = !enabled;
+      composeSubmit.classList.toggle('btn-disabled', !enabled);
     }
   };
 
@@ -153,7 +155,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (composeForm) {
     composeForm.addEventListener('submit', function (e) {
-      if (textarea.value.trim().length === 0) {
+      var hasPhoto = photoInput && photoInput.files && photoInput.files.length > 0;
+      if (textarea.value.trim().length === 0 && !hasPhoto) {
         e.preventDefault();
         textarea.focus();
       }
@@ -164,6 +167,7 @@ document.addEventListener("DOMContentLoaded", function () {
     photoInput.addEventListener("change", function () {
       expand();
       photoName.textContent = photoInput.files && photoInput.files[0] ? photoInput.files[0].name : "";
+      updateComposeSubmitState();
     });
   }
 
