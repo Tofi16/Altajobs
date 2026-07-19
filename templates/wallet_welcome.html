@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="mx-auto flex min-h-[70vh] max-w-sm flex-col items-center justify-center px-4 text-center text-slate-200">
+  <div class="grid h-16 w-16 place-items-center rounded-2xl bg-emerald-500/15 text-3xl">💳</div>
+  <h1 class="mt-4 text-xl font-extrabold text-slate-100">Welcome to the New Wallet</h1>
+  <p class="mt-2 text-sm text-slate-500">Generate your secure AltaJobs wallet to deposit, withdraw, and send funds instantly.</p>
+
+  <form method="POST" action="{{ url_for('generate_wallet') }}" id="genWalletForm" class="mt-6 w-full">
+    <button type="submit" id="genWalletBtn" class="w-full rounded-xl bg-emerald-500 py-3 text-sm font-extrabold text-zinc-950">
+      Generate Wallet
+    </button>
+  </form>
+</div>
+
+<script>
+document.getElementById('genWalletForm').addEventListener('submit', function () {
+  var btn = document.getElementById('genWalletBtn');
+  btn.disabled = true;
+  btn.textContent = 'Preparing your secure wallet…';
+});
+</script>
+{% endblock %}

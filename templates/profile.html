@@ -11,316 +11,262 @@
   </defs>
 </svg>
 
-<div class="profile-page">
-  <div class="profile-header">
-    <button class="hamburger-btn" id="profileMenuBtn" aria-label="{{ t.more }}" aria-expanded="false" aria-controls="profileDrawer">☰</button>
-  </div>
+<div class="mx-auto max-w-2xl px-4 py-4 text-slate-200">
 
-  <div class="hamburger-overlay" id="profileMenuOverlay"></div>
-  <nav class="hamburger-drawer glass-card" id="profileDrawer" aria-hidden="true">
-    <button class="drawer-close" id="profileMenuClose" aria-label="Close menu">✕</button>
+  <!-- ============ COMPACT HEADER ============ -->
+  <section class="rounded-2xl border border-white/5 bg-zinc-900/60 p-4 lg:p-5">
+    <div class="flex items-start gap-3">
 
-    <h4>{{ t.tab_settings }}</h4>
-    <a href="{{ url_for('edit_profile') }}" class="drawer-item">👤 {{ t.edit_profile }}</a>
-    <a href="{{ url_for('settings_page') }}" class="drawer-item">⚙️ {{ t.tab_settings }}</a>
-    <a href="{{ url_for('wallet') }}" class="drawer-item drawer-premium">👑 {{ t.upgrade_to_premium }}</a>
-
-    {% if current_user and current_user['is_admin'] %}
-      <div class="drawer-divider"></div>
-      <h4>Admin</h4>
-      <a href="{{ url_for('admin_dashboard') }}" class="drawer-item">🛠️ Admin Dashboard</a>
-    {% endif %}
-
-    <div class="drawer-divider"></div>
-    <a href="{{ url_for('logout') }}" class="drawer-item danger">🚪 {{ t.logout if t.logout is defined else 'Logout' }}</a>
-  </nav>
-
-  <section class="profile-hero card glass-card">
-    <div class="profile-hero-top">
-      <div class="profile-avatar">
+      <!-- Avatar with initials fallback -->
+      <div class="relative h-16 w-16 shrink-0 lg:h-20 lg:w-20">
+        <div class="grid h-full w-full place-items-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-xl font-black text-zinc-950 lg:text-2xl">
+          {{ (profile_user['full_name'] or profile_user['username'])[0]|upper }}
+        </div>
         {% if profile_user['avatar'] %}
-          <img src="{{ photo_url(profile_user['avatar']) }}" alt="{{ profile_user['full_name'] or profile_user['username'] }}">
-        {% else %}
-          {{ (profile_user['full_name'] or profile_user['username'])[0] }}
+          <img src="{{ photo_url(profile_user['avatar']) }}" alt="{{ profile_user['full_name'] or profile_user['username'] }}"
+               class="absolute inset-0 h-full w-full rounded-full object-cover"
+               onerror="this.style.display='none'">
         {% endif %}
       </div>
 
-      <div class="profile-hero-copy">
-        <div class="profile-name-wrap">
-          <div class="profile-name">{{ profile_user['full_name'] or profile_user['username'] }}</div>
+      <div class="min-w-0 flex-1">
+        <div class="flex flex-wrap items-center gap-1.5">
+          <h1 class="truncate text-base font-extrabold text-slate-100 lg:text-lg">{{ profile_user['full_name'] or profile_user['username'] }}</h1>
           {{ badge_html_for(profile_user) }}
-          {% if is_verified_now(profile_user) %}
-            <span class="verified-badge" title="{{ t.verified_badge }}">✔️ {{ t.verified_badge }}</span>
-          {% endif %}
-          {% if is_vip_now(profile_user) %}
-            <span class="verified-badge vip-badge">👑 {{ t.vip }}</span>
-          {% endif %}
         </div>
+        <div class="mt-0.5 text-xs text-slate-500">@{{ profile_user['username'] }} · {{ t.worker if profile_user['user_type'] == 'worker' else t.employer }}</div>
 
-        <div class="profile-handle">@{{ profile_user['username'] }}</div>
-        <div class="profile-type">{{ t.worker if profile_user['user_type'] == 'worker' else t.employer }}</div>
+        <div class="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-400">
+          🏅 {{ activity_badge_for(profile_user) }} · {{ profile_user['points'] or 0 }} {{ t.points|lower if t.points is defined else 'pts' }}
+        </div>
 
         {% if profile_user['bio'] %}
-          <div class="profile-bio">{{ profile_user['bio'] }}</div>
+          <p class="mt-2 text-sm text-slate-300">{{ profile_user['bio'] }}</p>
         {% endif %}
-
-        {% if current_user and current_user['id'] != profile_user['id'] %}
-          <div class="profile-action-row">
-            <button type="button" class="profile-action-btn js-follow-btn {{ 'following' if is_following }}"
-                    data-user-id="{{ profile_user['id'] }}"
-                    data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
-              {{ t.unfollow if is_following else t.follow }}
-            </button>
-            <a href="{{ url_for('chat_start', user_id=profile_user['id']) }}" class="profile-action-btn">💬 {{ t.messages }}</a>
-          </div>
-        {% elif current_user and current_user['id'] == profile_user['id'] %}
-          <div class="profile-action-row">
-            <a href="{{ url_for('edit_profile') }}" class="profile-action-btn"><i class='bx bx-edit'></i> {{ t.edit_profile }}</a>
-          </div>
+        {% if profile_user['phone'] %}
+          <p class="mt-1 text-xs text-slate-500">📞 {{ profile_user['phone'] }}</p>
         {% endif %}
       </div>
     </div>
 
-    <div class="profile-stat-grid">
-      <div class="stat-cell">
-        <span class="stat-value">{{ followers_count }}</span>
-        <span class="stat-label">{{ t.followers }}</span>
-      </div>
-      <div class="stat-cell">
-        <span class="stat-value">{{ following_count }}</span>
-        <span class="stat-label">{{ t.follow }}</span>
-      </div>
-      <div class="stat-cell">
-        <span class="stat-value">{{ posts_count }}</span>
-        <span class="stat-label">{{ t.feed }}</span>
-      </div>
+    <!-- Action row -->
+    <div class="mt-3 flex gap-2">
+      {% if current_user and current_user['id'] != profile_user['id'] %}
+        <button type="button" class="js-follow-btn flex-1 rounded-xl {{ 'bg-white/10 text-slate-200' if is_following else 'bg-emerald-500 text-zinc-950' }} py-2 text-sm font-bold"
+                data-user-id="{{ profile_user['id'] }}"
+                data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
+          {{ t.unfollow if is_following else t.follow }}
+        </button>
+        <a href="{{ url_for('chat_start', user_id=profile_user['id']) }}" class="flex-1 rounded-xl border border-white/10 py-2 text-center text-sm font-bold text-slate-200">💬 {{ t.messages }}</a>
+      {% elif current_user and current_user['id'] == profile_user['id'] %}
+        <a href="{{ url_for('edit_profile') }}" class="flex-1 rounded-xl bg-emerald-500 py-2 text-center text-sm font-bold text-zinc-950"><i class='bx bx-edit'></i> {{ t.edit_profile }}</a>
+      {% endif %}
     </div>
-
-    <div class="profile-summary-meta-row">
-      <div>
-        <div class="profile-summary-meta-title">{{ t.points }}: {{ profile_user['points'] or 0 }}</div>
-        <div class="profile-summary-meta-subtext">{{ t.level }}: {{ activity_badge_for(profile_user) }}</div>
-      </div>
-      <div class="profile-summary-meta-right">
-        {% set pts = (profile_user['points'] or 0) | int %}
-        {% if pts < 101 %}
-          {% set next = 101 - pts %}
-          <div>{{ next }} pts to Silver Expert</div>
-        {% elif pts < 501 %}
-          {% set next = 501 - pts %}
-          <div>{{ next }} pts to Gold Elite</div>
-        {% else %}
-          <div>Top tier — keep shining ✨</div>
-        {% endif %}
-      </div>
-    </div>
-
-    {% if profile_user['phone'] %}
-      <div class="profile-contact-row">📞 {{ profile_user['phone'] }}</div>
-    {% endif %}
   </section>
 
-  <div class="profile-panels">
-    <section class="profile-panel card glass-card">
-      <div class="portfolio-header">
-        <div>
-          <h3>{{ t.skills }}</h3>
-          <p class="post-meta">{{ t.profile_skills_description if t.profile_skills_description is defined else 'Showcase your top skills and expertise here.' }}</p>
-        </div>
-        {% if current_user and current_user['id'] == profile_user['id'] %}
-          <button type="button" class="profile-action-btn portfolio-add-toggle" id="toggleSkillsEditor">+ {{ t.edit_skills if t.edit_skills is defined else 'Edit Skills' }}</button>
-        {% endif %}
-      </div>
+  <!-- ============ HORIZONTAL STATS BAR ============ -->
+  <section class="mt-3 grid grid-cols-3 divide-x divide-white/5 overflow-hidden rounded-2xl border border-white/5 bg-zinc-900/60 text-center">
+    <div class="px-2 py-3">
+      <div class="text-lg font-extrabold text-slate-100">{{ followers_count }}</div>
+      <div class="text-[11px] text-slate-500">{{ t.followers }}</div>
+    </div>
+    <div class="px-2 py-3">
+      <div class="text-lg font-extrabold text-slate-100">{{ following_count }}</div>
+      <div class="text-[11px] text-slate-500">{{ t.follow }}</div>
+    </div>
+    <div class="px-2 py-3">
+      <div class="text-lg font-extrabold text-slate-100">{{ posts_count }}</div>
+      <div class="text-[11px] text-slate-500">{{ t.feed }}</div>
+    </div>
+  </section>
 
-      <div class="skill-chips">
-        {% for skill in (profile_user['skills'] or '').split(',') if skill.strip() %}
-          <span class="skill-tag">{{ skill.strip() }}</span>
+  <!-- ============ TABS ============ -->
+  <div class="mt-4">
+    <div role="tablist" class="grid grid-cols-3 gap-1 rounded-xl border border-white/5 bg-zinc-900/60 p-1">
+      <button type="button" data-tab="feed" class="profile-tab-btn rounded-lg py-2 text-xs font-bold" aria-selected="true">{{ t.feed }}</button>
+      <button type="button" data-tab="portfolio" class="profile-tab-btn rounded-lg py-2 text-xs font-bold" aria-selected="false">{{ t.portfolio if t.portfolio is defined else 'Portfolio' }}</button>
+      <button type="button" data-tab="info" class="profile-tab-btn rounded-lg py-2 text-xs font-bold" aria-selected="false">{{ t.skills }} &amp; {{ t.about if t.about is defined else 'Info' }}</button>
+    </div>
+
+    <!-- ---- TAB: FEED ---- -->
+    <div data-tab-panel="feed" class="mt-3 space-y-3">
+      {% if posts %}
+        {% for p in posts %}
+        <article class="rounded-2xl border border-white/5 bg-zinc-900/60 p-4">
+          {% if p['content'] %}
+            <p class="text-sm text-slate-200">{{ p['content'] }}</p>
+          {% endif %}
+          {% if p['photo'] %}
+            <img class="mt-2 max-h-64 w-full rounded-xl object-cover" src="{{ photo_url(p['photo']) }}" alt="{{ t.post_image }}">
+          {% endif %}
+          <div class="mt-2 flex gap-4 text-xs text-slate-500">
+            <a href="{{ url_for('post_detail', post_id=p['id']) }}" class="flex items-center gap-1 hover:text-slate-300">
+              💬 <span>{{ p['comment_count'] if p['comment_count'] is defined else t.comments }}</span>
+            </a>
+            <span class="flex items-center gap-1">👁️ <span>{{ p['view_count'] }}</span></span>
+          </div>
+        </article>
         {% endfor %}
-        {% if not profile_user['skills'] %}
-          <div class="portfolio-empty">{{ t.no_skills_yet if t.no_skills_yet is defined else 'No skills listed yet.' }}</div>
-        {% endif %}
-      </div>
-
-      {% if current_user and current_user['id'] == profile_user['id'] %}
-        <form method="POST" action="{{ url_for('update_profile_skills') }}" class="skills-editor" id="skillsEditor">
-          <label>{{ t.skills }} ({{ t.separate_with_commas if t.separate_with_commas is defined else 'separate with commas' }})</label>
-          <input type="text" name="skills" value="{{ profile_user['skills'] or '' }}" placeholder="Python, Product Design, Marketing">
-          <button type="submit" class="profile-action-btn">{{ t.save if t.save is defined else 'Save Skills' }}</button>
-        </form>
-      {% endif %}
-    </section>
-
-    <section class="profile-panel card glass-card">
-      <div class="portfolio-header">
-        <div>
-          <h3>{{ t.portfolio if t.portfolio is defined else 'Portfolio / Projects' }}</h3>
-          <p class="post-meta">{{ t.portfolio_description if t.portfolio_description is defined else 'Highlight your best work with images, links, and descriptions.' }}</p>
-        </div>
-        {% if current_user and current_user['id'] == profile_user['id'] %}
-          <button type="button" class="profile-action-btn portfolio-add-toggle" id="togglePortfolioAdd">+ {{ t.add_project if t.add_project is defined else 'Add Project' }}</button>
-        {% endif %}
-      </div>
-
-      {% if current_user and current_user['id'] == profile_user['id'] %}
-        <form method="POST" action="{{ url_for('add_portfolio_item', user_id=profile_user['id']) }}" enctype="multipart/form-data" class="portfolio-add-panel" id="portfolioAddPanel">
-          <label>{{ t.project_title if t.project_title is defined else 'Project Title' }}</label>
-          <input type="text" name="title" required>
-          <label>{{ t.description if t.description is defined else 'Description' }}</label>
-          <textarea name="description" required></textarea>
-          <label>{{ t.project_link if t.project_link is defined else 'Project URL (optional)' }}</label>
-          <input type="text" name="project_url" placeholder="https://example.com">
-          <label>{{ t.project_image if t.project_image is defined else 'Project Image (optional)' }}</label>
-          <input type="file" name="image" accept="image/*">
-          <button type="submit" class="profile-action-btn">{{ t.save if t.save is defined else 'Save Project' }}</button>
-        </form>
-      {% endif %}
-
-      {% if portfolio_items %}
-        <div class="portfolio-grid">
-          {% for item in portfolio_items %}
-            <div class="portfolio-card">
-              {% if item['image_path'] %}
-                <img class="portfolio-image" src="{{ photo_url(item['image_path']) }}" alt="{{ item['title'] }}">
-              {% endif %}
-              <div class="portfolio-card-body">
-                <div class="portfolio-card-title">{{ item['title'] }}</div>
-                {% if item['description'] %}
-                  <div class="portfolio-card-desc">{{ item['description'] }}</div>
-                {% endif %}
-                {% if item['project_url'] %}
-                  <a class="portfolio-link" href="{{ item['project_url'] }}" target="_blank" rel="noreferrer noopener">{{ item['project_url'] }}</a>
-                {% endif %}
-              </div>
-            </div>
-          {% endfor %}
-        </div>
       {% else %}
-        <div class="portfolio-empty">{{ t.no_portfolio_projects if t.no_portfolio_projects is defined else 'No portfolio projects yet. Add one to showcase your work.' }}</div>
+        <div class="rounded-2xl border border-white/5 bg-zinc-900/60 p-8 text-center text-sm text-slate-500">No posts yet.</div>
       {% endif %}
-    </section>
+    </div>
 
-    {% if current_user and current_user['id'] != profile_user['id'] %}
-      <section class="profile-panel card glass-card">
-        <h3>{{ t.send_gift }}</h3>
-        <div class="gift-grid">
-          {% for key, g in gift_catalog.items() %}
-            <form method="POST" action="{{ url_for('send_gift') }}">
-              <input type="hidden" name="receiver_id" value="{{ profile_user['id'] }}">
-              <input type="hidden" name="gift_key" value="{{ key }}">
-              <button type="submit" class="gift-option">
-                <span class="{{ g.anim }}">{{ g.emoji }}</span>
-                <span class="gift-price">{{ g.price }} ETB</span>
-              </button>
-            </form>
-          {% endfor %}
+    <!-- ---- TAB: PORTFOLIO ---- -->
+    <div data-tab-panel="portfolio" class="mt-3 hidden space-y-3">
+      <div class="rounded-2xl border border-white/5 bg-zinc-900/60 p-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-slate-100">{{ t.portfolio if t.portfolio is defined else 'Portfolio / Projects' }}</h3>
+            <p class="text-xs text-slate-500">{{ t.portfolio_description if t.portfolio_description is defined else 'Highlight your best work with images, links, and descriptions.' }}</p>
+          </div>
+          {% if current_user and current_user['id'] == profile_user['id'] %}
+            <button type="button" class="shrink-0 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-zinc-950" id="togglePortfolioAdd">+ {{ t.add_project if t.add_project is defined else 'Add Project' }}</button>
+          {% endif %}
         </div>
-      </section>
-    {% endif %}
 
-    {% if current_user and current_user['id'] != profile_user['id'] %}
-      <section class="profile-panel card glass-card">
-        <details>
-          <summary>🚩 {{ t.report }} {{ t.profile|lower }}</summary>
-          <form method="POST" action="{{ url_for('submit_report') }}" class="section-gap">
+        {% if current_user and current_user['id'] == profile_user['id'] %}
+          <form method="POST" action="{{ url_for('add_portfolio_item', user_id=profile_user['id']) }}" enctype="multipart/form-data" class="mt-3 hidden space-y-2" id="portfolioAddPanel">
+            <div>
+              <label class="mb-1 block text-[11px] font-semibold text-slate-500">{{ t.project_title if t.project_title is defined else 'Project Title' }}</label>
+              <input type="text" name="title" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+            </div>
+            <div>
+              <label class="mb-1 block text-[11px] font-semibold text-slate-500">{{ t.description if t.description is defined else 'Description' }}</label>
+              <textarea name="description" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100"></textarea>
+            </div>
+            <div>
+              <label class="mb-1 block text-[11px] font-semibold text-slate-500">{{ t.project_link if t.project_link is defined else 'Project URL (optional)' }}</label>
+              <input type="text" name="project_url" placeholder="https://example.com" class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600">
+            </div>
+            <div>
+              <label class="mb-1 block text-[11px] font-semibold text-slate-500">{{ t.project_image if t.project_image is defined else 'Project Image (optional)' }}</label>
+              <input type="file" name="image" accept="image/*" class="w-full text-xs text-slate-400">
+            </div>
+            <button type="submit" class="w-full rounded-xl bg-emerald-500 py-2 text-sm font-bold text-zinc-950">{{ t.save if t.save is defined else 'Save Project' }}</button>
+          </form>
+        {% endif %}
+
+        {% if portfolio_items %}
+          <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {% for item in portfolio_items %}
+              <div class="overflow-hidden rounded-xl border border-white/5 bg-zinc-950/40">
+                {% if item['image_path'] %}
+                  <img class="h-32 w-full object-cover" src="{{ photo_url(item['image_path']) }}" alt="{{ item['title'] }}">
+                {% endif %}
+                <div class="p-3">
+                  <div class="text-sm font-bold text-slate-100">{{ item['title'] }}</div>
+                  {% if item['description'] %}
+                    <div class="mt-1 text-xs text-slate-400">{{ item['description'] }}</div>
+                  {% endif %}
+                  {% if item['project_url'] %}
+                    <a class="mt-1 block truncate text-xs text-sky-400" href="{{ item['project_url'] }}" target="_blank" rel="noreferrer noopener">{{ item['project_url'] }}</a>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="mt-3 rounded-xl border border-dashed border-white/10 p-6 text-center text-sm text-slate-500">
+            {{ t.no_portfolio_projects if t.no_portfolio_projects is defined else 'No portfolio projects yet. Add one to showcase your work.' }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ---- TAB: SKILLS & INFO ---- -->
+    <div data-tab-panel="info" class="mt-3 hidden space-y-3">
+
+      <div class="rounded-2xl border border-white/5 bg-zinc-900/60 p-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-slate-100">{{ t.skills }}</h3>
+            <p class="text-xs text-slate-500">{{ t.profile_skills_description if t.profile_skills_description is defined else 'Showcase your top skills and expertise here.' }}</p>
+          </div>
+          {% if current_user and current_user['id'] == profile_user['id'] %}
+            <button type="button" class="shrink-0 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-zinc-950" id="toggleSkillsEditor">+ {{ t.edit_skills if t.edit_skills is defined else 'Edit Skills' }}</button>
+          {% endif %}
+        </div>
+
+        <div class="mt-3 flex flex-wrap gap-1.5">
+          {% for skill in (profile_user['skills'] or '').split(',') if skill.strip() %}
+            <span class="admin-badge admin-badge-success">{{ skill.strip() }}</span>
+          {% endfor %}
+          {% if not profile_user['skills'] %}
+            <div class="text-sm text-slate-500">{{ t.no_skills_yet if t.no_skills_yet is defined else 'No skills listed yet.' }}</div>
+          {% endif %}
+        </div>
+
+        {% if current_user and current_user['id'] == profile_user['id'] %}
+          <form method="POST" action="{{ url_for('update_profile_skills') }}" class="mt-3 hidden space-y-2" id="skillsEditor">
+            <label class="mb-1 block text-[11px] font-semibold text-slate-500">{{ t.skills }} ({{ t.separate_with_commas if t.separate_with_commas is defined else 'separate with commas' }})</label>
+            <input type="text" name="skills" value="{{ profile_user['skills'] or '' }}" placeholder="Python, Product Design, Marketing" class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-base text-slate-100 placeholder:text-slate-600">
+            <button type="submit" class="w-full rounded-xl bg-emerald-500 py-2 text-sm font-bold text-zinc-950">{{ t.save if t.save is defined else 'Save Skills' }}</button>
+          </form>
+        {% endif %}
+
+        {% if profile_user['experience'] %}
+          <div class="mt-3 border-t border-white/5 pt-3 text-sm text-slate-300"><strong class="text-slate-100">{{ t.experience }}:</strong> {{ profile_user['experience'] }}</div>
+        {% endif %}
+      </div>
+
+      {% if current_user and current_user['id'] != profile_user['id'] %}
+        <div class="rounded-2xl border border-white/5 bg-zinc-900/60 p-4">
+          <h3 class="mb-3 text-sm font-bold text-slate-100">{{ t.send_gift }}</h3>
+          <div class="grid grid-cols-4 gap-2">
+            {% for key, g in gift_catalog.items() %}
+              <form method="POST" action="{{ url_for('send_gift') }}">
+                <input type="hidden" name="receiver_id" value="{{ profile_user['id'] }}">
+                <input type="hidden" name="gift_key" value="{{ key }}">
+                <button type="submit" class="flex w-full flex-col items-center gap-1 rounded-xl border border-white/5 bg-zinc-950/50 py-2.5 text-xs">
+                  <span class="{{ g.anim }} text-lg">{{ g.emoji }}</span>
+                  <span class="font-semibold text-slate-300">{{ g.price }} ETB</span>
+                </button>
+              </form>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      {% if profile_user['user_type'] == 'worker' and current_user and current_user['user_type'] == 'employer' and current_user['id'] != profile_user['id'] %}
+        <div class="rounded-2xl border border-white/5 bg-zinc-900/60 p-4">
+          <h3 class="mb-2 text-sm font-bold text-slate-100">{{ t.rate_worker }}</h3>
+          <form method="POST" action="{{ url_for('rate_worker', worker_id=profile_user['id']) }}" class="space-y-2">
+            <select name="stars" class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-base text-slate-100">
+              <option value="5">★★★★★</option>
+              <option value="4">★★★★☆</option>
+              <option value="3">★★★☆☆</option>
+              <option value="2">★★☆☆☆</option>
+              <option value="1">★☆☆☆☆</option>
+            </select>
+            <textarea name="comment" placeholder="{{ t.write_comment }}" class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-base text-slate-100 placeholder:text-slate-600"></textarea>
+            <button type="submit" class="w-full rounded-xl bg-emerald-500 py-2 text-sm font-bold text-zinc-950">{{ t.submit_rating }}</button>
+          </form>
+        </div>
+      {% endif %}
+
+      {% if current_user and current_user['id'] != profile_user['id'] %}
+        <details class="rounded-2xl border border-white/5 bg-zinc-900/60 p-4">
+          <summary class="cursor-pointer text-xs font-semibold text-slate-500">🚩 {{ t.report }} {{ t.profile|lower }}</summary>
+          <form method="POST" action="{{ url_for('submit_report') }}" class="mt-3 space-y-2">
             <input type="hidden" name="target_type" value="user">
             <input type="hidden" name="target_id" value="{{ profile_user['id'] }}">
-            <textarea name="reason" placeholder="{{ t.report_reason }}" required></textarea>
-            <button type="submit" class="btn btn-small btn-outline">{{ t.submit_report }}</button>
+            <textarea name="reason" placeholder="{{ t.report_reason }}" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-base text-slate-100 placeholder:text-slate-600"></textarea>
+            <button type="submit" class="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300">{{ t.submit_report }}</button>
           </form>
         </details>
-      </section>
-    {% endif %}
-
-    {% if profile_user['user_type'] == 'worker' and current_user and current_user['user_type'] == 'employer' and current_user['id'] != profile_user['id'] %}
-      <section class="profile-panel card glass-card">
-        <h3>{{ t.rate_worker }}</h3>
-        <form method="POST" action="{{ url_for('rate_worker', worker_id=profile_user['id']) }}" class="section-gap">
-          <label>{{ t.rating }}</label>
-          <select name="stars">
-            <option value="5">★★★★★</option>
-            <option value="4">★★★★☆</option>
-            <option value="3">★★★☆☆</option>
-            <option value="2">★★☆☆☆</option>
-            <option value="1">★☆☆☆☆</option>
-          </select>
-          <textarea name="comment" placeholder="{{ t.write_comment }}"></textarea>
-          <button type="submit" class="btn btn-small">{{ t.submit_rating }}</button>
-        </form>
-      </section>
-    {% endif %}
-  </div>
-
-  <section class="profile-feed-section card glass-card">
-    <h3>{{ t.feed }}</h3>
-    {% for p in posts %}
-      <article class="profile-feed-card">
-        {% if p['content'] %}
-          <p class="post-content">{{ p['content'] }}</p>
-        {% endif %}
-        {% if p['photo'] %}
-          <img class="post-photo" src="{{ photo_url(p['photo']) }}" alt="{{ t.post_image }}">
-        {% endif %}
-        <div class="post-actions-row">
-          <a href="{{ url_for('post_detail', post_id=p['id']) }}" class="icon-chip">
-            <span class="icon-chip-emoji">💬</span>
-            <span>{{ p['comment_count'] if p['comment_count'] is defined else t.comments }}</span>
-          </a>
-          <span class="icon-chip">
-            <span class="icon-chip-emoji">👁️</span>
-            <span>{{ p['view_count'] }}</span>
-          </span>
-        </div>
-      </article>
-    {% endfor %}
-  </section>
-
-  <section class="profile-analysis-card card glass-card">
-    <h3>{{ t.analysis if t.analysis is defined else 'Analysis' }}</h3>
-    <div class="stats-grid stats-grid-full">
-      <div class="stat-cell">
-        <span class="stat-value">{{ followers_count }}</span>
-        <span class="stat-label">{{ t.followers }}</span>
-      </div>
-      <div class="stat-cell">
-        <span class="stat-value">{{ following_count }}</span>
-        <span class="stat-label">{{ t.follow }}</span>
-      </div>
-      <div class="stat-cell">
-        <span class="stat-value">{{ posts_count }}</span>
-        <span class="stat-label">{{ t.feed }}</span>
-      </div>
+      {% endif %}
     </div>
-    {% if profile_user['bio'] %}<p>{{ profile_user['bio'] }}</p>{% endif %}
-    {% if profile_user['skills'] %}<p><strong>{{ t.skills }}</strong>: {{ profile_user['skills'] }}</p>{% endif %}
-    {% if profile_user['experience'] %}<p><strong>{{ t.experience }}</strong>: {{ profile_user['experience'] }}</p>{% endif %}
-  </section>
+  </div>
 </div>
+
+<style>
+  .profile-tab-btn { color: #64748b; background: transparent; }
+  .profile-tab-btn[aria-selected="true"] { background: #10b981; color: #09090b; }
+</style>
 
 <script>
   (function () {
-    var btn = document.getElementById('profileMenuBtn');
-    var drawer = document.getElementById('profileDrawer');
-    var overlay = document.getElementById('profileMenuOverlay');
-    var closeBtn = document.getElementById('profileMenuClose');
-
-    function openDrawer() {
-      drawer.classList.add('open');
-      overlay.classList.add('open');
-      drawer.setAttribute('aria-hidden', 'false');
-      btn.setAttribute('aria-expanded', 'true');
-    }
-
-    function closeDrawer() {
-      drawer.classList.remove('open');
-      overlay.classList.remove('open');
-      drawer.setAttribute('aria-hidden', 'true');
-      btn.setAttribute('aria-expanded', 'false');
-    }
-
-    if (btn) btn.addEventListener('click', openDrawer);
-    if (overlay) overlay.addEventListener('click', closeDrawer);
-    if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
-
     document.addEventListener('DOMContentLoaded', function () {
       var skillsToggle = document.getElementById('toggleSkillsEditor');
       var skillsEditor = document.getElementById('skillsEditor');
@@ -333,17 +279,30 @@
 
       if (skillsToggle && skillsEditor) {
         skillsToggle.addEventListener('click', function () {
-          var open = skillsEditor.classList.toggle('open');
-          skillsToggle.textContent = open ? ('- ' + hideText) : ('+ ' + editSkillsText);
+          var open = skillsEditor.classList.toggle('hidden');
+          skillsToggle.textContent = !open ? ('- ' + hideText) : ('+ ' + editSkillsText);
+        });
+      }
+      if (portfolioToggle && portfolioPanel) {
+        portfolioToggle.addEventListener('click', function () {
+          var open = portfolioPanel.classList.toggle('hidden');
+          portfolioToggle.textContent = !open ? ('- ' + hideText) : ('+ ' + addProjectText);
         });
       }
 
-      if (portfolioToggle && portfolioPanel) {
-        portfolioToggle.addEventListener('click', function () {
-          var open = portfolioPanel.classList.toggle('open');
-          portfolioToggle.textContent = open ? ('- ' + hideText) : ('+ ' + addProjectText);
+      // Tabs
+      var tabBtns = document.querySelectorAll('.profile-tab-btn');
+      var panels = document.querySelectorAll('[data-tab-panel]');
+      tabBtns.forEach(function (b) {
+        b.addEventListener('click', function () {
+          tabBtns.forEach(function (x) { x.setAttribute('aria-selected', 'false'); });
+          b.setAttribute('aria-selected', 'true');
+          var target = b.getAttribute('data-tab');
+          panels.forEach(function (p) {
+            p.classList.toggle('hidden', p.getAttribute('data-tab-panel') !== target);
+          });
         });
-      }
+      });
     });
   })();
 </script>

@@ -1,0 +1,35 @@
+{# ============================================================================
+   Reusable verification badge macro.
+
+   This is a thin wrapper — the ACTUAL svg markup lives in exactly one place:
+   the `verification_badge_svg()` Python function in app.py (registered as a
+   Jinja global via @app.template_global()). That's the single source of
+   truth. This macro exists so every template that shows "name + badge"
+   (feed, profile header, comments, chat, this pricing page, etc.) writes the
+   same one line instead of re-inventing the markup:
+
+       {% from "macros/badges.html" import user_name_with_badge %}
+       {{ user_name_with_badge(user) }}
+
+   If you only need the checkmark by itself (no name), call
+   `verification_badge_svg(user)` directly — it's already available in every
+   template with no import needed, since it's a Jinja global.
+   ============================================================================ #}
+
+{% macro user_name_with_badge(user, name_class="", link=None) %}
+  {% set display_name = user.full_name or user.username %}
+  <span class="inline-flex items-center gap-1 align-middle">
+    {% if link %}
+      <a href="{{ link }}" class="hover:underline {{ name_class }}">{{ display_name }}</a>
+    {% else %}
+      <span class="{{ name_class }}">{{ display_name }}</span>
+    {% endif %}
+    {{ verification_badge_svg(user) }}
+  </span>
+{% endmacro %}
+
+{# For places that just want the tier badge with no name attached at all,
+   e.g. next to a company logo or in a compact list row. #}
+{% macro badge_only(user_or_tier) %}
+  {{ verification_badge_svg(user_or_tier) }}
+{% endmacro %}

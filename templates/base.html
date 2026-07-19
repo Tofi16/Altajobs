@@ -2,7 +2,7 @@
 <html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>{{ t.app_name }} - {{ t.tagline }}</title>
 {% if current_lang == 'ar' %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,6 +12,37 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          zinc: { 950: '#09090b' },
+        }
+      }
+    }
+  }
+</script>
+<style>
+  /* ---- Admin surface tokens (compact, dark slate/zinc) ---- */
+  .admin-card { @apply rounded-2xl border border-white/5 bg-zinc-900/60 p-4 lg:p-5; }
+  .admin-page-header { @apply mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between; }
+  .admin-overline { @apply text-[11px] font-bold uppercase tracking-wider text-emerald-400; }
+  .admin-metric-grid { @apply grid grid-cols-2 gap-3 mb-5 lg:grid-cols-4; }
+  .admin-metric-card { @apply flex items-center gap-3 rounded-2xl border border-white/5 bg-zinc-900/60 p-3; }
+  .admin-metric-icon { @apply grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-400 text-lg; }
+  .admin-metric-card h3 { @apply text-[11px] font-medium text-slate-500 leading-tight; }
+  .admin-metric-card p { @apply text-lg font-extrabold text-slate-100 leading-tight; }
+  .admin-pill { @apply inline-block rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-slate-400; }
+  .admin-badge { @apply inline-block rounded-full px-2 py-0.5 text-[10px] font-bold; background:rgba(255,255,255,0.06); color:#cbd5e1; }
+  .admin-badge-danger { @apply bg-red-500/15 text-red-400; }
+  .admin-badge-warning { @apply bg-amber-500/15 text-amber-400; }
+  .admin-badge-success { @apply bg-emerald-500/15 text-emerald-400; }
+  .admin-badge-info { @apply bg-sky-500/15 text-sky-400; }
+  .admin-badge-admin { @apply bg-fuchsia-500/15 text-fuchsia-400; }
+  .admin-empty-state { @apply py-8 text-center text-sm text-slate-500; }
+</style>
 <style>
   :root { color-scheme: dark; }
   body {
@@ -54,6 +85,10 @@
   @keyframes spin {
     to { transform: rotate(360deg); }
   }
+  /* Prevent iOS Safari auto-zoom on focus: inputs must render at >=16px */
+  input, textarea, select {
+    font-size: 16px;
+  }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 <noscript><style>body{opacity:1;visibility:visible;transition:none;}#page-loader{display:none!important;}</style></noscript>
@@ -80,10 +115,8 @@
 {% if current_user %}
 <header class="topbar">
   <div class="topbar-inner">
-    <a href="{{ url_for('feed') }}" class="brand">
-      <span class="brand-mark">A</span>
-      <span>AltaJobs</span>
-      <span class="brand-dot">.</span>
+    <a href="{{ url_for('feed') }}" class="brand flex items-center">
+      <span class="text-2xl font-extrabold tracking-wider bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500 bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]">AltaJobs</span><span class="text-2xl font-extrabold text-indigo-400">.</span>
     </a>
 
     <div class="topbar-actions">
@@ -215,8 +248,12 @@
 
 {% if current_user %}
 <div class="sidebar-overlay" id="headerSidebarOverlay"></div>
-<aside class="header-sidebar-drawer" id="headerSidebarDrawer" aria-hidden="true">
+<aside class="header-sidebar-drawer rounded-2xl border border-white/10 bg-zinc-900/90 backdrop-blur-lg shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]" id="headerSidebarDrawer" aria-hidden="true">
   <nav class="drawer-nav">
+    <a href="{{ url_for('edit_profile') }}">
+      <i class='bx bx-user-circle' style="font-size:1.35rem;color:var(--accent)"></i>
+      <div class="drawer-label">{{ t.edit_profile }}</div>
+    </a>
     <a href="{{ url_for('settings_page') }}">
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" stroke="var(--accent)" stroke-width="1.6" fill="none"/><path d="M19.4 15a1.8 1.8 0 0 0 .3 2l.1.1a1 1 0 0 1-1.1 1.6l-.1-.05-.1-.05a1.8 1.8 0 0 0-2 .3l-.1.1a1 1 0 0 1-1.4 0l-.1-.1a1.8 1.8 0 0 0-2-.3l-.1.06a1 1 0 0 1-1.1-.2l-.08-.09" stroke="var(--accent)" stroke-width="1.4" fill="none"/></svg>
       <div class="drawer-label">Settings</div>
@@ -224,6 +261,10 @@
     <a href="{{ url_for('tokens_page') }}">
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="6" stroke="var(--accent)" stroke-width="1.6" fill="none"/><path d="M12 8v8" stroke="var(--accent)" stroke-width="1.6"/></svg>
       <div class="drawer-label">Alta Tokens</div>
+    </a>
+    <a href="{{ url_for('wallet') }}">
+      <i class='bx bx-gift' style="font-size:1.35rem;color:var(--accent)"></i>
+      <div class="drawer-label">{{ t.upgrade_to_premium }}</div>
     </a>
     {% if current_user and current_user['is_admin'] %}
       <div class="drawer-divider"></div>

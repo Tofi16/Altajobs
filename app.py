@@ -23,6 +23,11 @@ from flask import (
 from flask import jsonify
 
 try:
+    from flask_compress import Compress
+except ImportError:
+    Compress = None
+
+try:
     import psycopg2
     import psycopg2.extras
     PG_INTEGRITY_ERROR = psycopg2.IntegrityError
@@ -77,6 +82,7 @@ ALLOWED_EXT = {"png", "jpg", "jpeg", "gif", "webp"}
 FREE_TRIAL_DAYS = 30
 MONTHLY_PRICE = 1500
 YEARLY_PRICE = 7000
+FEED_PAGE_SIZE = 10  # posts fetched per page/scroll batch on the main feed
 
 # --- Wallet / Verification / Gifts settings -------------------------------
 TELEBIRR_WALLET_NUMBER = "0960602675"     # ገንዘብ የሚላክበት ቴሌብር ቁጥር
@@ -84,6 +90,41 @@ VERIFICATION_MONTHLY_PRICE = 300          # የ Blue Tick ወርሃዊ ዋጋ (�
 CHANNEL_VERIFICATION_MONTHLY_PRICE = 500  # የ channel/group Blue Tick ወርሃዊ ዋጋ (ብር)
 CHANNEL_VERIFICATION_WARNING_DAYS = 7      # ማብቂያው ከመድረሱ ስንት ቀን በፊት ማስጠንቀቂያ እንደሚታይ
 VIP_MONTHLY_PRICE = 800                   # የ VIP ወርሃዊ ዋጋ (ብር) - ከዋሌት ሲቀነስ
+
+# --- Blue/Gold verification subscription plans -----------------------------
+# Single source of truth for tier pricing: used by /get-verified, /checkout,
+# and anywhere else a plan needs to be looked up. Never hardcode these prices
+# in a template or route — read them from here so the numbers can't drift.
+VERIFICATION_PLANS = {
+    "blue": {
+        "label": "Blue",
+        "audience": "For Talents",
+        "durations": [
+            {"id": "1m", "months": 1, "price": 1000, "name": "1 Month"},
+            {"id": "6m", "months": 6, "price": 4000, "name": "6 Months"},
+            {"id": "1y", "months": 12, "price": 7000, "name": "1 Year"},
+        ],
+    },
+    "gold": {
+        "label": "Gold",
+        "audience": "For Companies",
+        "durations": [
+            {"id": "1y", "months": 12, "price": 18000, "name": "1 Year"},
+        ],
+    },
+}
+
+
+def get_verification_plan(tier, duration_id):
+    """Look up a single plan (tier + duration) from VERIFICATION_PLANS.
+    Returns None if the combination doesn't exist."""
+    plan = VERIFICATION_PLANS.get(tier)
+    if not plan:
+        return None
+    for d in plan["durations"]:
+        if d["id"] == duration_id:
+            return {"tier": tier, "label": plan["label"], **d}
+    return None
 PLATFORM_CUT_PERCENT = 30                 # ከእያንዳንዱ ጊፍት ላይ ለመድረኩ (ለ Tofik) የሚቆረጠው %
 CV_PREMIUM_PRICE = 50                     # "Banana AI" premium CV (with photo) ዋጋ (ብር) - ከዋሌት ሲቀነስ
 
@@ -130,6 +171,21 @@ app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER", "norep
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(CV_PHOTO_FOLDER, exist_ok=True)
+
+# --- Response compression (Gzip via Flask-Compress) -------------------------
+# Shrinks HTML/JSON/CSS/JS payloads before they hit the wire. Images/videos
+# are already compressed formats, so they're intentionally excluded.
+app.config["COMPRESS_MIMETYPES"] = [
+    "text/html", "text/css", "text/xml", "text/plain",
+    "application/json", "application/javascript", "application/xml",
+]
+app.config["COMPRESS_LEVEL"] = 6          # 1 (fast/weak) - 9 (slow/strong); 6 is a good balance
+app.config["COMPRESS_MIN_SIZE"] = 500     # don't bother compressing tiny responses
+if Compress is not None:
+    Compress(app)
+else:
+    print("Warning: Flask-Compress is not installed. Run `pip install Flask-Compress` "
+          "and add it to requirements.txt to enable Gzip compression.")
 
 
 # ---------------------------------------------------------------------------
@@ -322,6 +378,7 @@ def init_postgres_db():
             verified_until TEXT DEFAULT NULL,
             is_vip BOOLEAN DEFAULT FALSE,
             vip_until TEXT DEFAULT NULL,
+            verification_tier TEXT DEFAULT 'none',
             is_banned BOOLEAN DEFAULT FALSE,
             banned_until TEXT DEFAULT NULL,
             ban_reason TEXT DEFAULT NULL,
@@ -722,6 +779,8 @@ def init_postgres_db():
     try:
         cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts (created_at)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts (user_id)")
+        # Composite index matching the feed's WHERE status IN (...) ORDER BY created_at DESC
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_status_created_at ON posts (status, created_at DESC)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_likes_post_id ON likes (post_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_likes_user_id ON likes (user_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments (post_id)")
@@ -946,6 +1005,7 @@ def migrate_db():
         "verified_until": "TEXT DEFAULT NULL",
         "is_vip": "INTEGER DEFAULT 0",
         "vip_until": "TEXT DEFAULT NULL",
+        "verification_tier": "TEXT DEFAULT 'none'",
         "is_banned": "INTEGER DEFAULT 0",
         "referral_code": "TEXT DEFAULT NULL",
         "alta_tokens": "INTEGER DEFAULT 0",
@@ -960,6 +1020,23 @@ def migrate_db():
         if col not in existing_cols:
             db.execute(f"ALTER TABLE users ADD COLUMN {col} {coltype}")
     db.commit()
+
+    # One-time backfill: derive verification_tier from the legacy is_verified /
+    # is_vip flags so existing rows land on the new column automatically.
+    # Gold (is_vip) takes priority over Blue (is_verified) if both are set.
+    # Safe to re-run: only touches rows still sitting at the 'none' default.
+    try:
+        db.execute(
+            """UPDATE users SET verification_tier = 'gold', verified_until = COALESCE(verified_until, vip_until)
+               WHERE (verification_tier IS NULL OR verification_tier = 'none') AND is_vip = 1"""
+        )
+        db.execute(
+            """UPDATE users SET verification_tier = 'blue'
+               WHERE (verification_tier IS NULL OR verification_tier = 'none') AND is_verified = 1"""
+        )
+        db.commit()
+    except Exception as exc:
+        print(f"Warning: could not backfill verification_tier: {exc}")
 
     wallet_tx_cols = {row[1] for row in db.execute("PRAGMA table_info(wallet_transactions)")}
     for col, coltype in {
@@ -1049,6 +1126,7 @@ def migrate_db():
     try:
         db.execute("CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts (created_at)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts (user_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_posts_status_created_at ON posts (status, created_at DESC)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_likes_post_id ON likes (post_id)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_likes_user_id ON likes (user_id)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments (post_id)")
@@ -1668,44 +1746,76 @@ def record_announcement_view(db, user_id, announcement_id):
     return True
 
 
+def _field(u, k):
+    """Shared row-field accessor: works with dicts, sqlite3.Row, or objects."""
+    try:
+        if isinstance(u, dict):
+            return u.get(k)
+        return u[k]
+    except Exception:
+        return getattr(u, k, None)
+
+
+@app.template_global()
+def get_verification_tier(user):
+    """Single source of truth for a user's *effective* verification tier.
+    Reads the new verification_tier/verified_until columns, honors expiry,
+    and falls back to the legacy is_verified/is_vip flags for any row that
+    hasn't been backfilled yet. Always returns 'none', 'blue', or 'gold'."""
+    if not user:
+        return "none"
+    tier = _field(user, "verification_tier") or "none"
+    if tier not in ("blue", "gold"):
+        # Legacy row that predates the tier column
+        if _field(user, "is_vip"):
+            tier = "gold"
+        elif _field(user, "is_verified"):
+            tier = "blue"
+        else:
+            return "none"
+    until = _field(user, "verified_until")
+    if not until:
+        return "none"
+    try:
+        if datetime.datetime.utcnow() > datetime.datetime.fromisoformat(until):
+            return "none"
+    except Exception:
+        return "none"
+    return tier
+
+
+def set_verification_tier(db, user_id, tier, until):
+    """Write a verification tier + expiry, keeping the legacy is_verified /
+    is_vip / vip_until columns in sync so older queries elsewhere in the app
+    keep working untouched. `until` is a datetime."""
+    until_iso = until.isoformat()
+    db.execute(
+        """UPDATE users SET
+               verification_tier = ?,
+               verified_until = ?,
+               is_verified = ?,
+               is_vip = ?,
+               vip_until = ?
+           WHERE id = ?""",
+        (
+            tier,
+            until_iso,
+            1 if tier in ("blue", "gold") else 0,
+            1 if tier == "gold" else 0,
+            until_iso if tier == "gold" else None,
+            user_id,
+        ),
+    )
+
+
 def is_currently_verified(user):
     """ተጠቃሚው አሁን ላይ Blue Tick አለው ወይስ የለውም የሚለውን ይመልሳል"""
-    if not user:
-        return False
-    def _field(u, k):
-        try:
-            if isinstance(u, dict):
-                return u.get(k)
-            return u[k]
-        except Exception:
-            return getattr(u, k, None)
-
-    if not _field(user, "is_verified"):
-        return False
-    verified_until = _field(user, "verified_until")
-    if not verified_until:
-        return False
-    return datetime.datetime.utcnow() <= datetime.datetime.fromisoformat(verified_until)
+    return get_verification_tier(user) in ("blue", "gold")
 
 
 def is_currently_vip(user):
-    """ተጠቃሚው አሁን ላይ VIP ነው ወይስ አይደለም የሚለውን ይመልሳል"""
-    if not user:
-        return False
-    def _field(u, k):
-        try:
-            if isinstance(u, dict):
-                return u.get(k)
-            return u[k]
-        except Exception:
-            return getattr(u, k, None)
-
-    if not _field(user, "is_vip"):
-        return False
-    vip_until = _field(user, "vip_until")
-    if not vip_until:
-        return False
-    return datetime.datetime.utcnow() <= datetime.datetime.fromisoformat(vip_until)
+    """ተጠቃሚው አሁን ላይ VIP/Gold ነው ወይስ አይደለም የሚለውን ይመልሳል"""
+    return get_verification_tier(user) == "gold"
 
 
 def channel_is_verified(channel):
@@ -1780,6 +1890,55 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXT
 
 
+# --- Optional Cloud Storage (Cloudinary) -------------------------------
+# Render's local disk is ephemeral — anything saved to it is wiped on every
+# restart/redeploy/sleep cycle. Set these 3 environment variables to persist
+# all avatars, post photos, receipts, and reels permanently on Cloudinary:
+#   CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME")
+CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY")
+CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET")
+
+_cloudinary_enabled = False
+if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
+    try:
+        import cloudinary
+        import cloudinary.uploader
+        cloudinary.config(
+            cloud_name=CLOUDINARY_CLOUD_NAME,
+            api_key=CLOUDINARY_API_KEY,
+            api_secret=CLOUDINARY_API_SECRET,
+            secure=True,
+        )
+        _cloudinary_enabled = True
+        print("✅ Cloudinary connected — uploads will persist permanently in the cloud.")
+    except ImportError:
+        print("⚠️  'cloudinary' package not installed (pip install cloudinary). "
+              "Falling back to Supabase/local file storage.")
+    except Exception as e:
+        print(f"⚠️  Could not configure Cloudinary ({e}). Falling back to Supabase/local file storage.")
+
+
+def _upload_to_cloudinary(file_storage, folder="altajobs"):
+    """Uploads a werkzeug FileStorage to Cloudinary and returns the permanent
+    HTTPS secure_url, or None if the upload fails."""
+    try:
+        file_storage.stream.seek(0)
+        result = cloudinary.uploader.upload(
+            file_storage,
+            folder=folder,
+            resource_type="auto",  # auto-detects image vs video (needed for reels)
+        )
+        return result.get("secure_url")
+    except Exception as e:
+        print(f"⚠️  Cloudinary upload failed ({e}); falling back to next storage option.")
+        try:
+            file_storage.stream.seek(0)
+        except Exception:
+            pass
+        return None
+
+
 # --- Optional Cloud Storage (Supabase) --------------------------------
 # Not configured by default -> app keeps working exactly as before with
 # local disk storage. Set these 3 environment variables to switch uploads
@@ -1809,6 +1968,13 @@ def save_photo(file_storage):
         return None
     filename = secure_filename(file_storage.filename)
     unique = f"{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{filename}"
+
+    if _cloudinary_enabled:
+        url = _upload_to_cloudinary(file_storage, folder="altajobs/uploads")
+        if url:
+            # Full HTTPS URL — photo_url() passes these straight through unchanged.
+            return url
+        # Cloudinary failed (e.g. quota/network) — fall through to Supabase/local below.
 
     if _supabase_client:
         try:
@@ -1842,6 +2008,11 @@ def save_cv_photo(file_storage):
         return None
     filename = secure_filename(file_storage.filename)
     unique = f"{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{filename}"
+
+    if _cloudinary_enabled:
+        url = _upload_to_cloudinary(file_storage, folder="altajobs/cv_photos")
+        if url:
+            return url
 
     if _supabase_client:
         try:
@@ -1921,20 +2092,44 @@ def activity_badge_for(user):
 from markupsafe import Markup
 
 
+_VERIFICATION_BADGE_SVG = {
+    "blue": '''<span class="user-badge user-badge-tier-blue" title="Verified">
+            <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false" width="18" height="18">
+                <path fill="#1D9BF0" d="M20.396 11c0-1.196-.734-2.222-1.789-2.65.19-1.098-.128-2.301-.947-3.12-.82-.82-2.023-1.137-3.121-.947C14.111 3.228 13.085 2.494 11.89 2.494c-1.197 0-2.223.734-2.651 1.789-1.098-.19-2.301.127-3.12.947-.82.819-1.137 2.022-.947 3.12C4.228 8.778 3.494 9.804 3.494 11c0 1.196.734 2.222 1.789 2.65-.19 1.098.127 2.301.946 3.12.82.82 2.023 1.137 3.121.947.428 1.055 1.454 1.789 2.651 1.789 1.196 0 2.222-.734 2.65-1.789 1.098.19 2.301-.128 3.12-.947.82-.819 1.137-2.022.947-3.12 1.055-.428 1.789-1.454 1.789-2.65z"/>
+                <path fill="#fff" d="M9.323 14.416l-3.5-3.5 1.415-1.415 2.085 2.085 4.939-4.939 1.415 1.415z"/>
+            </svg>
+        </span>''',
+    "gold": '''<span class="user-badge user-badge-tier-gold" title="Verified Organization">
+            <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false" width="18" height="18">
+                <defs>
+                    <linearGradient id="g_tier_gold" x1="0%" x2="100%" y1="0%" y2="100%">
+                        <stop offset="0%" stop-color="#F9D976"/>
+                        <stop offset="100%" stop-color="#C9A227"/>
+                    </linearGradient>
+                </defs>
+                <path fill="url(#g_tier_gold)" d="M20.396 11c0-1.196-.734-2.222-1.789-2.65.19-1.098-.128-2.301-.947-3.12-.82-.82-2.023-1.137-3.121-.947C14.111 3.228 13.085 2.494 11.89 2.494c-1.197 0-2.223.734-2.651 1.789-1.098-.19-2.301.127-3.12.947-.82.819-1.137 2.022-.947 3.12C4.228 8.778 3.494 9.804 3.494 11c0 1.196.734 2.222 1.789 2.65-.19 1.098.127 2.301.946 3.12.82.82 2.023 1.137 3.121.947.428 1.055 1.454 1.789 2.651 1.789 1.196 0 2.222-.734 2.65-1.789 1.098.19 2.301-.128 3.12-.947.82-.819 1.137-2.022.947-3.12 1.055-.428 1.789-1.454 1.789-2.65z"/>
+                <path fill="#3B2A00" d="M9.323 14.416l-3.5-3.5 1.415-1.415 2.085 2.085 4.939-4.939 1.415 1.415z"/>
+            </svg>
+        </span>''',
+}
+
+
+@app.template_global()
+def verification_badge_svg(tier):
+    """THE single source of the Blue/Gold verification checkmark markup.
+    Every place that shows a verification badge (feed, profile, comments,
+    this pricing page) must call this — never inline a copy of the SVG.
+    Accepts a tier string ('none'/'blue'/'gold') OR a user object/row."""
+    if tier not in ("none", "blue", "gold"):
+        tier = get_verification_tier(tier)
+    return Markup(_VERIFICATION_BADGE_SVG.get(tier, ""))
+
+
 @app.template_global()
 def badge_html_for(user):
-    """Return small badge HTML reflecting activity badge and verification/vip."""
-    def _field(u, k):
-        try:
-            if isinstance(u, dict):
-                return u.get(k)
-            return u[k]
-        except Exception:
-            return getattr(u, k, None)
-
+    """Return small badge HTML reflecting activity badge and verification tier."""
     badge = activity_badge_for(user)
-    is_verified = bool(_field(user, "is_verified"))
-    is_vip = bool(_field(user, "is_vip"))
+    tier = get_verification_tier(user)
     parts = []
     # Activity badge icon
     if badge.startswith("Gold"):
@@ -1973,11 +2168,9 @@ def badge_html_for(user):
                             <circle cx="12" cy="12" r="9" fill="url(#g_bronze)" />
                         </svg>
                     </span>'''.format(t=badge))
-    # Verified / VIP overlays
-    if is_vip:
-        parts.append('<span class="user-badge user-badge-vip" title="VIP">\n            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">\n              <path fill="#FFD54A" d="M12 2l2 4 4 .7-3 2.7.8 4-3.8-2-3.8 2 .8-4L6 6.7 10 6z"/>\n            </svg>\n          </span>')
-    elif is_verified:
-        parts.append('<span class="user-badge user-badge-verified" title="Verified">\n            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">\n              <path fill="#34D399" d="M10 15l-3.5-3.5 1.4-1.4L10 12.2l6.1-6.1 1.4 1.4L10 15z"/>\n            </svg>\n          </span>')
+    # Verification tier overlay (Blue/Gold) — delegates to the single
+    # verification_badge_svg() source, never inlined here.
+    parts.append(str(verification_badge_svg(tier)))
 
     return Markup(''.join(parts))
 
@@ -2462,19 +2655,14 @@ def logout():
 # ---------------------------------------------------------------------------
 # Feed / Posts
 # ---------------------------------------------------------------------------
-@app.route("/")
-@login_required
-def feed():
-    db = get_db()
-    user = get_current_user()
+def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE):
+    """Fetch one LIMIT/OFFSET page of the feed and build the template payload.
 
-    try:
-        page = int(request.args.get("page", 1))
-        if page < 1:
-            page = 1
-    except Exception:
-        page = 1
-    page_size = 12
+    Shared by the server-rendered feed page, the JSON API, and the
+    "load more" partial-HTML endpoint so all three stay in sync and only
+    one query needs to be tuned/indexed.
+    Returns (posts_data, has_next).
+    """
     offset = (page - 1) * page_size
 
     posts = []
@@ -2515,7 +2703,6 @@ def feed():
         ).fetchall()
     except Exception as exc:
         print(f"Warning: could not load feed posts: {exc}")
-        flash("There was a problem loading your feed. Please try again in a moment.")
         posts = []
 
     post_ids = [p["id"] for p in posts]
@@ -2595,6 +2782,29 @@ def feed():
 
     posts_data = build_post_payload(posts) or []
     has_next = len(posts) == page_size
+    return posts_data, has_next
+
+
+@app.route("/")
+@login_required
+def feed():
+    db = get_db()
+    user = get_current_user()
+
+    try:
+        page = int(request.args.get("page", 1))
+        if page < 1:
+            page = 1
+    except Exception:
+        page = 1
+
+    try:
+        posts_data, has_next = _load_feed_page(db, user, page, FEED_PAGE_SIZE)
+    except Exception as exc:
+        print(f"Warning: feed page load failed: {exc}")
+        flash("There was a problem loading your feed. Please try again in a moment.")
+        posts_data, has_next = [], False
+
     has_posts = len(posts_data) > 0
 
     return render_template(
@@ -2602,11 +2812,35 @@ def feed():
         posts_data=posts_data,
         has_posts=has_posts,
         page=page,
-        page_size=page_size,
+        page_size=FEED_PAGE_SIZE,
         has_next=has_next,
         days_left=trial_days_left(user) if user else 0,
         show_trial_banner=bool(user and not _get_row_value(user, "paid_until")),
     )
+
+
+@app.route("/feed/page/<int:page>")
+@login_required
+def feed_load_more(page):
+    """Returns a rendered HTML fragment of the next batch of posts, plus
+    pagination metadata, for the feed's "Load More" / infinite-scroll JS.
+    Reuses the exact same partial template as the initial page load so the
+    markup (translations, badges, follow state, CSRF-protected forms, etc.)
+    never drifts from the server-rendered version.
+    """
+    if page < 1:
+        page = 1
+    db = get_db()
+    user = get_current_user()
+    posts_data, has_next = _load_feed_page(db, user, page, FEED_PAGE_SIZE)
+    html = render_template("_feed_posts.html", posts_data=posts_data)
+    return jsonify({
+        "success": True,
+        "html": html,
+        "has_next": has_next,
+        "has_posts": len(posts_data) > 0,
+        "page": page,
+    })
 
 
 @app.route("/home.html")
@@ -2627,120 +2861,12 @@ def api_feed():
             page = 1
     except Exception:
         page = 1
-    page_size = 12
-    offset = (page - 1) * page_size
 
-    posts = []
     try:
-        posts = db.execute(
-            """WITH latest_posts AS (
-                   SELECT * FROM posts
-                   WHERE status IN ('approved', 'posted')
-                   ORDER BY created_at DESC
-                   LIMIT ? OFFSET ?
-               )
-               SELECT p.*, u.username, u.full_name, u.avatar, u.user_type,
-                      u.is_verified, u.verified_until, u.is_vip, u.vip_until,
-                      COALESCE(like_counts.like_count, 0) AS like_count,
-                      COALESCE(comment_counts.comment_count, 0) AS comment_count
-               FROM latest_posts p
-               JOIN users u ON p.user_id = u.id
-               LEFT JOIN (
-                   SELECT post_id, COUNT(*) AS like_count
-                   FROM likes
-                   WHERE post_id IN (SELECT id FROM latest_posts)
-                   GROUP BY post_id
-               ) like_counts ON like_counts.post_id = p.id
-               LEFT JOIN (
-                   SELECT post_id, COUNT(*) AS comment_count
-                   FROM comments
-                   WHERE post_id IN (SELECT id FROM latest_posts)
-                   GROUP BY post_id
-               ) comment_counts ON comment_counts.post_id = p.id
-               ORDER BY p.created_at DESC""",
-            (page_size, offset),
-        ).fetchall()
+        posts_data, has_next = _load_feed_page(db, user, page, FEED_PAGE_SIZE)
     except Exception as exc:
         print(f"Warning: could not load feed posts for API: {exc}")
         return jsonify({"success": False, "error": "feed_load_failed"}), 500
-
-    post_ids = [p["id"] for p in posts]
-    liked_ids = set()
-    saved_ids = set()
-    following_ids = set()
-    applied_ids = set()
-    author_ids = list({p["user_id"] for p in posts})
-
-    if user and post_ids:
-        try:
-            placeholders = ", ".join("?" for _ in post_ids)
-            liked_ids = {
-                r["post_id"]
-                for r in db.execute(
-                    f"SELECT post_id FROM likes WHERE user_id = ? AND post_id IN ({placeholders})",
-                    tuple([user["id"]] + post_ids),
-                ).fetchall()
-            }
-            saved_ids = {
-                r["post_id"]
-                for r in db.execute(
-                    f"SELECT post_id FROM saved_posts WHERE user_id = ? AND post_id IN ({placeholders})",
-                    tuple([user["id"]] + post_ids),
-                ).fetchall()
-            }
-            applied_ids = {
-                r["post_id"]
-                for r in db.execute(
-                    f"SELECT post_id FROM job_applications WHERE applicant_id = ? AND post_id IN ({placeholders})",
-                    tuple([user["id"]] + post_ids),
-                ).fetchall()
-            }
-            if author_ids:
-                author_placeholders = ", ".join("?" for _ in author_ids)
-                following_ids = {
-                    r["followed_id"]
-                    for r in db.execute(
-                        f"SELECT followed_id FROM follows WHERE follower_id = ? AND followed_id IN ({author_placeholders})",
-                        tuple([user["id"]] + author_ids),
-                    ).fetchall()
-                }
-        except Exception as exc:
-            print(f"Warning: could not load feed metadata for API: {exc}")
-
-    def build_post_payload(rows):
-        payload = []
-        for p in rows:
-            if not hasattr(p, "keys") and not isinstance(p, dict):
-                continue
-            row = dict(p) if hasattr(p, "keys") else dict(p)
-            row.setdefault("id", None)
-            row.setdefault("user_id", None)
-            row.setdefault("content", "")
-            row.setdefault("photo", None)
-            row.setdefault("post_type", "general")
-            row.setdefault("created_at", "")
-            row.setdefault("view_count", 0)
-            row.setdefault("full_name", row.get("username") or "Unknown")
-            row.setdefault("username", "unknown")
-            row.setdefault("avatar", None)
-            row.setdefault("like_count", 0)
-            row.setdefault("comment_count", 0)
-            row.setdefault("is_verified", False)
-            row.setdefault("is_vip", False)
-            payload.append({
-                "post": row,
-                "author_name": row.get("full_name") or row.get("username") or "Unknown",
-                "like_count": row.get("like_count", 0),
-                "comment_count": row.get("comment_count", 0),
-                "liked": row.get("id") in liked_ids,
-                "saved": row.get("id") in saved_ids,
-                "following": row.get("user_id") in following_ids,
-                "applied": row.get("id") in applied_ids,
-            })
-        return payload
-
-    posts_data = build_post_payload(posts) or []
-    has_next = len(posts) == page_size
 
     return jsonify({
         "success": True,
@@ -4369,6 +4495,39 @@ def buy_verification():
 
 
 # ---------------------------------------------------------------------------
+# Blue / Gold Verification Subscription (pricing page + checkout)
+# ---------------------------------------------------------------------------
+@app.route("/get-verified")
+@login_required
+def get_verified():
+    """Render the Blue/Gold pricing page. Plans come from VERIFICATION_PLANS
+    (the single source of truth) — nothing here is hardcoded."""
+    user = get_current_user()
+    return render_template(
+        "verification.html",
+        plans=VERIFICATION_PLANS,
+        current_tier=get_verification_tier(user),
+        current_verified_until=_field(user, "verified_until"),
+    )
+
+
+@app.route("/checkout")
+@login_required
+def checkout():
+    """Placeholder checkout screen. NOTE: this does not take payment yet —
+    it's wired up to VERIFICATION_PLANS so the order summary is always
+    accurate, ready for a real gateway (Telebirr/Chapa/etc.) to be dropped in.
+    """
+    tier = request.args.get("tier", "")
+    duration_id = request.args.get("duration", "")
+    plan = get_verification_plan(tier, duration_id)
+    if not plan:
+        flash("That plan isn't available. Please choose a plan again.")
+        return redirect(url_for("get_verified"))
+    return render_template("checkout.html", plan=plan)
+
+
+# ---------------------------------------------------------------------------
 # VIP Membership
 # ---------------------------------------------------------------------------
 @app.route("/vip/buy", methods=["POST"])
@@ -5652,15 +5811,15 @@ def grant_verified(user_id):
         days = max(1, int(request.form.get("days", 30)))
     except (TypeError, ValueError):
         days = 30
+    tier = request.form.get("tier", "blue")
+    if tier not in ("blue", "gold"):
+        tier = "blue"
     if target:
         until = datetime.datetime.utcnow() + datetime.timedelta(days=days)
-        db.execute(
-            "UPDATE users SET is_verified = true, verified_until = ? WHERE id = ?",
-            (until.isoformat(), user_id),
-        )
+        set_verification_tier(db, user_id, tier, until)
         add_notification(
             db, user_id,
-            f"Congratulations! An admin has granted your account a Verified badge for {days} day(s).",
+            f"Congratulations! An admin has granted your account a {tier.capitalize()} badge for {days} day(s).",
             ntype="info",
         )
         db.commit()
@@ -5672,10 +5831,7 @@ def grant_verified(user_id):
 @admin_required
 def revoke_verified(user_id):
     db = get_db()
-    db.execute(
-        "UPDATE users SET is_verified = false, verified_until = NULL WHERE id = ?",
-        (user_id,),
-    )
+    set_verification_tier(db, user_id, "none", datetime.datetime.utcnow())
     db.commit()
     return redirect(request.referrer or url_for("admin_verify"))
 

@@ -1,33 +1,33 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="card new-post-box compact" id="compose">
+<div class="card new-post-box compact bg-white rounded-xl shadow-sm border border-gray-100 p-4" id="compose">
   <form method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data" id="composeForm">
-    <div class="compose-row">
-      <div class="avatar compose-avatar">
+    <div class="compose-row flex items-start gap-3">
+      <div class="avatar compose-avatar w-11 h-11 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-semibold overflow-hidden flex-shrink-0">
         {% if current_user['avatar'] %}
-          <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}">
+          <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}" class="w-full h-full object-cover">
         {% else %}
           {{ (current_user['full_name'] or current_user['username'])[0] }}
         {% endif %}
       </div>
-      <div class="compose-input-wrap">
-        <textarea name="content" id="composeTextarea" class="compose-textarea" rows="1"
+      <div class="compose-input-wrap flex-1 min-w-0 relative">
+        <textarea name="content" id="composeTextarea" class="compose-textarea w-full border-none focus:ring-0 focus:outline-none resize-none text-[15px] leading-normal placeholder-gray-400 py-2 pr-9" rows="1"
                   placeholder="Share a job or experience..."></textarea>
-        <label class="compose-media-icon" title="{{ t.add_photo }}">
-          <i class='bx bx-image-add'></i>
+        <label class="compose-media-icon absolute right-0 top-2 text-gray-400 hover:text-blue-600 cursor-pointer transition-colors" title="{{ t.add_photo }}">
+          <i class='bx bx-image-add text-xl'></i>
           <input type="file" name="photo" accept="image/*" style="display:none" id="composePhotoInput">
         </label>
       </div>
     </div>
-    <span class="compose-photo-name" id="composePhotoName"></span>
-    <div class="new-post-actions compose-actions-collapsed" id="composeActions">
-      <select name="post_type" class="post-type-select">
+    <span class="compose-photo-name block text-xs text-gray-500 mt-1 ml-14" id="composePhotoName"></span>
+    <div class="new-post-actions compose-actions-collapsed flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-100" id="composeActions">
+      <select name="post_type" class="post-type-select text-sm text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
         <option value="general">{{ t.feed }}</option>
         <option value="job">{{ t.post_job }}</option>
         <option value="skill">{{ t.job_seeker_post }}</option>
       </select>
-      <button type="submit" id="composeSubmitButton" class="btn btn-primary btn-full btn-disabled" disabled>{{ t.post_button }}</button>
+      <button type="submit" id="composeSubmitButton" class="btn btn-primary btn-disabled bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-full font-medium text-sm transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600" disabled>{{ t.post_button }}</button>
     </div>
   </form>
 </div>
@@ -38,7 +38,7 @@
   <button type="button" class="filter-pill" data-filter="general,skill">Experiences 💬</button>
 </div>
 
-<div class="feed-shell">
+<div class="feed-shell space-y-4">
   <div class="feed-skeleton-shell" id="feedSkeletonShell" aria-hidden="true">
     <div class="feed-skeleton-card">
       <div class="feed-skeleton-row"></div>
@@ -76,141 +76,74 @@
   {% endif %}
   <p class="empty-state-note empty-state-note-hidden" id="noFilterResultsMsg">No posts match this filter yet.</p>
 
-{% for item in posts_data %}
-  {% set post = item['post'] if item is mapping else (item.post if item.post is defined else {}) %}
-  {% set post_id = post['id'] if (post is mapping and 'id' in post.keys()) else (post.get('id') if post is mapping else '') %}
-  {% set post_user_id = post['user_id'] if (post is mapping and 'user_id' in post.keys()) else (post.get('user_id') if post is mapping else '') %}
-  {% set post_type = (post['post_type'] if (post is mapping and 'post_type' in post.keys()) else (post.get('post_type') if post is mapping else 'general')) %}
-  {% set post_content = post['content'] if (post is mapping and 'content' in post.keys()) else (post.get('content','') if post is mapping else '') %}
-  {% set post_photo = post['photo'] if (post is mapping and 'photo' in post.keys()) else (post.get('photo') if post is mapping else None) %}
-  {% set post_created_at = post['created_at'] if (post is mapping and 'created_at' in post.keys()) else (post.get('created_at','') if post is mapping else '') %}
-  {% set post_view_count = post['view_count'] if (post is mapping and 'view_count' in post.keys()) else (post.get('view_count',0) if post is mapping else 0) %}
-  <div class="card post-card {{ 'post-card-job' if post_type == 'job' }}" data-post-type="{{ post_type }}">
-    <button type="button" class="post-menu-btn js-post-menu-btn"
-            data-post-id="{{ post_id }}"
-            data-can-delete="{{ '1' if (post_user_id == current_user['id'] or current_user['is_admin']) else '0' }}"
-            data-can-report="{{ '0' if post_user_id == current_user['id'] else '1' }}"
-            aria-label="More options">
-      <i class='bx bx-dots-vertical-rounded'></i>
-    </button>
-    <div class="post-header">
-      <a href="{{ url_for('profile', user_id=post_user_id) }}" class="avatar">
-        {% if post.get('avatar') %}
-          <img src="{{ photo_url(post.get('avatar')) }}" loading="lazy" decoding="async" alt="{{ item['author_name'] }}">
-        {% else %}
-          {{ item['author_name'][0] if item['author_name'] else 'U' }}
-        {% endif %}
-      </a>
-      <div class="post-header-body">
-        <div class="post-header-meta">
-          <a href="{{ url_for('profile', user_id=post_user_id) }}" class="post-author">
-            {{ item['author_name'] }}
-          </a>
-          {{ badge_html_for(post) }}
-          {% if is_verified_now(post) %}
-            <span class="verified-badge" title="{{ t.verified_badge }}">
-              <svg class="verified-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path fill="#1DA1F2" d="M12 2l2.2 3.6L18 6l-2.4 1.8L16 12l-4-2-4 2 .4-4.2L6 6l3.8-.4L12 2z"/><path fill="#fff" d="M10.6 12.3l1.8 1.5 3-4-1.2-1-2.3 2.9-1.3-1z"/></svg>
-            </span>
-          {% endif %}
-          {% if is_vip_now(post) %}<span class="badge-icon-vip" title="{{ t.vip }}">👑</span>{% endif %}
-          {% if post_user_id != current_user['id'] %}
-            <button type="button" class="follow-btn js-follow-btn {{ 'following' if item['following'] }}"
-                    data-user-id="{{ post_user_id }}"
-                    data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
-              {{ t.unfollow if item['following'] else t.follow }}
-            </button>
-          {% endif %}
-        </div>
-        <span class="badge badge-{{ post_type }}">
-          {% if post_type == 'job' %}{{ t.post_job }}
-          {% elif post_type == 'skill' %}{{ t.job_seeker_post }}
-          {% else %}{{ t.feed }}{% endif %}
-        </span>
-        <div class="post-meta">{{ post_created_at[:16].replace('T',' ') if post_created_at else '' }} · <i class='bx bx-show'></i> {{ post_view_count }}</div>
-      </div>
-    </div>
-
-    {% if post_type == 'job' and post_content %}
-      {% set job_lines = post_content.split('\n') %}
-      <div class="job-eyebrow"><i class='bx bxs-briefcase'></i> Job Opportunity</div>
-      <h3 class="job-title">{{ job_lines[0] }}</h3>
-      {% if job_lines|length > 1 %}
-        <p class="post-content job-description">{{ job_lines[1:] | join('\n') | trim }}</p>
-      {% endif %}
-    {% elif post_content %}
-      <p class="post-content">{{ post_content }}</p>
-    {% endif %}
-    {% if post_photo %}
-      <div class="post-media" data-post-id="{{ post_id }}">
-        <img class="post-photo" src="{{ photo_url(post_photo) }}" alt="Product preview" loading="lazy" decoding="async" fetchpriority="low">
-        <div class="double-tap-heart" aria-hidden="true"><i class='bx bxs-heart'></i></div>
-      </div>
-    {% endif %}
-
-    <div class="product-engagement-card">
-      <div class="engagement-bar post-footer">
-        <button type="button" class="post-action-btn js-like-btn {{ 'liked' if item['liked'] }}"
-                data-post-id="{{ post_id }}" aria-label="Like">
-          <svg viewBox="0 0 24 24" class="post-action-icon" aria-hidden="true"><path d="M12 21s-7.33-4.07-10-7.72C-1.8 9.55.9 4.97 5.4 4.97c2.9 0 4.3 1.9 6.6 4.68C13.3 6.87 14.7 4.97 17.6 4.97c4.5 0 7.2 4.58 3.4 8.31C19.33 16.93 12 21 12 21z"></path></svg>
-          <span>{{ item['like_count'] }}</span>
-        </button>
-        <a href="{{ url_for('post_detail', post_id=post_id) }}#comments" class="post-action-btn" aria-label="Comment">
-          <svg viewBox="0 0 24 24" class="post-action-icon" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"></path></svg>
-          <span>{{ item['comment_count'] }}</span>
-        </a>
-        <form method="POST" action="{{ url_for('share_post', post_id=post_id) }}">
-          <button type="submit" class="post-action-btn" aria-label="Share">
-            <svg viewBox="0 0 24 24" class="post-action-icon" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>
-          </button>
-        </form>
-        <form method="POST" action="{{ url_for('save_post', post_id=post_id) }}">
-          <button type="submit" class="post-action-btn {{ 'saved' if item['saved'] }}" aria-label="Save">
-            <svg viewBox="0 0 24 24" class="post-action-icon" aria-hidden="true"><path d="M6 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18l-6-4-6 4V4Z"></path></svg>
-          </button>
-        </form>
-      </div>
-    </div>
-
-    {% if post_type == 'job' %}
-      <div class="job-actions">
-        {% if post_user_id == current_user['id'] %}
-          <a href="{{ url_for('view_applicants', post_id=post_id) }}" class="btn-apply btn-full">
-            <i class='bx bxs-user-detail'></i> {{ t.applicants }}
-          </a>
-        {% elif item['applied'] %}
-          <button class="btn-apply btn-disabled" disabled>
-            <i class='bx bx-check'></i> {{ t.applied }}
-          </button>
-        {% else %}
-          <form method="POST" action="{{ url_for('apply_to_job', post_id=post_id) }}" class="job-action-form job-action-form-apply">
-            <button type="submit" class="btn-apply btn-full">{{ t.apply_now }}</button>
-          </form>
-        {% endif %}
-        <form method="POST" action="{{ url_for('save_post', post_id=post_id) }}" class="job-action-form">
-          <button type="submit" class="btn-save {{ 'saved' if item['saved'] }} btn-full">
-            <i class='bx {{ "bxs-bookmark" if item['saved'] else "bx-bookmark" }}'></i>
-          </button>
-        </form>
-        <form method="POST" action="{{ url_for('share_post', post_id=post_id) }}" class="job-action-form">
-          <button type="submit" class="btn-share btn-full"> <i class='bx bx-share-alt'></i></button>
-        </form>
-      </div>
-    {% endif %}
-
-  </div>
-{% endfor %}
+<div id="feedPostsContainer">
+{% include "_feed_posts.html" %}
+</div>
 </div>
 
-{% if page > 1 or has_next %}
-  <div class="feed-pagination">
-    {% if page > 1 %}
-      <a href="{{ url_for('feed', page=page-1) }}" class="btn btn-outline">← Previous</a>
-    {% endif %}
-    {% if has_next %}
-      <a href="{{ url_for('feed', page=page+1) }}" class="btn">Next →</a>
-    {% endif %}
-  </div>
-{% endif %}
+<div id="feedLoadMoreWrap" class="feed-pagination" data-page="{{ page }}" data-has-next="{{ '1' if has_next else '0' }}">
+  {% if has_next %}
+    <button type="button" id="feedLoadMoreBtn" class="btn">Load More</button>
+  {% endif %}
+  <div id="feedLoadMoreSpinner" class="feed-load-more-spinner" hidden>Loading…</div>
+</div>
+
+<script>
+(function () {
+  var wrap = document.getElementById('feedLoadMoreWrap');
+  var container = document.getElementById('feedPostsContainer');
+  var btn = document.getElementById('feedLoadMoreBtn');
+  var spinner = document.getElementById('feedLoadMoreSpinner');
+  if (!wrap || !container) return;
+
+  var page = parseInt(wrap.dataset.page || '1', 10);
+  var hasNext = wrap.dataset.hasNext === '1';
+  var loading = false;
+
+  function loadNextPage() {
+    if (loading || !hasNext) return;
+    loading = true;
+    if (btn) btn.hidden = true;
+    if (spinner) spinner.hidden = false;
+
+    fetch('/feed/page/' + (page + 1), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data && data.success) {
+          if (data.html) {
+            container.insertAdjacentHTML('beforeend', data.html);
+          }
+          page = data.page;
+          hasNext = !!data.has_next;
+        } else {
+          hasNext = false;
+        }
+      })
+      .catch(function () {
+        // Network hiccup: leave the button visible so the user can retry manually.
+      })
+      .finally(function () {
+        loading = false;
+        if (spinner) spinner.hidden = true;
+        if (btn) btn.hidden = !hasNext;
+      });
+  }
+
+  if (btn) {
+    btn.addEventListener('click', loadNextPage);
+  }
+
+  // Infinite scroll: also auto-load once the button nears the viewport.
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) loadNextPage();
+      });
+    }, { rootMargin: '600px 0px' });
+    observer.observe(wrap);
+  }
+})();
+</script>
 
 <div class="bottom-sheet-overlay" id="bottomSheetOverlay"></div>
 <div class="bottom-sheet" id="postActionsSheet" role="dialog" aria-label="Post options">

@@ -1,46 +1,55 @@
 {% extends "base.html" %}
 {% block content %}
-{% include "admin_nav.html" %}
+<div class="admin-shell lg:flex lg:min-h-screen bg-zinc-950 text-slate-200">
+  {% include "admin_nav.html" %}
+  <main class="admin-main flex-1 min-w-0 px-4 py-5 lg:px-8 lg:py-8">
 
-<div class="card">
-  <h2 style="margin:0 0 6px">🚩 Content Moderation Center</h2>
-  <p class="post-meta" style="margin:0">Reported posts awaiting review.</p>
-</div>
-
-{% if not reported %}
-<div class="card"><p class="post-meta">No pending reports right now.</p></div>
-{% else %}
-  {% for r in reported %}
-  <div class="card">
-    <p class="post-meta" style="margin:0 0 6px">Reported by <b>{{ r['reporter'] }}</b> on {{ r['reported_at'][:16].replace('T',' ') }}</p>
-    <p style="margin:0 0 8px"><b>Reason:</b> {{ r['reason'] }}</p>
-
-    {% if r['target_type'] == 'post' and r['post_id'] %}
-      <div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px">
-        <p class="post-meta" style="margin:0 0 4px">Post by <b>{{ r['post_author'] }}</b></p>
-        {% if r['post_photo'] %}
-          <img src="{{ url_for('uploaded_file', filename=r['post_photo']) }}" style="max-width:200px;border-radius:8px;margin-bottom:8px">
-        {% endif %}
-        <p class="post-content" style="margin:0">{{ r['post_content'] }}</p>
+    <section class="admin-page-header">
+      <div>
+        <p class="admin-overline">🚩 Content Moderation</p>
+        <h1 class="text-xl font-extrabold text-slate-100 lg:text-2xl">Reported Content</h1>
+        <p class="mt-1 text-xs text-slate-500">Items awaiting review.</p>
       </div>
+    </section>
+
+    {% if not reported %}
+      <div class="admin-card"><p class="admin-empty-state">No pending reports right now.</p></div>
     {% else %}
-      <p class="post-meta">
-        <a href="{{ url_for('profile', user_id=r['target_id']) }}">Reported profile #{{ r['target_id'] }}</a>
-      </p>
+      <div class="space-y-3">
+      {% for r in reported %}
+      <div class="admin-card">
+        <div class="mb-2 flex items-center justify-between text-[11px] text-slate-500">
+          <span>Reported by <b class="text-slate-300">{{ r['reporter'] }}</b></span>
+          <span>{{ r['reported_at'][:16].replace('T',' ') }}</span>
+        </div>
+        <p class="mb-3 text-sm"><span class="admin-badge admin-badge-warning">Reason</span> <span class="text-slate-300">{{ r['reason'] }}</span></p>
+
+        {% if r['target_type'] == 'post' and r['post_id'] %}
+          <div class="mb-3 rounded-xl border border-white/5 bg-zinc-950/50 p-3">
+            <p class="mb-1 text-[11px] text-slate-500">Post by <b class="text-slate-300">{{ r['post_author'] }}</b></p>
+            {% if r['post_photo'] %}
+              <img src="{{ url_for('uploaded_file', filename=r['post_photo']) }}" class="mb-2 max-w-[180px] rounded-lg">
+            {% endif %}
+            <p class="text-sm text-slate-300">{{ r['post_content'] }}</p>
+          </div>
+        {% else %}
+          <a href="{{ url_for('profile', user_id=r['target_id']) }}" class="mb-3 block text-xs text-sky-400">Reported profile #{{ r['target_id'] }}</a>
+        {% endif %}
+
+        <div class="flex flex-wrap gap-2">
+          <form method="POST" action="{{ url_for('dismiss_report', report_id=r['report_id']) }}">
+            <button type="submit" class="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/5">Dismiss</button>
+          </form>
+          {% if r['target_type'] == 'post' and r['post_id'] %}
+          <form method="POST" action="{{ url_for('delete_reported_post', report_id=r['report_id']) }}" onsubmit="return confirm('Delete this post permanently? This cannot be undone.');">
+            <button type="submit" class="rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/25">🗑️ Delete Post</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+      </div>
     {% endif %}
-
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <form method="POST" action="{{ url_for('dismiss_report', report_id=r['report_id']) }}">
-        <button type="submit" class="btn btn-small btn-outline">Dismiss Report</button>
-      </form>
-      {% if r['target_type'] == 'post' and r['post_id'] %}
-      <form method="POST" action="{{ url_for('delete_reported_post', report_id=r['report_id']) }}" onsubmit="return confirm('Delete this post permanently? This cannot be undone.');">
-        <button type="submit" class="btn btn-small" style="background:#c0392b;color:white">🗑️ Delete Post</button>
-      </form>
-      {% endif %}
-    </div>
-  </div>
-  {% endfor %}
-{% endif %}
-
+  </main>
+</div>
 {% endblock %}

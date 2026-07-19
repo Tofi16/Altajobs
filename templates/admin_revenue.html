@@ -1,46 +1,81 @@
 {% extends "base.html" %}
 {% block content %}
-{% include "admin_nav.html" %}
+<div class="admin-shell lg:flex lg:min-h-screen bg-zinc-950 text-slate-200">
+  {% include "admin_nav.html" %}
+  <main class="admin-main flex-1 min-w-0 px-4 py-5 lg:px-8 lg:py-8">
 
-<div class="card">
-  <h2 style="margin:0 0 6px">📈 Platform Revenue Analytics</h2>
-  <div class="price-tag">{{ total_revenue }} ETB</div>
-  <p class="post-meta" style="margin:4px 0 0">Total platform revenue across all sources</p>
+    <section class="admin-page-header">
+      <div>
+        <p class="admin-overline"><i class='bx bx-line-chart'></i> Analytics</p>
+        <h1 class="text-xl font-extrabold text-slate-100 lg:text-2xl">Platform Revenue</h1>
+      </div>
+    </section>
+
+    <div class="admin-card mb-5 bg-gradient-to-br from-emerald-500/15 to-transparent">
+      <p class="admin-overline mb-1">Total Revenue</p>
+      <div class="text-3xl font-black text-emerald-400 lg:text-4xl">{{ total_revenue }} ETB</div>
+      <p class="mt-1 text-xs text-slate-500">Across all platform sources</p>
+    </div>
+
+    <div class="admin-metric-grid">
+      <div class="admin-metric-card">
+        <div class="admin-metric-icon"><i class='bx bx-credit-card'></i></div>
+        <div>
+          <h3>Subscriptions</h3>
+          <p>{{ subscription_revenue }} ETB</p>
+        </div>
+      </div>
+      <div class="admin-metric-card">
+        <div class="admin-metric-icon"><i class='bx bx-store-alt'></i></div>
+        <div>
+          <h3>Marketplace</h3>
+          <p>{{ marketplace_revenue }} ETB</p>
+        </div>
+      </div>
+      <div class="admin-metric-card">
+        <div class="admin-metric-icon"><i class='bx bx-crown'></i></div>
+        <div>
+          <h3>Premium Services</h3>
+          <p>{{ premium_services_revenue }} ETB</p>
+        </div>
+      </div>
+      <div class="admin-metric-card">
+        <div class="admin-metric-icon"><i class='bx bx-gift'></i></div>
+        <div>
+          <h3>Wallet / Gifts</h3>
+          <p>{{ wallet_activity_revenue }} ETB</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-card mb-5">
+      <h3 class="mb-2 text-sm font-bold text-slate-100">Premium Breakdown</h3>
+      <div class="flex items-center justify-between border-t border-white/5 py-2 text-sm">
+        <span class="text-slate-400">Blue Tick verification</span>
+        <span class="font-bold text-slate-100">{{ verification_revenue }} ETB</span>
+      </div>
+      <div class="flex items-center justify-between border-t border-white/5 py-2 text-sm">
+        <span class="text-slate-400">VIP membership</span>
+        <span class="font-bold text-slate-100">{{ vip_revenue }} ETB</span>
+      </div>
+    </div>
+
+    <div class="admin-card">
+      <h3 class="mb-2 text-sm font-bold text-slate-100">Wallet Transaction Volume</h3>
+      <div class="flex items-center justify-between border-t border-white/5 py-2 text-sm">
+        <span class="text-slate-400">Approved deposits</span>
+        <span class="font-bold text-slate-100">{{ deposit_volume }} ETB</span>
+      </div>
+      <div class="flex items-center justify-between border-t border-white/5 py-2 text-sm">
+        <span class="text-slate-400">Approved withdrawals</span>
+        <span class="font-bold text-slate-100">{{ withdrawal_volume }} ETB</span>
+      </div>
+      <div class="flex items-center justify-between border-t border-white/5 py-2 text-sm">
+        <span class="text-slate-400">Business Challenge prize pools</span>
+        <span class="font-bold text-slate-100">{{ challenge_prize_pool_volume }} ETB</span>
+      </div>
+    </div>
+
+  </main>
 </div>
-
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
-
-  <div class="card">
-    <h3 style="margin:0 0 4px">💳 Subscription Revenue</h3>
-    <div class="price-tag">{{ subscription_revenue }} ETB</div>
-    <p class="post-meta" style="margin:4px 0 0">Approved monthly/yearly plan payments</p>
-  </div>
-
-  <div class="card">
-    <h3 style="margin:0 0 4px">�️ Marketplace Revenue</h3>
-    <div class="price-tag">{{ marketplace_revenue }} ETB</div>
-    <p class="post-meta" style="margin:4px 0 0">Trusted product listings and marketplace activity</p>
-  </div>
-
-  <div class="card">
-    <h3 style="margin:0 0 4px">👑 Premium Services Revenue</h3>
-    <div class="price-tag">{{ premium_services_revenue }} ETB</div>
-    <p class="post-meta" style="margin:4px 0 0">Blue Tick verification: {{ verification_revenue }} ETB &nbsp;•&nbsp; VIP: {{ vip_revenue }} ETB</p>
-  </div>
-
-  <div class="card">
-    <h3 style="margin:0 0 4px">💬 Wallet Activity Revenue</h3>
-    <div class="price-tag">{{ wallet_activity_revenue }} ETB</div>
-    <p class="post-meta" style="margin:4px 0 0">Platform cut from animated gifts</p>
-  </div>
-
-</div>
-
-<div class="card">
-  <h3>Wallet Transaction Volume</h3>
-  <p class="post-meta" style="margin:0">Total approved deposits: <b>{{ deposit_volume }} ETB</b></p>
-  <p class="post-meta" style="margin:0">Total approved withdrawals: <b>{{ withdrawal_volume }} ETB</b></p>
-  <p class="post-meta" style="margin:0">Total Business Challenge prize pools: <b>{{ challenge_prize_pool_volume }} ETB</b></p>
-</div>
-
 {% endblock %}

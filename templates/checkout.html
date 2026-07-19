@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout — AltaJobs{% endblock %}
+
+{% block content %}
+<script src="https://cdn.tailwindcss.com"></script>
+
+<div class="min-h-screen bg-[#0B1020] text-white flex items-center justify-center px-4 py-16">
+  <div class="max-w-md w-full rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl p-8">
+    <h1 class="text-2xl font-semibold mb-1">Confirm your plan</h1>
+    <p class="text-white/50 text-sm mb-6">Paid instantly from your AltaJobs wallet balance.</p>
+
+    <div class="rounded-2xl bg-white/5 border border-white/10 p-5 mb-6">
+      <div class="flex justify-between text-sm text-white/60 mb-1">
+        <span>Tier</span>
+        <span class="capitalize font-medium text-white">{{ plan.label }}</span>
+      </div>
+      <div class="flex justify-between text-sm text-white/60 mb-1">
+        <span>Duration</span>
+        <span class="font-medium text-white">{{ plan.name }}</span>
+      </div>
+      <div class="flex justify-between text-sm text-white/60 pt-3 mt-3 border-t border-white/10">
+        <span>Total</span>
+        <span class="font-semibold text-lg text-white">{{ "{:,.0f}".format(plan.price) }} ETB</span>
+      </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('checkout') }}">
+      <input type="hidden" name="tier" value="{{ plan.tier }}">
+      <input type="hidden" name="duration" value="{{ plan.id }}">
+      <button type="submit"
+              class="w-full rounded-xl bg-gradient-to-r from-sky-500 to-sky-400 hover:from-sky-400 hover:to-sky-300 transition font-semibold py-3 text-white shadow-lg shadow-sky-500/30">
+        Confirm &amp; Pay {{ "{:,.0f}".format(plan.price) }} ETB from wallet
+      </button>
+    </form>
+    <a href="{{ url_for('get_verified') }}" class="block text-center text-sm text-white/50 hover:text-white mt-4">
+      ← Back to plans
+    </a>
+  </div>
+</div>
+{% endblock %}

@@ -1,136 +1,125 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="admin-shell">
+<div class="admin-shell lg:flex lg:min-h-screen bg-zinc-950 text-slate-200">
   {% include "admin_nav.html" %}
-  <main class="admin-main">
+  <main class="admin-main flex-1 min-w-0 px-4 py-5 lg:px-8 lg:py-8">
+
     <section class="admin-page-header">
       <div>
         <p class="admin-overline">User Directory</p>
-        <h1>Manage Registered Members</h1>
-        <p class="post-meta">Search, review, and moderate user accounts from one polished dashboard.</p>
+        <h1 class="text-xl font-extrabold text-slate-100 lg:text-2xl">Registered Members</h1>
       </div>
-      <div class="admin-header-actions">
-        {% if q %}
-          <a href="{{ url_for('admin_users') }}" class="btn btn-outline btn-small">Clear Search</a>
-        {% endif %}
-      </div>
+      {% if q %}
+        <a href="{{ url_for('admin_users') }}" class="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/5">Clear search</a>
+      {% endif %}
     </section>
 
-    <div class="admin-card admin-search-card">
-      <form method="GET" action="{{ url_for('admin_users') }}" class="admin-search-form">
-        <div class="admin-search-input-wrap">
-          <i class='bx bx-search'></i>
-          <input type="text" name="q" value="{{ q }}" placeholder="Search by username, phone, or full name">
-        </div>
-        <button type="submit" class="btn btn-primary btn-small">Search users</button>
-      </form>
-    </div>
+    <form method="GET" action="{{ url_for('admin_users') }}" class="admin-card mb-4 flex gap-2">
+      <div class="relative flex-1">
+        <i class='bx bx-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500'></i>
+        <input type="text" name="q" value="{{ q }}" placeholder="Search username, phone, or name"
+          class="w-full rounded-xl border border-white/10 bg-zinc-950/70 py-2.5 pl-9 pr-3 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/50 focus:outline-none">
+      </div>
+      <button type="submit" class="rounded-xl bg-emerald-500 px-4 text-sm font-bold text-zinc-950">Search</button>
+    </form>
 
     {% if generated_for %}
-    <div class="admin-card admin-alert-card admin-password-card">
-      <div class="admin-password-head">
+    <div class="admin-card mb-4 border-emerald-500/30 bg-emerald-500/5">
+      <div class="flex items-center justify-between">
         <div>
-          <strong>Temporary Password Generated</strong>
-          <p>For user <b>{{ generated_for }}</b></p>
+          <strong class="text-sm text-slate-100">Temporary Password Generated</strong>
+          <p class="text-xs text-slate-400">For user <b>{{ generated_for }}</b></p>
         </div>
         <span class="admin-pill"><i class='bx bx-key'></i> Secure reset</span>
       </div>
-      <p class="admin-password-value">{{ generated_password }}</p>
-      <p class="post-meta">Share this password with the user now. They should log in and change it immediately.</p>
+      <p class="mt-2 rounded-lg bg-zinc-950/60 px-3 py-2 font-mono text-sm text-emerald-400">{{ generated_password }}</p>
+      <p class="mt-1 text-[11px] text-slate-500">Share this password now — the user should change it immediately.</p>
     </div>
     {% endif %}
 
-    <div class="admin-card">
-      {% if not users %}
-        <p class="post-meta">No users found.</p>
-      {% else %}
-      <div class="admin-table-shell">
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Phone</th>
-            <th>Wallet</th>
-            <th>Wallet ID</th>
-            <th>Joined</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for u in users %}
-          <tr>
-            <td>
-              <div class="admin-user-cell">
-                <span class="admin-user-name">{{ u['full_name'] or u['username'] }}</span>
-                <span class="post-meta">@{{ u['username'] }}</span>
-              </div>
-            </td>
-            <td>{{ u['phone'] or '—' }}</td>
-            <td><strong>{{ u['balance'] }} ETB</strong></td>
-            <td><span class="admin-wallet-id">{{ u['wallet_id'] or '—' }}</span></td>
-            <td>{{ u['created_at'][:10] }}</td>
-            <td>
-              <div class="admin-user-status-group">
-                {% if u['is_banned'] %}
-                  <span class="admin-badge admin-badge-danger">Banned</span>
-                {% elif is_currently_banned(u) %}
-                  <span class="admin-badge admin-badge-warning">Suspended</span>
-                {% else %}
-                  <span class="admin-badge admin-badge-success">Active</span>
-                {% endif %}
-                {% if u['is_verified'] %}<span class="admin-badge admin-badge-info">Verified</span>{% endif %}
-                {% if u['is_admin'] %}<span class="admin-badge admin-badge-admin">Admin</span>{% endif %}
-              </div>
-            </td>
-            <td>
-              <div class="admin-action-group admin-user-actions">
-                {% if not u['is_admin'] %}
-                <form method="POST" action="{{ url_for('generate_temp_password', user_id=u['id']) }}">
-                  <button type="submit" class="btn btn-small btn-outline admin-inline-btn">Generate Temp Password</button>
-                </form>
-                <form method="POST" action="{{ url_for('warn_user', user_id=u['id']) }}" class="admin-inline-form">
-                  <input type="text" name="message" placeholder="Warning message" required>
-                  <button type="submit" class="btn btn-small">Warn</button>
-                </form>
-                <form method="POST" action="{{ url_for('temp_ban_user', user_id=u['id']) }}" class="admin-inline-form">
-                  <input type="number" name="days" value="3" min="1">
-                  <input type="text" name="reason" placeholder="Ban reason">
-                  <button type="submit" class="btn btn-small btn-outline">Temp Ban</button>
-                </form>
-                {% if u['is_banned'] or is_currently_banned(u) %}
-                <form method="POST" action="{{ url_for('unban_user', user_id=u['id']) }}">
-                  <button type="submit" class="btn btn-small">Unban</button>
-                </form>
-                {% else %}
-                <form method="POST" action="{{ url_for('ban_user', user_id=u['id']) }}" onsubmit="return confirm('Permanently ban this user?');">
-                  <button type="submit" class="btn btn-small btn-outline admin-danger-btn">Ban</button>
-                </form>
-                {% endif %}
-                {% else %}
-                <span class="post-meta">Admin account</span>
-                {% endif %}
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    {% if not users %}
+      <div class="admin-card"><p class="admin-empty-state">No users found.</p></div>
+    {% else %}
+    <div class="divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/5">
+      {% for u in users %}
+      <div class="flex items-center gap-3 bg-zinc-900/40 px-3 py-3">
+        <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/5 text-sm font-bold text-slate-200">
+          {{ (u['full_name'] or u['username'])[0]|upper }}
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-1.5">
+            <span class="truncate text-sm font-semibold text-slate-100">{{ u['full_name'] or u['username'] }}</span>
+          </div>
+          <div class="truncate text-[11px] text-slate-500">@{{ u['username'] }} · {{ u['phone'] or '—' }}</div>
+          <div class="mt-1 flex flex-wrap gap-1">
+            {% if u['is_banned'] %}<span class="admin-badge admin-badge-danger">Banned</span>
+            {% elif is_currently_banned(u) %}<span class="admin-badge admin-badge-warning">Suspended</span>
+            {% else %}<span class="admin-badge admin-badge-success">Active</span>{% endif %}
+            {% if u['is_verified'] %}<span class="admin-badge admin-badge-info">Verified</span>{% endif %}
+            {% if u['is_admin'] %}<span class="admin-badge admin-badge-admin">Admin</span>{% endif %}
+          </div>
+        </div>
+        <div class="shrink-0 text-right">
+          <div class="text-sm font-extrabold text-slate-100">{{ u['balance'] }} ETB</div>
+          <div class="text-[10px] text-slate-500">{{ u['created_at'][:10] }}</div>
+        </div>
+
+        {% if not u['is_admin'] %}
+        <div class="relative shrink-0" data-dropdown>
+          <button type="button" data-dropdown-btn class="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white/10">
+            <i class='bx bx-dots-vertical-rounded text-lg'></i>
+          </button>
+          <div data-dropdown-menu class="hidden absolute right-0 z-20 mt-1 w-64 space-y-2 rounded-xl border border-white/10 bg-zinc-900 p-3 shadow-xl">
+            <form method="POST" action="{{ url_for('generate_temp_password', user_id=u['id']) }}">
+              <button type="submit" class="w-full rounded-lg border border-white/10 px-3 py-1.5 text-left text-xs font-semibold text-slate-200 hover:bg-white/5">🔑 Generate Temp Password</button>
+            </form>
+            <form method="POST" action="{{ url_for('warn_user', user_id=u['id']) }}" class="flex gap-1">
+              <input type="text" name="message" placeholder="Warning message" required class="min-w-0 flex-1 rounded-lg border border-white/10 bg-zinc-950/70 px-2 py-1.5 text-xs text-slate-100 placeholder:text-slate-600">
+              <button type="submit" class="shrink-0 rounded-lg bg-amber-500/15 px-2.5 text-xs font-bold text-amber-400">Warn</button>
+            </form>
+            <form method="POST" action="{{ url_for('temp_ban_user', user_id=u['id']) }}" class="flex gap-1">
+              <input type="number" name="days" value="3" min="1" class="w-14 rounded-lg border border-white/10 bg-zinc-950/70 px-2 py-1.5 text-xs text-slate-100">
+              <input type="text" name="reason" placeholder="Reason" class="min-w-0 flex-1 rounded-lg border border-white/10 bg-zinc-950/70 px-2 py-1.5 text-xs text-slate-100 placeholder:text-slate-600">
+              <button type="submit" class="shrink-0 rounded-lg bg-white/10 px-2.5 text-xs font-bold text-slate-200">Temp Ban</button>
+            </form>
+            {% if u['is_banned'] or is_currently_banned(u) %}
+            <form method="POST" action="{{ url_for('unban_user', user_id=u['id']) }}">
+              <button type="submit" class="w-full rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-400">Unban</button>
+            </form>
+            {% else %}
+            <form method="POST" action="{{ url_for('ban_user', user_id=u['id']) }}" onsubmit="return confirm('Permanently ban this user?');">
+              <button type="submit" class="w-full rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-bold text-red-400">🚫 Ban permanently</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
       </div>
-      {% endif %}
+      {% endfor %}
     </div>
+    {% endif %}
 
     {% if total > per_page %}
-    <div class="admin-card admin-pagination-card">
+    <div class="mt-4 flex items-center justify-between text-xs">
       {% if page > 1 %}
-        <a href="{{ url_for('admin_users', q=q, page=page-1) }}" class="btn btn-small btn-outline">← Prev</a>
-      {% endif %}
-      <span class="post-meta">Page {{ page }} of {{ ((total - 1) // per_page) + 1 }} ({{ total }} users)</span>
+        <a href="{{ url_for('admin_users', q=q, page=page-1) }}" class="rounded-lg border border-white/10 px-3 py-1.5 font-semibold text-slate-300 hover:bg-white/5">← Prev</a>
+      {% else %}<span></span>{% endif %}
+      <span class="admin-pill">Page {{ page }} of {{ ((total - 1) // per_page) + 1 }} · {{ total }} users</span>
       {% if page * per_page < total %}
-        <a href="{{ url_for('admin_users', q=q, page=page+1) }}" class="btn btn-small btn-outline">Next →</a>
-      {% endif %}
+        <a href="{{ url_for('admin_users', q=q, page=page+1) }}" class="rounded-lg border border-white/10 px-3 py-1.5 font-semibold text-slate-300 hover:bg-white/5">Next →</a>
+      {% else %}<span></span>{% endif %}
     </div>
     {% endif %}
   </main>
 </div>
+
+<script>
+document.addEventListener('click', function(e) {
+  var openBtn = e.target.closest('[data-dropdown-btn]');
+  document.querySelectorAll('[data-dropdown-menu]').forEach(function(m) {
+    if (!openBtn || m !== openBtn.parentElement.querySelector('[data-dropdown-menu]')) m.classList.add('hidden');
+  });
+  if (openBtn) openBtn.parentElement.querySelector('[data-dropdown-menu]').classList.toggle('hidden');
+});
+</script>
 {% endblock %}

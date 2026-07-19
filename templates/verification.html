@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% from "macros/badges.html" import badge_only %}
+
+{% block title %}Get Verified — AltaJobs{% endblock %}
+
+{% block content %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          display: ['"Space Grotesk"', 'sans-serif'],
+          body: ['Inter', 'sans-serif'],
+        },
+        colors: {
+          ink: '#0B1020',
+          blueglow: '#1D9BF0',
+          goldglow: '#C9A227',
+        },
+      },
+    },
+  }
+</script>
+
+<style>
+  .verify-bg {
+    background: radial-gradient(60% 50% at 18% 10%, rgba(29,155,240,0.22), transparent 60%),
+                radial-gradient(55% 45% at 85% 15%, rgba(201,162,39,0.18), transparent 60%),
+                linear-gradient(180deg, #0B1020 0%, #0A0E1A 100%);
+  }
+  .glass-card {
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,0.10);
+  }
+  .glass-card-gold {
+    background: linear-gradient(160deg, rgba(201,162,39,0.14), rgba(255,255,255,0.04));
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(201,162,39,0.35);
+  }
+  .duration-pill input:checked + label {
+    background: rgba(29,155,240,0.18);
+    border-color: #1D9BF0;
+    color: #fff;
+  }
+  .duration-pill-gold input:checked + label {
+    background: rgba(201,162,39,0.20);
+    border-color: #C9A227;
+    color: #fff;
+  }
+</style>
+
+<div class="verify-bg min-h-screen font-body text-white px-4 py-14 sm:py-20">
+  <div class="max-w-5xl mx-auto">
+
+    <!-- Hero -->
+    <div class="text-center mb-14">
+      <span class="inline-flex items-center gap-2 text-xs uppercase tracking-widest text-white/50 mb-4">
+        <span class="h-px w-6 bg-white/30"></span> AltaJobs Verification <span class="h-px w-6 bg-white/30"></span>
+      </span>
+      <h1 class="font-display text-4xl sm:text-5xl font-semibold leading-tight">
+        Stand out. Get trusted. <span class="whitespace-nowrap">Get verified.</span>
+      </h1>
+      <p class="mt-4 text-white/60 max-w-xl mx-auto">
+        A verification badge tells every employer and job seeker on AltaJobs that your account is real,
+        reviewed, and worth trusting on sight.
+      </p>
+
+      {% if current_tier != "none" %}
+      <div class="mt-6 inline-flex items-center gap-2 rounded-full glass-card px-4 py-2 text-sm">
+        {{ badge_only(current_tier) }}
+        <span>You're currently <strong class="capitalize">{{ current_tier }}</strong> verified
+          {%- if current_verified_until %} until {{ current_verified_until[:10] }}{% endif %}.</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Pricing cards -->
+    <div class="grid md:grid-cols-2 gap-8 items-start">
+
+      <!-- BLUE TIER -->
+      <div class="glass-card rounded-3xl p-8 shadow-2xl shadow-blue-500/10">
+        <div class="flex items-center gap-3 mb-1">
+          {{ badge_only("blue") }}
+          <h2 class="font-display text-2xl font-semibold">Blue</h2>
+        </div>
+        <p class="text-white/50 text-sm mb-6">For Talents</p>
+
+        <form action="{{ url_for('checkout') }}" method="get">
+          <input type="hidden" name="tier" value="blue">
+          <div class="duration-pill grid grid-cols-3 gap-2 mb-6">
+            {% for d in plans.blue.durations %}
+              <input type="radio" name="duration" id="blue-{{ d.id }}" value="{{ d.id }}"
+                     class="peer sr-only" {% if d.id == 'blue-selected-none' %}checked{% endif %}
+                     {% if loop.last %}checked{% endif %}>
+              <label for="blue-{{ d.id }}"
+                     class="cursor-pointer rounded-xl border border-white/15 text-white/60 text-center py-3 px-1 text-sm transition">
+                <span class="block font-medium">{{ d.name }}</span>
+                <span class="block text-xs mt-0.5 text-white/40">{{ "{:,.0f}".format(d.price) }} ETB</span>
+              </label>
+            {% endfor %}
+          </div>
+
+          <ul class="space-y-2 text-sm text-white/70 mb-8">
+            <li class="flex gap-2"><span class="text-blueglow">✓</span> Blue checkmark on your profile, posts &amp; comments</li>
+            <li class="flex gap-2"><span class="text-blueglow">✓</span> Priority placement in search &amp; applicant lists</li>
+            <li class="flex gap-2"><span class="text-blueglow">✓</span> Higher daily wallet transfer limit</li>
+          </ul>
+
+          <button type="submit"
+                  class="w-full rounded-xl bg-blueglow hover:bg-sky-400 transition font-display font-semibold py-3 text-white shadow-lg shadow-blueglow/30">
+            Subscribe to Blue
+          </button>
+        </form>
+      </div>
+
+      <!-- GOLD TIER -->
+      <div class="glass-card-gold rounded-3xl p-8 shadow-2xl shadow-yellow-600/10 relative overflow-hidden">
+        <span class="absolute top-5 right-6 text-[11px] uppercase tracking-widest text-goldglow/80 font-medium">Companies</span>
+        <div class="flex items-center gap-3 mb-1">
+          {{ badge_only("gold") }}
+          <h2 class="font-display text-2xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500">Gold</h2>
+        </div>
+        <p class="text-white/50 text-sm mb-6">For Companies</p>
+
+        <form action="{{ url_for('checkout') }}" method="get">
+          <input type="hidden" name="tier" value="gold">
+          {% set d = plans.gold.durations[0] %}
+          <div class="duration-pill-gold mb-6">
+            <input type="radio" name="duration" id="gold-{{ d.id }}" value="{{ d.id }}" class="peer sr-only" checked>
+            <label for="gold-{{ d.id }}"
+                   class="cursor-pointer rounded-xl border border-goldglow/40 text-white/80 flex items-center justify-between py-3 px-4">
+              <span class="font-medium">{{ d.name }}</span>
+              <span class="text-goldglow font-semibold">{{ "{:,.0f}".format(d.price) }} ETB</span>
+            </label>
+          </div>
+
+          <ul class="space-y-2 text-sm text-white/70 mb-8">
+            <li class="flex gap-2"><span class="text-goldglow">✓</span> Gold checkmark as a verified organization</li>
+            <li class="flex gap-2"><span class="text-goldglow">✓</span> Company badge on every job posting</li>
+            <li class="flex gap-2"><span class="text-goldglow">✓</span> Dedicated support &amp; applicant analytics</li>
+          </ul>
+
+          <button type="submit"
+                  class="w-full rounded-xl bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-300 hover:to-yellow-500 transition font-display font-semibold py-3 text-ink shadow-lg shadow-goldglow/30">
+            Subscribe to Gold
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <p class="text-center text-white/30 text-xs mt-12">
+      Payments are processed securely. Subscriptions renew manually — no surprise auto-charges.
+    </p>
+  </div>
+</div>
+{% endblock %}

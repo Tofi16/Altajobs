@@ -89,23 +89,23 @@
 <div class="card" style="padding:0;">
   <div class="settings-section-title">Premium Upgrades</div>
   <div class="upgrade-list">
-    <form method="POST" action="{{ url_for('buy_verification') }}" class="upgrade-row">
+    <a href="{{ url_for('checkout', tier='blue', duration='1m') }}" class="upgrade-row upgrade-link">
       <div class="upgrade-icon"><i class='bx bx-check-shield'></i></div>
       <div class="upgrade-copy">
         <div class="upgrade-title">{{ t.get_verified }}</div>
         <div class="upgrade-desc">Get a verified badge for trust and visibility.</div>
       </div>
-      <button type="submit" class="upgrade-action">Upgrade</button>
-    </form>
+      <span class="upgrade-action">Upgrade</span>
+    </a>
 
-    <form method="POST" action="{{ url_for('buy_vip') }}" class="upgrade-row">
+    <a href="{{ url_for('checkout', tier='gold', duration='1y') }}" class="upgrade-row upgrade-link">
       <div class="upgrade-icon"><i class='bx bx-crown'></i></div>
       <div class="upgrade-copy">
         <div class="upgrade-title">{{ t.get_vip }}</div>
         <div class="upgrade-desc">Unlock VIP benefits, premium support, and exclusive features.</div>
       </div>
-      <button type="submit" class="upgrade-action">Become VIP</button>
-    </form>
+      <span class="upgrade-action">Become VIP</span>
+    </a>
 
     <a href="{{ url_for('challenges') }}" class="upgrade-row upgrade-link">
       <div class="upgrade-icon"><i class='bx bx-trophy'></i></div>

@@ -1,169 +1,148 @@
 {% extends "base.html" %}
 {% block content %}
 
-<style>
-:root{--brand:#0a62e4;--muted:#64748b}
-.wallet-container{max-width:820px;margin:0 auto;padding:20px}
-.wallet-hero{padding:8px 6px 6px 6px;margin-bottom:18px}
-.wallet-hero .label{font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
-.wallet-hero .balance{font-size:48px;font-weight:800;color:var(--brand);margin:6px 0}
-.wallet-hero .tokens{font-size:13px;color:var(--muted)}
+<div class="mx-auto max-w-xl px-4 py-5 text-slate-200">
 
-.actions-row{display:flex;gap:14px;margin-bottom:18px}
-.action-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px;border-radius:10px;background:var(--brand);color:#fff;border:0;cursor:pointer;font-weight:700;box-shadow:0 8px 20px rgba(10,98,228,0.14)}
-.action-icon{width:34px;height:34px;border-radius:8px;background:#fff;color:var(--brand);display:inline-flex;align-items:center;justify-content:center;font-weight:800}
-
-.requests-section{margin-top:6px}
-.requests-title{font-weight:700;margin:6px 0 12px 0;color:#0f1724}
-.requests-list{border-radius:8px;border:1px solid rgba(15,23,42,0.06);overflow:hidden;background:#fff}
-.request-item{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid rgba(15,23,42,0.04)}
-.request-item:last-child{border-bottom:none}
-.request-meta{font-size:13px;color:#334155}
-.request-status.pending{color:#f59e0b;font-weight:700}
-.request-status.approved{color:#10b981;font-weight:700}
-
-/* Modal styles */
-.modal-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(2,6,23,0.5);z-index:800}
-.modal{background:#fff;border-radius:10px;min-width:320px;max-width:520px;padding:18px;box-shadow:0 18px 60px rgba(2,6,23,0.3)}
-.modal h3{margin:0 0 8px 0}
-.modal .row{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
-.modal input, .modal select, .modal textarea{padding:10px;border:1px solid #e6eef8;border-radius:8px;width:100%;box-sizing:border-box}
-.modal .actions{display:flex;gap:8px;justify-content:flex-end}
-.btn-ghost{background:transparent;border:1px solid #ccddee;padding:8px 12px;border-radius:8px;cursor:pointer}
-.btn-primary{background:var(--brand);color:#fff;border:0;padding:8px 12px;border-radius:8px;cursor:pointer}
-
-@media (max-width:700px){.actions-row{flex-direction:column}}
-</style>
-
-<div class="wallet-container">
-  <!-- Hero -->
-  <section class="wallet-hero">
-    <div class="label">Available Balance</div>
-    <div class="balance">{{ current_user.get('balance', current_user.get('wallet_balance', 0)) }} ETB</div>
-    <div class="tokens"><strong id="walletTokensCount">{{ current_user.get('alta_tokens', 0) }}</strong> Alta Tokens</div>
+  <!-- Balance hero -->
+  <section class="mb-4 rounded-2xl border border-white/5 bg-gradient-to-br from-emerald-500/15 via-zinc-900/60 to-zinc-900/60 p-5">
+    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Available Balance</div>
+    <div class="mt-1 text-4xl font-black text-slate-50">{{ current_user.get('balance', current_user.get('wallet_balance', 0)) }} <span class="text-lg font-bold text-slate-400">ETB</span></div>
+    <div class="mt-1.5 text-xs text-slate-400">🪙 <strong id="walletTokensCount" class="text-slate-200">{{ current_user.get('alta_tokens', 0) }}</strong> Alta Tokens</div>
+    {% if pending_balance and pending_balance > 0 %}
+      <div class="mt-1 text-xs text-amber-400">⏳ {{ pending_balance }} ETB held for a pending withdrawal</div>
+    {% endif %}
+    <div class="mt-3 flex items-center gap-2 rounded-lg border border-white/5 bg-zinc-950/40 px-3 py-2">
+      <span class="text-[11px] font-semibold text-slate-500">Wallet ID</span>
+      <span id="walletIdValue" class="flex-1 truncate font-mono text-sm text-slate-200">{{ current_user.get('wallet_id', '') }}</span>
+      <button type="button" id="copyWalletId" class="shrink-0 rounded-md bg-white/5 px-2 py-1 text-xs font-semibold text-emerald-400 hover:bg-white/10">Copy</button>
+    </div>
   </section>
 
   <!-- Actions -->
-  <section class="actions-row" aria-label="Wallet actions">
-    <button class="action-btn" type="button" data-modal="depositModal">
-      <span class="action-icon">↓</span>
-      <span>Deposit</span>
+  <section class="mb-5 grid grid-cols-3 gap-2" aria-label="Wallet actions">
+    <button type="button" data-modal="depositModal" class="flex flex-col items-center gap-1.5 rounded-xl border border-white/5 bg-zinc-900/60 py-3 text-xs font-bold text-slate-200 active:scale-95 transition">
+      <span class="grid h-9 w-9 place-items-center rounded-full bg-emerald-500/15 text-emerald-400 text-base">↓</span>
+      Deposit
     </button>
-
-    <button class="action-btn" type="button" data-modal="withdrawModal">
-      <span class="action-icon">↑</span>
-      <span>Withdraw</span>
+    <button type="button" data-modal="withdrawModal" class="flex flex-col items-center gap-1.5 rounded-xl border border-white/5 bg-zinc-900/60 py-3 text-xs font-bold text-slate-200 active:scale-95 transition">
+      <span class="grid h-9 w-9 place-items-center rounded-full bg-amber-500/15 text-amber-400 text-base">↑</span>
+      Withdraw
     </button>
-
-    <button class="action-btn" type="button" data-modal="sendModal">
-      <span class="action-icon">✈</span>
-      <span>Send</span>
+    <button type="button" data-modal="sendModal" class="flex flex-col items-center gap-1.5 rounded-xl border border-dashed border-sky-500/40 bg-transparent py-3 text-xs font-bold text-sky-400 active:scale-95 transition">
+      <span class="grid h-9 w-9 place-items-center rounded-full border border-sky-500/30 text-sky-400 text-base">✈</span>
+      Send
     </button>
   </section>
 
   <!-- Recent Requests -->
-  <section class="requests-section">
-    <div class="requests-title">Recent Requests</div>
-    <div id="requestsList" class="requests-list">
+  <section>
+    <div class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Recent Activity</div>
+    <div id="requestsList" class="divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/5">
       {% set reqs = requests if requests is defined else history if history is defined else [] %}
-        {% if reqs and reqs|length > 0 %}
+      {% if reqs and reqs|length > 0 %}
         {% for r in reqs %}
-          <div class="request-item">
-            <div class="request-meta">{{ (r['tx_type'] if 'tx_type' in r.keys() else '')|capitalize }} • {{ (r['amount'] if 'amount' in r.keys() else '') }} ETB</div>
-            <div class="request-status {% if ('status' in r.keys() and r['status'] == 'approved') %}approved{% else %}pending{% endif %}">{{ (r['status'] if 'status' in r.keys() else 'Pending')|capitalize }}</div>
+          {% set is_approved = ('status' in r.keys() and r['status'] == 'approved') %}
+          <div class="flex items-center justify-between gap-3 bg-zinc-900/40 px-3 py-3">
+            <div class="flex items-center gap-2.5">
+              <span class="grid h-8 w-8 place-items-center rounded-full bg-white/5 text-sm">
+                {% if 'tx_type' in r.keys() and r['tx_type'] == 'withdraw' %}↑{% else %}↓{% endif %}
+              </span>
+              <div class="text-sm">
+                <div class="font-semibold text-slate-100">{{ (r['tx_type'] if 'tx_type' in r.keys() else '')|capitalize }}</div>
+                <div class="text-[11px] text-slate-500">{{ (r['amount'] if 'amount' in r.keys() else '') }} ETB</div>
+              </div>
+            </div>
+            <span class="admin-badge {{ 'admin-badge-success' if is_approved else 'admin-badge-warning' }}">{{ (r['status'] if 'status' in r.keys() else 'Pending')|capitalize }}</span>
           </div>
         {% endfor %}
       {% else %}
-        <div class="request-item"><div class="request-meta">No requests yet</div><div class="request-status pending">—</div></div>
+        <div class="px-3 py-6 text-center text-sm text-slate-500">No requests yet</div>
       {% endif %}
     </div>
   </section>
 
-  <!-- Modals (forms POST to server routes) -->
-  <div id="depositModal" class="modal-backdrop" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="depositTitle">
-      <h3 id="depositTitle">Deposit Funds</h3>
-      <form id="depositForm" method="POST" action="{{ url_for('wallet_deposit') }}" enctype="multipart/form-data">
-        <div class="row">
-          <label>Amount</label>
-          <input name="amount" type="number" step="0.01" min="1" required />
+  <!-- Modals -->
+  <div id="depositModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm" aria-hidden="true">
+    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
+      <h3 class="mb-4 text-sm font-bold text-slate-100">Deposit Funds</h3>
+      <form id="depositForm" method="POST" action="{{ url_for('wallet_deposit') }}" enctype="multipart/form-data" class="space-y-3">
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Amount</label>
+          <input name="amount" type="number" step="0.01" min="1" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
-
-        <div class="row">
-          <label>Bank</label>
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Bank</label>
           {% if banks and banks|length > 0 %}
-            <select name="bank_id" required>
+            <select name="bank_id" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
               <option value="">Select bank</option>
               {% for bank in banks %}
                 <option value="{{ bank['id'] }}">{{ bank['bank_name'] }} — {{ bank['account_holder_name'] if bank['account_holder_name'] else bank['account_name'] }} / {{ bank['account_number'] }}</option>
               {% endfor %}
             </select>
           {% else %}
-            <div class="row"><em>No active banks configured.</em></div>
+            <p class="text-xs text-slate-500">No active banks configured.</p>
           {% endif %}
         </div>
-
-        <div class="row">
-          <label>Transaction Reference ID</label>
-          <input name="transaction_ref" type="text" required />
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Transaction Reference ID</label>
+          <input name="transaction_ref" type="text" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
-
-        <div class="row">
-          <label>Attach receipt (optional)</label>
-          <input name="receipt_photo" type="file" accept="image/*" />
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Attach receipt (optional)</label>
+          <input name="receipt_photo" type="file" accept="image/*" class="w-full text-xs text-slate-400">
         </div>
-
-        <div class="actions">
-          <button type="button" class="btn-ghost" data-close>Cancel</button>
-          <button type="submit" class="btn-primary">Submit Deposit</button>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" class="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
+          <button type="submit" class="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-bold text-zinc-950">Submit Deposit</button>
         </div>
       </form>
     </div>
   </div>
 
-  <div id="withdrawModal" class="modal-backdrop" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="withdrawTitle">
-      <h3 id="withdrawTitle">Withdraw Funds</h3>
-      <form id="withdrawForm" method="POST" action="{{ url_for('withdraw_request') }}">
-        <div class="row">
-          <label>Amount</label>
-          <input name="amount" type="number" step="0.01" min="10" required />
+  <div id="withdrawModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm" aria-hidden="true">
+    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
+      <h3 class="mb-4 text-sm font-bold text-slate-100">Withdraw Funds</h3>
+      <form id="withdrawForm" method="POST" action="{{ url_for('withdraw_request') }}" class="space-y-3">
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Amount</label>
+          <input name="amount" type="number" step="0.01" min="10" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
-        <div class="row">
-          <label>Destination Account Name</label>
-          <input name="account_name" type="text" required />
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Destination Account Name</label>
+          <input name="account_name" type="text" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
-        <div class="row">
-          <label>Account Number</label>
-          <input name="account_number" type="text" required />
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Account Number</label>
+          <input name="account_number" type="text" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
-        <div class="row">
-          <label>Bank Name</label>
-          <input name="bank_name_manual" type="text" required />
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Bank Name</label>
+          <input name="bank_name_manual" type="text" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
-        <div class="actions">
-          <button type="button" class="btn-ghost" data-close>Cancel</button>
-          <button type="submit" class="btn-primary">Request Withdraw</button>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" class="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
+          <button type="submit" class="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-bold text-zinc-950">Request Withdraw</button>
         </div>
       </form>
     </div>
   </div>
 
-  <div id="sendModal" class="modal-backdrop" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sendTitle">
-      <h3 id="sendTitle">Send Funds</h3>
-      <form id="sendForm" method="POST" action="{{ url_for('wallet_transfer') }}">
-        <div class="row">
-          <label>Amount</label>
-          <input name="amount" type="number" step="0.01" min="0.01" required />
+  <div id="sendModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm" aria-hidden="true">
+    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
+      <h3 class="mb-4 text-sm font-bold text-slate-100">Send Funds</h3>
+      <form id="sendForm" method="POST" action="{{ url_for('wallet_transfer') }}" class="space-y-3">
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Amount</label>
+          <input name="amount" type="number" step="0.01" min="0.01" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
-        <div class="row">
-          <label>Recipient Wallet ID</label>
-          <input name="recipient_wallet_id" type="text" required />
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Recipient Wallet ID</label>
+          <input name="recipient_wallet_id" id="recipientWalletId" type="text" required autocomplete="off" class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+          <p id="recipientNameHint" class="mt-1 text-xs"></p>
         </div>
-        <div class="actions">
-          <button type="button" class="btn-ghost" data-close>Cancel</button>
-          <button type="submit" class="btn-primary">Send</button>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" class="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
+          <button type="submit" id="sendSubmitBtn" class="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-bold text-zinc-950">Send</button>
         </div>
       </form>
     </div>
@@ -172,23 +151,66 @@
 </div>
 
 <script>
-// Modal open/close (progressive enhancement). Forms submit normally to server.
-document.querySelectorAll('[data-modal]').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    const id = btn.getAttribute('data-modal');
-    const m = document.getElementById(id);
-    if(m){ m.style.display='flex'; m.setAttribute('aria-hidden','false'); }
-  })
+document.querySelectorAll('[data-modal]').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var m = document.getElementById(btn.getAttribute('data-modal'));
+    if (m) { m.classList.remove('hidden'); m.classList.add('flex'); m.setAttribute('aria-hidden', 'false'); }
+  });
 });
-// Close buttons
-document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',e=>{
-  const backdrop = e.target.closest('.modal-backdrop');
-  if(backdrop){ backdrop.style.display='none'; backdrop.setAttribute('aria-hidden','true'); }
-}));
-// Click backdrop to close
-document.querySelectorAll('.modal-backdrop').forEach(back=>{
-  back.addEventListener('click',e=>{ if(e.target===back){ back.style.display='none'; back.setAttribute('aria-hidden','true'); } })
+document.querySelectorAll('[data-close]').forEach(function(b) {
+  b.addEventListener('click', function(e) {
+    var backdrop = e.target.closest('.fixed.inset-0');
+    if (backdrop) { backdrop.classList.add('hidden'); backdrop.classList.remove('flex'); backdrop.setAttribute('aria-hidden', 'true'); }
+  });
 });
+document.querySelectorAll('#depositModal, #withdrawModal, #sendModal').forEach(function(back) {
+  back.addEventListener('click', function(e) {
+    if (e.target === back) { back.classList.add('hidden'); back.classList.remove('flex'); back.setAttribute('aria-hidden', 'true'); }
+  });
+});
+
+// Copy wallet ID
+(function () {
+  var btn = document.getElementById('copyWalletId');
+  var val = document.getElementById('walletIdValue');
+  if (!btn || !val) return;
+  btn.addEventListener('click', function () {
+    navigator.clipboard.writeText(val.textContent.trim()).then(function () {
+      var original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(function () { btn.textContent = original; }, 1500);
+    });
+  });
+})();
+
+// Recipient name auto-fetch for Send
+(function () {
+  var input = document.getElementById('recipientWalletId');
+  var hint = document.getElementById('recipientNameHint');
+  var submitBtn = document.getElementById('sendSubmitBtn');
+  if (!input || !hint) return;
+  var timer = null;
+  input.addEventListener('input', function () {
+    clearTimeout(timer);
+    var val = input.value.trim();
+    if (!val) { hint.textContent = ''; return; }
+    timer = setTimeout(function () {
+      fetch('{{ url_for("wallet_lookup") }}?wallet_id=' + encodeURIComponent(val))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.found) {
+            hint.textContent = '✓ Sending to ' + data.name;
+            hint.className = 'mt-1 text-xs text-emerald-400';
+            if (submitBtn) submitBtn.disabled = false;
+          } else {
+            hint.textContent = 'No wallet found with that ID';
+            hint.className = 'mt-1 text-xs text-red-400';
+            if (submitBtn) submitBtn.disabled = true;
+          }
+        }).catch(function () { hint.textContent = ''; });
+    }, 400);
+  });
+})();
 </script>
 
 {% endblock %}

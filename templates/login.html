@@ -1,13 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page-shell auth-page-shell">
-  <div class="auth-card">
-    <div class="auth-brand">
-      <span class="brand-mark">A</span>
-      <div>
-        <p class="auth-brand-label">AltaJobs</p>
-        <p class="auth-subtitle">Sign in to continue to the premium talent marketplace.</p>
-      </div>
+  <div class="auth-card bg-white/5 backdrop-blur-lg border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded-2xl">
+    <div class="auth-brand flex flex-col items-center text-center gap-1 mb-2">
+      <span class="text-3xl font-extrabold tracking-wider bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500 bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]">AltaJobs</span>
+      <p class="auth-subtitle text-sm text-slate-400">Sign in to continue to the premium talent marketplace.</p>
     </div>
 
     <h1 class="auth-title">Welcome back</h1>
@@ -16,14 +13,14 @@
     <form class="auth-form" method="POST" action="{{ url_for('login') }}">
       <div class="auth-field">
         <label for="username">{{ t.username }}</label>
-        <input id="username" class="auth-input" type="text" name="username" autocomplete="username" required>
+        <input id="username" class="auth-input text-base bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400/50 transition" type="text" name="username" autocomplete="username" required>
       </div>
       <div class="auth-field">
         <label for="password">{{ t.password }}</label>
-        <input id="password" class="auth-input" type="password" name="password" autocomplete="current-password" required>
+        <input id="password" class="auth-input text-base bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400/50 transition" type="password" name="password" autocomplete="current-password" required>
       </div>
       <div class="auth-actions">
-        <button type="submit" class="auth-btn">{{ t.login }}</button>
+        <button type="submit" class="auth-btn w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold py-2.5 rounded-lg shadow-[0_0_15px_rgba(79,70,229,0.4)] transition">{{ t.login }}</button>
       </div>
     </form>
 

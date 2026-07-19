@@ -1,122 +1,157 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="marketplace-page">
-  <div class="marketplace-hero card">
-    <div class="marketplace-hero-copy">
+<div class="marketplace-page space-y-6">
+
+  <div class="flex items-center justify-between gap-4 flex-wrap">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900">Marketplace</h2>
+      <p class="text-sm text-gray-500 mt-1">Discover trusted products and sellers inside AltaJobs.</p>
+    </div>
+    <button type="button" id="openListingModalBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition flex items-center gap-2">
+      <i class='bx bx-plus text-lg'></i> Add Listing
+    </button>
+  </div>
+
+  <section class="marketplace-panel card bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+    <div class="marketplace-panel-head marketplace-panel-head-border mb-4">
       <div>
-        <h2>🛍️ Alta Market</h2>
-        <p>Discover trusted products and trusted sellers inside AltaJobs. Browse, list, and connect without leaving the platform.</p>
+        <h3 class="text-lg font-semibold text-gray-900">Search Alta Market</h3>
+        <p class="text-sm text-gray-500">Filter by keywords, categories, and location to find the best offers.</p>
       </div>
-      <span class="badge badge-market">AltaJobs Marketplace</span>
     </div>
-    <div class="marketplace-hero-actions">
-      <a href="#newListing" class="btn btn-primary">Post a listing</a>
-      <a href="{{ url_for('chat_inbox') }}" class="btn btn-outline">Connect with sellers</a>
+
+    <form method="GET" action="{{ url_for('marketplace') }}" class="marketplace-search-form mb-4">
+      <label class="marketplace-search-input flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus-within:ring-1 focus-within:ring-indigo-500 transition">
+        <i class='bx bx-search text-gray-400'></i>
+        <input type="search" name="q" placeholder="Search listings" value="{{ request.args.get('q', '') }}" class="bg-transparent border-none focus:ring-0 focus:outline-none w-full text-sm text-gray-700 placeholder-gray-400">
+      </label>
+    </form>
+
+    <div class="marketplace-filters flex flex-wrap gap-2 mb-6">
+      <button type="button" class="category-pill active px-4 py-1.5 rounded-full text-sm font-medium bg-indigo-600 text-white transition">All</button>
+      <button type="button" class="category-pill px-4 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Equipment</button>
+      <button type="button" class="category-pill px-4 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Services</button>
+      <button type="button" class="category-pill px-4 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Learning</button>
+      <button type="button" class="category-pill px-4 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Remote</button>
     </div>
-  </div>
 
-  <div class="marketplace-grid">
-    <section class="marketplace-panel marketplace-panel-form card" id="newListing">
-      <div class="marketplace-panel-head">
-        <div>
-          <h3>List a product</h3>
-          <p>Create a premium listing and share it with buyers across AltaJobs.</p>
+    <div class="marketplace-grid-list grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      {% if not listings %}
+        <div class="inbox-empty-state col-span-full text-center py-12">
+          <div class="marketplace-empty-icon text-4xl mb-2">🛒</div>
+          <div class="inbox-empty-title font-semibold text-gray-900">No listings yet</div>
+          <div class="inbox-empty-sub text-sm text-gray-500 mt-1">Publish your first listing and let the AltaJobs community discover it.</div>
         </div>
-      </div>
-      <form method="POST" enctype="multipart/form-data" class="marketplace-form">
-        <div class="form-row">
-          <label class="form-group">
-            <span>{{ t.product_title if t.product_title is defined else 'Title' }}</span>
-            <input type="text" name="title" placeholder="Product title" required>
-          </label>
-          <label class="form-group">
-            <span>{{ t.price if t.price is defined else 'Price' }}</span>
-            <input type="number" step="0.01" name="price" placeholder="Price (ETB)" required>
-          </label>
-        </div>
-        <label class="form-group">
-          <span>{{ t.product_description if t.product_description is defined else 'Description' }}</span>
-          <textarea name="description" rows="4" placeholder="Describe your product"></textarea>
-        </label>
-        <div class="form-row">
-          <label class="form-group">
-            <span>{{ t.location if t.location is defined else 'Location' }}</span>
-            <input type="text" name="location" placeholder="Location" value="Addis Ababa">
-          </label>
-          <label class="form-group">
-            <span>{{ t.photo if t.photo is defined else 'Photo' }}</span>
-            <input type="file" name="photo" accept="image/*">
-          </label>
-        </div>
-        <button type="submit" class="btn btn-primary btn-full">{{ t.publish_listing if t.publish_listing is defined else 'Publish listing' }}</button>
-      </form>
-    </section>
-
-    <section class="marketplace-panel card">
-      <div class="marketplace-panel-head marketplace-panel-head-border">
-        <div>
-          <h3>Search Alta Market</h3>
-          <p>Filter by keywords, categories, and location to find the best offers.</p>
-        </div>
-      </div>
-
-      <form method="GET" action="{{ url_for('marketplace') }}" class="marketplace-search-form">
-        <label class="marketplace-search-input">
-          <i class='bx bx-search'></i>
-          <input type="search" name="q" placeholder="Search listings" value="{{ request.args.get('q', '') }}">
-        </label>
-      </form>
-
-      <div class="marketplace-filters">
-        <button type="button" class="category-pill active">All</button>
-        <button type="button" class="category-pill">Equipment</button>
-        <button type="button" class="category-pill">Services</button>
-        <button type="button" class="category-pill">Learning</button>
-        <button type="button" class="category-pill">Remote</button>
-      </div>
-
-      <div class="marketplace-grid-list">
-        {% if not listings %}
-          <div class="inbox-empty-state">
-            <div class="marketplace-empty-icon">🛒</div>
-            <div class="inbox-empty-title">No listings yet</div>
-            <div class="inbox-empty-sub">Publish your first listing and let the AltaJobs community discover it.</div>
-          </div>
-        {% else %}
-          {% for item in listings %}
-            <article class="marketplace-item-card">
-              {% if item['photo'] %}
-                <div class="marketplace-card-image">
-                  <img src="{{ photo_url(item['photo']) }}" alt="{{ item['title'] }}">
-                </div>
-              {% endif %}
-
-              <div class="marketplace-card-body">
-                <div class="marketplace-card-meta">
-                  <div>
-                    <h4 class="marketplace-item-title">{{ item['title'] }}</h4>
-                    <p class="marketplace-item-seller">
-                      {{ item['full_name'] or item['username'] }} · {{ item['location'] or 'Addis Ababa' }}
-                    </p>
-                    <div class="marketplace-item-status">Status: {{ item['status'] }}</div>
-                  </div>
-                  <div class="marketplace-price">{{ item['price'] }} ETB</div>
-                </div>
-                {% if item['description'] %}
-                  <p class="marketplace-item-description">{{ item['description'] }}</p>
-                {% endif %}
-                <div class="marketplace-item-actions">
-                  <a href="{{ url_for('profile', user_id=item['user_id']) }}" class="btn btn-outline btn-small">View seller</a>
-                  <button type="button" class="btn btn-primary btn-small">Buy now</button>
-                </div>
+      {% else %}
+        {% for item in listings %}
+          <article class="marketplace-item-card bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col hover:shadow-md transition-shadow">
+            {% if item['photo'] %}
+              <div class="marketplace-card-image">
+                <img src="{{ photo_url(item['photo']) }}" alt="{{ item['title'] }}" class="w-full h-44 object-cover">
               </div>
-            </article>
-          {% endfor %}
-        {% endif %}
+            {% else %}
+              <div class="marketplace-card-image w-full h-44 bg-gray-100 flex items-center justify-center text-gray-300 text-4xl">
+                <i class='bx bx-image'></i>
+              </div>
+            {% endif %}
+
+            <div class="marketplace-card-body p-4 flex flex-col gap-1.5 flex-1">
+              <h4 class="marketplace-item-title font-semibold text-gray-900 text-[15px] leading-snug line-clamp-1">{{ item['title'] }}</h4>
+              <p class="marketplace-item-seller text-xs text-gray-500">
+                {{ item['full_name'] or item['username'] }} · {{ item['location'] or 'Addis Ababa' }}
+              </p>
+              <div class="marketplace-item-status text-xs text-gray-400">Status: {{ item['status'] }}</div>
+              {% if item['description'] %}
+                <p class="marketplace-item-description text-sm text-gray-600 line-clamp-2">{{ item['description'] }}</p>
+              {% endif %}
+              <div class="marketplace-price text-lg font-bold text-gray-900 mt-1">{{ item['price'] }} ETB</div>
+              <div class="marketplace-item-actions mt-2">
+                <a href="{{ url_for('profile', user_id=item['user_id']) }}" class="btn btn-outline btn-small w-full flex items-center justify-center gap-1.5 border border-indigo-600 text-indigo-600 hover:bg-indigo-50 font-medium text-sm px-4 py-2 rounded-lg transition">
+                  <i class='bx bx-message-dots'></i> Contact Seller
+                </a>
+              </div>
+            </div>
+          </article>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </section>
+
+  <div id="addListingModal" class="fixed inset-0 bg-gray-950/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div>
+          <h3 class="text-lg font-semibold text-gray-900">List a product</h3>
+          <p class="text-sm text-gray-500">Create a premium listing and share it with buyers across AltaJobs.</p>
+        </div>
+        <button type="button" id="closeListingModalBtn" class="text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full p-1.5 transition" aria-label="Close">
+          <i class='bx bx-x text-xl'></i>
+        </button>
       </div>
-    </section>
+      <form method="POST" enctype="multipart/form-data" class="marketplace-form px-6 py-5 space-y-4" id="newListing">
+        <div class="form-row grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label class="form-group flex flex-col gap-1">
+            <span class="text-xs font-medium text-gray-600">{{ t.product_title if t.product_title is defined else 'Title' }}</span>
+            <input type="text" name="title" placeholder="Product title" required class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          </label>
+          <label class="form-group flex flex-col gap-1">
+            <span class="text-xs font-medium text-gray-600">{{ t.price if t.price is defined else 'Price' }}</span>
+            <input type="number" step="0.01" name="price" placeholder="Price (ETB)" required class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          </label>
+        </div>
+        <label class="form-group flex flex-col gap-1">
+          <span class="text-xs font-medium text-gray-600">{{ t.product_description if t.product_description is defined else 'Description' }}</span>
+          <textarea name="description" rows="4" placeholder="Describe your product" class="border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500"></textarea>
+        </label>
+        <div class="form-row grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <label class="form-group flex flex-col gap-1">
+            <span class="text-xs font-medium text-gray-600">{{ t.location if t.location is defined else 'Location' }}</span>
+            <input type="text" name="location" placeholder="Location" value="Addis Ababa" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
+          </label>
+          <label class="form-group flex flex-col gap-1">
+            <span class="text-xs font-medium text-gray-600">{{ t.photo if t.photo is defined else 'Photo' }}</span>
+            <input type="file" name="photo" accept="image/*" class="text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-600 file:text-sm file:font-medium hover:file:bg-indigo-100">
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg transition">{{ t.publish_listing if t.publish_listing is defined else 'Publish listing' }}</button>
+      </form>
+    </div>
   </div>
+
 </div>
+
+<script>
+(function () {
+  var modal = document.getElementById('addListingModal');
+  var openBtn = document.getElementById('openListingModalBtn');
+  var closeBtn = document.getElementById('closeListingModalBtn');
+
+  function openModal() {
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    modal.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  if (openBtn) openBtn.addEventListener('click', openModal);
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+  if (modal) {
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) closeModal();
+    });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+      closeModal();
+    }
+  });
+})();
+</script>
 
 {% endblock %}

@@ -1,43 +1,87 @@
-<nav class="admin-sidebar">
-  <div class="admin-sidebar-brand">
-    <div>
-      <div class="admin-sidebar-logo">AltaJobs</div>
-      <div class="admin-sidebar-subtitle">Admin Console</div>
+<!-- ============ ADMIN TOP BAR (mobile + desktop) ============ -->
+<header class="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-white/5 bg-zinc-950/90 px-4 py-3 backdrop-blur lg:hidden">
+  <button type="button" id="adminMenuBtn" aria-controls="adminDrawer" aria-expanded="false"
+    class="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-white/5 text-slate-200 active:scale-95 transition">
+    <i class='bx bx-menu text-xl'></i>
+  </button>
+  <div class="flex items-center gap-2">
+    <span class="grid h-7 w-7 place-items-center rounded-md bg-emerald-500 text-xs font-black text-zinc-950">A</span>
+    <span class="text-sm font-bold tracking-tight text-slate-100">Admin Console</span>
+  </div>
+  <span class="w-9"></span>
+</header>
+
+<!-- ============ OVERLAY ============ -->
+<div id="adminDrawerOverlay" class="fixed inset-0 z-40 hidden bg-zinc-950/70 backdrop-blur-sm lg:hidden"></div>
+
+<!-- ============ DRAWER / DESKTOP SIDEBAR ============ -->
+<aside id="adminDrawer"
+  class="fixed inset-y-0 left-0 z-50 w-72 -translate-x-full transform border-r border-white/5 bg-zinc-950 transition-transform duration-200 ease-out
+         lg:static lg:z-0 lg:w-64 lg:translate-x-0 lg:shrink-0 lg:h-screen lg:sticky lg:top-0">
+  <div class="flex h-full flex-col">
+    <div class="flex items-center gap-3 border-b border-white/5 px-5 py-5">
+      <span class="grid h-9 w-9 place-items-center rounded-xl bg-emerald-500 text-sm font-black text-zinc-950">A</span>
+      <div class="min-w-0">
+        <div class="truncate text-sm font-bold text-slate-100">AltaJobs</div>
+        <div class="truncate text-xs text-slate-500">Admin Console</div>
+      </div>
+      <button type="button" id="adminDrawerClose" class="ml-auto grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-white/5 lg:hidden">
+        <i class='bx bx-x text-xl'></i>
+      </button>
+    </div>
+
+    <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+      {% set nav_items = [
+        ('admin_panel', 'bx-home-circle', 'Overview', ['/admin', '/admin/overview']),
+        ('admin_dashboard', 'bx-wallet-alt', 'Deposits / Withdrawals', ['/admin/dashboard']),
+        ('admin_users', 'bx-user', 'Users', ['/admin/users']),
+        ('admin_verify', 'bx-shield-quarter', 'Verification', ['/admin/verify', '/admin/verification']),
+        ('admin_revenue', 'bx-line-chart', 'Revenue', ['/admin/revenue']),
+        ('admin_moderation', 'bx-flag', 'Moderation', ['/admin/moderation']),
+        ('admin_products', 'bx-store-alt', 'Product Approval', ['/admin/products']),
+        ('admin_settings', 'bx-cog', 'Settings', ['/admin/settings']),
+      ] %}
+      {% for endpoint, icon, label, paths in nav_items %}
+        {% set is_active = request.path in paths %}
+        <a href="{{ url_for(endpoint) }}"
+           class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
+                  {{ 'bg-emerald-500/10 text-emerald-400' if is_active else 'text-slate-400 hover:bg-white/5 hover:text-slate-100' }}">
+          <i class='bx {{ icon }} text-lg {{ "text-emerald-400" if is_active else "text-slate-500 group-hover:text-slate-300" }}'></i>
+          <span>{{ label }}</span>
+          {% if is_active %}<span class="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-400"></span>{% endif %}
+        </a>
+      {% endfor %}
+    </nav>
+
+    <div class="border-t border-white/5 px-4 py-4">
+      <a href="{{ url_for('feed') }}" class="flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold text-slate-500 hover:text-slate-200">
+        <i class='bx bx-arrow-back'></i> Back to app
+      </a>
     </div>
   </div>
+</aside>
 
-  <div class="admin-sidebar-group">
-    <a href="{{ url_for('admin_panel') }}" class="admin-sidebar-link {% if request.path == '/admin' or request.path == '/admin/overview' %}active{% endif %}">
-      <i class='bx bx-home-circle'></i>
-      <span>Overview</span>
-    </a>
-    <a href="{{ url_for('admin_dashboard') }}" class="admin-sidebar-link {% if request.path == '/admin/dashboard' %}active{% endif %}">
-      <i class='bx bx-wallet-alt'></i>
-      <span>Deposits / Withdrawals</span>
-    </a>
-    <a href="{{ url_for('admin_users') }}" class="admin-sidebar-link {% if request.path == '/admin/users' %}active{% endif %}">
-      <i class='bx bx-user'></i>
-      <span>Users</span>
-    </a>
-    <a href="{{ url_for('admin_verify') }}" class="admin-sidebar-link {% if request.path == '/admin/verify' or request.path == '/admin/verification' %}active{% endif %}">
-      <i class='bx bx-shield-quarter'></i>
-      <span>Verification</span>
-    </a>
-    <a href="{{ url_for('admin_revenue') }}" class="admin-sidebar-link {% if request.path == '/admin/revenue' %}active{% endif %}">
-      <i class='bx bx-line-chart'></i>
-      <span>Revenue</span>
-    </a>
-    <a href="{{ url_for('admin_moderation') }}" class="admin-sidebar-link {% if request.path == '/admin/moderation' %}active{% endif %}">
-      <i class='bx bx-flag'></i>
-      <span>Moderation</span>
-    </a>
-    <a href="{{ url_for('admin_products') }}" class="admin-sidebar-link {% if request.path == '/admin/products' %}active{% endif %}">
-      <i class='bx bx-store-alt'></i>
-      <span>Product Approval</span>
-    </a>
-    <a href="{{ url_for('admin_settings') }}" class="admin-sidebar-link {% if request.path == '/admin/settings' %}active{% endif %}">
-      <i class='bx bx-cog'></i>
-      <span>Settings</span>
-    </a>
-  </div>
-</nav>
+<script>
+(function() {
+  var btn = document.getElementById('adminMenuBtn');
+  var closeBtn = document.getElementById('adminDrawerClose');
+  var drawer = document.getElementById('adminDrawer');
+  var overlay = document.getElementById('adminDrawerOverlay');
+  if (!btn || !drawer || !overlay) return;
+
+  function open() {
+    drawer.classList.remove('-translate-x-full');
+    overlay.classList.remove('hidden');
+    btn.setAttribute('aria-expanded', 'true');
+  }
+  function close() {
+    drawer.classList.add('-translate-x-full');
+    overlay.classList.add('hidden');
+    btn.setAttribute('aria-expanded', 'false');
+  }
+  btn.addEventListener('click', open);
+  closeBtn && closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', close);
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') close(); });
+})();
+</script>
