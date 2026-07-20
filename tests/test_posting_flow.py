@@ -70,6 +70,25 @@ class PostingFlowTests(unittest.TestCase):
         self.assertEqual(feed_response.status_code, 200)
         self.assertIn('photo', feed_response.get_data(as_text=True).lower())
 
+    def test_feed_renders_posts_when_social_tables_are_missing(self):
+        with self.client.session_transaction() as session:
+            session['user_id'] = 1
+
+        self.db.execute("DELETE FROM users WHERE id = ?", (1,))
+        self.db.execute(
+            "INSERT INTO users (id, username, email, password_hash, full_name, user_type, created_at, wallet_balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (1, 'poster', 'poster@example.com', 'hash', 'Poster', 'worker', '2024-01-01T00:00:00', 0),
+        )
+        self.db.execute(
+            "INSERT INTO posts (user_id, content, photo, post_type, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (1, 'hello without social tables', None, 'general', 'approved', '2024-01-02T00:00:00'),
+        )
+        self.db.commit()
+
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('hello without social tables', response.get_data(as_text=True))
+
 
 if __name__ == '__main__':
     unittest.main()

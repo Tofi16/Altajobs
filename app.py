@@ -1469,6 +1469,20 @@ def _table_has_column(db, table_name, column_name):
     return column_name in _get_table_columns(db, table_name)
 
 
+def _table_exists(db, table_name):
+    try:
+        if getattr(db, "is_sqlite", False):
+            rows = db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name = ?", (table_name,)).fetchall()
+            return bool(rows)
+        rows = db.execute(
+            "SELECT to_regclass(?)",
+            (table_name,),
+        ).fetchall()
+        return bool(rows and rows[0][0])
+    except Exception:
+        return False
+
+
 def get_current_user():
     uid = session.get("user_id")
     if not uid:
@@ -2689,10 +2703,11 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE):
             except Exception:
                 pass
 
-        posts = db.execute(
-            """WITH latest_posts AS (
+        post_statuses = "('approved', 'posted')"
+        if _table_has_column(db, "posts", "status") and _table_exists(db, "likes") and _table_exists(db, "comments"):
+            posts_query = f"""WITH latest_posts AS (
                    SELECT * FROM posts
-                   WHERE status IN ('approved', 'posted')
+                   WHERE status IN {post_statuses}
                    ORDER BY created_at DESC
                    LIMIT ? OFFSET ?
                )
@@ -2714,9 +2729,23 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE):
                    WHERE post_id IN (SELECT id FROM latest_posts)
                    GROUP BY post_id
                ) comment_counts ON comment_counts.post_id = p.id
-               ORDER BY p.created_at DESC""",
-            (page_size, offset),
-        ).fetchall()
+               ORDER BY p.created_at DESC"""
+        else:
+            posts_query = """WITH latest_posts AS (
+                   SELECT * FROM posts
+                   ORDER BY created_at DESC
+                   LIMIT ? OFFSET ?
+               )
+               SELECT p.id, p.user_id, p.content, p.photo, p.post_type, p.created_at, p.status,
+                      p.view_count,
+                      u.username, u.full_name, u.user_type,
+                      0 AS like_count,
+                      0 AS comment_count
+               FROM latest_posts p
+               JOIN users u ON p.user_id = u.id
+               ORDER BY p.created_at DESC"""
+
+        posts = db.execute(posts_query, (page_size, offset)).fetchall()
     except Exception as exc:
         print(f"Warning: could not load feed posts: {exc}")
         posts = []
@@ -2731,28 +2760,37 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE):
     if user and post_ids:
         try:
             placeholders = ", ".join("?" for _ in post_ids)
-            liked_ids = {
-                r["post_id"]
-                for r in db.execute(
-                    f"SELECT post_id FROM likes WHERE user_id = ? AND post_id IN ({placeholders})",
-                    tuple([user["id"]] + post_ids),
-                ).fetchall()
-            }
-            saved_ids = {
-                r["post_id"]
-                for r in db.execute(
-                    f"SELECT post_id FROM saved_posts WHERE user_id = ? AND post_id IN ({placeholders})",
-                    tuple([user["id"]] + post_ids),
-                ).fetchall()
-            }
-            applied_ids = {
-                r["post_id"]
-                for r in db.execute(
-                    f"SELECT post_id FROM job_applications WHERE applicant_id = ? AND post_id IN ({placeholders})",
-                    tuple([user["id"]] + post_ids),
-                ).fetchall()
-            }
-            if author_ids:
+            if _table_exists(db, "likes"):
+                liked_ids = {
+                    r["post_id"]
+                    for r in db.execute(
+                        f"SELECT post_id FROM likes WHERE user_id = ? AND post_id IN ({placeholders})",
+                        tuple([user["id"]] + post_ids),
+                    ).fetchall()
+                }
+            else:
+                liked_ids = set()
+            if _table_exists(db, "saved_posts"):
+                saved_ids = {
+                    r["post_id"]
+                    for r in db.execute(
+                        f"SELECT post_id FROM saved_posts WHERE user_id = ? AND post_id IN ({placeholders})",
+                        tuple([user["id"]] + post_ids),
+                    ).fetchall()
+                }
+            else:
+                saved_ids = set()
+            if _table_exists(db, "job_applications"):
+                applied_ids = {
+                    r["post_id"]
+                    for r in db.execute(
+                        f"SELECT post_id FROM job_applications WHERE applicant_id = ? AND post_id IN ({placeholders})",
+                        tuple([user["id"]] + post_ids),
+                    ).fetchall()
+                }
+            else:
+                applied_ids = set()
+            if author_ids and _table_exists(db, "follows"):
                 author_placeholders = ", ".join("?" for _ in author_ids)
                 following_ids = {
                     r["followed_id"]
@@ -2761,6 +2799,8 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE):
                         tuple([user["id"]] + author_ids),
                     ).fetchall()
                 }
+            else:
+                following_ids = set()
         except Exception as exc:
             print(f"Warning: could not load user feed metadata: {exc}")
 
