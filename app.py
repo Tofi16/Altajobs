@@ -1478,6 +1478,28 @@ def get_current_user():
     return dict(row) if row is not None else None
 
 
+def _credit_wallet_balance(db, user_id, amount):
+    """Credit a user wallet in both legacy and modern wallet balance columns."""
+    amount = float(amount or 0)
+    if amount <= 0:
+        return
+    if _table_has_column(db, "users", "wallet_balance"):
+        db.execute(
+            "UPDATE users SET wallet_balance = COALESCE(wallet_balance, 0) + ? WHERE id = ?",
+            (amount, user_id),
+        )
+    if _table_has_column(db, "users", "balance"):
+        db.execute(
+            "UPDATE users SET balance = COALESCE(balance, 0) + ? WHERE id = ?",
+            (amount, user_id),
+        )
+    if _table_has_column(db, "users", "wallet_balance") and _table_has_column(db, "users", "balance"):
+        db.execute(
+            "UPDATE users SET balance = wallet_balance WHERE id = ?",
+            (user_id,),
+        )
+
+
 @app.before_request
 def enforce_maintenance_mode():
     # Allow static assets and admin settings to be reachable for admins.
@@ -1509,8 +1531,9 @@ def login_required(f):
             return redirect(url_for("login"))
 
         db = get_db()
+        placeholder = "%s" if not getattr(db, "is_sqlite", False) else "?"
         user = db.execute(
-         "SELECT is_banned, banned_until FROM users WHERE id = %s",   
+            f"SELECT is_banned, banned_until FROM users WHERE id = {placeholder}",
             (uid,),
         ).fetchone()
         if not user:
@@ -2760,6 +2783,16 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE):
             row.setdefault("like_count", 0)
             row.setdefault("comment_count", 0)
             row.setdefault("verification_tier", "none")
+            # Preserve the raw photo value from the row directly. Some rows may
+            # come from SQLite/legacy schemas where the field name is not present
+            # or is exposed differently, so we normalize it here before rendering.
+            if "photo" not in row:
+                row["photo"] = None
+            if row.get("photo") in (None, ""):
+                for alt_key in ("post_photo", "image", "media_url"):
+                    if alt_key in row and row.get(alt_key):
+                        row["photo"] = row.get(alt_key)
+                        break
             row["is_verified"] = row.get("verification_tier") in ("blue", "gold")
             row["is_vip"] = row.get("verification_tier") == "gold"
             payload.append({
@@ -5449,10 +5482,7 @@ def approve_deposit(tx_id):
     try:
         tx = _claim_pending_transaction(db, tx_id, "deposit", "approved")
         if tx:
-            db.execute(
-             "UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
-                (tx["amount"], tx["user_id"]),
-            )
+            _credit_wallet_balance(db, tx["user_id"], tx["amount"])
             add_notification(
                 db, tx["user_id"],
                 f"Your deposit of {tx['amount']} ETB was approved and credited to your wallet.",
@@ -5564,10 +5594,7 @@ def approve_wallet_tx(tx_id):
         if tx["tx_type"] == "deposit":
             claimed = _claim_pending_transaction(db, tx_id, "deposit", "approved")
             if claimed:
-                db.execute(
-                    "UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
-                    (claimed["amount"], claimed["user_id"]),
-                )
+                _credit_wallet_balance(db, claimed["user_id"], claimed["amount"])
         elif tx["tx_type"] == "withdrawal":
             # ገንዘቡ ቀድሞ በ /wallet/withdraw ላይ ተይዞ (reserved) ስለሆነ፣ እዚህ ላይ ተጨማሪ
             # ቅናሽ አናደርግም - ደረጃውን ወደ 'approved' ብቻ እንቀይራለን።

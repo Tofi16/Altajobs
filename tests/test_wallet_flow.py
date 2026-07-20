@@ -95,6 +95,28 @@ class WalletFlowTests(unittest.TestCase):
         self.assertEqual(sender_row['alta_tokens'], 80)
         self.assertEqual(recipient_row['alta_tokens'], 20)
 
+    def test_approved_deposit_credits_wallet_balance(self):
+        with self.client.session_transaction() as session:
+            session['user_id'] = 1
+
+        self.db.execute("DELETE FROM users WHERE id = ?", (1,))
+        self.db.execute(
+            "INSERT INTO users (id, username, email, password_hash, full_name, user_type, is_admin, created_at, wallet_balance, balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (1, 'walletuser', 'wallet@example.com', 'hash', 'Wallet User', 'worker', 1, '2024-01-01T00:00:00', 0, 0),
+        )
+        self.db.execute(
+            "INSERT INTO wallet_transactions (user_id, tx_type, amount, status, created_at) VALUES (?, ?, ?, ?, ?)",
+            (1, 'deposit', 250, 'pending', '2024-01-01T00:00:00'),
+        )
+        self.db.commit()
+
+        response = self.client.post('/admin/approve-deposit/1', follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        user_row = self.db.execute("SELECT wallet_balance, balance FROM users WHERE id = ?", (1,)).fetchone()
+        self.assertEqual(user_row['wallet_balance'], 250)
+        self.assertEqual(user_row['balance'], 250)
+
     def test_wallet_page_returns_safe_response_if_db_errors(self):
         with self.client.session_transaction() as session:
             session['user_id'] = 1

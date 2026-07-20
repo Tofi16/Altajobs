@@ -1,3 +1,4 @@
+import io
 import os
 import sys
 import tempfile
@@ -42,6 +43,32 @@ class PostingFlowTests(unittest.TestCase):
         row = self.db.execute("SELECT * FROM posts WHERE user_id = ? ORDER BY id DESC LIMIT 1", (1,)).fetchone()
         self.assertIsNotNone(row)
         self.assertEqual(row['content'], 'hello from test')
+
+    def test_photo_post_is_visible_in_feed_payload(self):
+        with self.client.session_transaction() as session:
+            session['user_id'] = 1
+
+        self.db.execute("DELETE FROM users WHERE id = ?", (1,))
+        self.db.execute(
+            "INSERT INTO users (id, username, email, password_hash, full_name, user_type, created_at, wallet_balance) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (1, 'poster', 'poster@example.com', 'hash', 'Poster', 'worker', '2024-01-01T00:00:00', 0),
+        )
+        self.db.commit()
+
+        image_bytes = b'fake-image-bytes'
+        image_file = (io.BytesIO(image_bytes), 'photo.png')
+        response = self.client.post('/post/new', data={'content': 'hello with photo', 'photo': image_file}, content_type='multipart/form-data', follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        row = self.db.execute("SELECT * FROM posts WHERE user_id = ? ORDER BY id DESC LIMIT 1", (1,)).fetchone()
+        self.assertIsNotNone(row)
+        self.assertTrue(row['photo'])
+
+        with self.client.session_transaction() as session:
+            session['user_id'] = 1
+        feed_response = self.client.get('/')
+        self.assertEqual(feed_response.status_code, 200)
+        self.assertIn('photo', feed_response.get_data(as_text=True).lower())
 
 
 if __name__ == '__main__':

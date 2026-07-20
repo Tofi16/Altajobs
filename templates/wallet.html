@@ -6,7 +6,7 @@
   <!-- Balance hero -->
   <section class="mb-4 rounded-2xl border border-white/5 bg-gradient-to-br from-emerald-500/15 via-zinc-900/60 to-zinc-900/60 p-5">
     <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Available Balance</div>
-    <div class="mt-1 text-4xl font-black text-slate-50">{{ current_user.get('balance', current_user.get('wallet_balance', 0)) }} <span class="text-lg font-bold text-slate-400">ETB</span></div>
+    <div class="mt-1 text-4xl font-black text-slate-50">{{ current_user.get('wallet_balance', current_user.get('balance', 0)) }} <span class="text-lg font-bold text-slate-400">ETB</span></div>
     <div class="mt-1.5 text-xs text-slate-400">🪙 <strong id="walletTokensCount" class="text-slate-200">{{ current_user.get('alta_tokens', 0) }}</strong> Alta Tokens</div>
     {% if pending_balance and pending_balance > 0 %}
       <div class="mt-1 text-xs text-amber-400">⏳ {{ pending_balance }} ETB held for a pending withdrawal</div>
