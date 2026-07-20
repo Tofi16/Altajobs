@@ -1,33 +1,33 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="card new-post-box compact bg-white rounded-xl shadow-sm border border-gray-100 p-4" id="compose">
+<div class="card new-post-box compact" id="compose">
   <form method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data" id="composeForm">
-    <div class="compose-row flex items-start gap-3">
-      <div class="avatar compose-avatar w-11 h-11 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-semibold overflow-hidden flex-shrink-0">
+    <div class="compose-row">
+      <div class="avatar compose-avatar" style="width:44px;height:44px;">
         {% if current_user['avatar'] %}
-          <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}" class="w-full h-full object-cover">
+          <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}">
         {% else %}
           {{ (current_user['full_name'] or current_user['username'])[0] }}
         {% endif %}
       </div>
-      <div class="compose-input-wrap flex-1 min-w-0 relative">
-        <textarea name="content" id="composeTextarea" class="compose-textarea w-full border-none focus:ring-0 focus:outline-none resize-none text-[15px] leading-normal placeholder-gray-400 py-2 pr-9" rows="1"
+      <div class="compose-input-wrap">
+        <textarea name="content" id="composeTextarea" class="compose-textarea" rows="1"
                   placeholder="Share a job or experience..."></textarea>
-        <label class="compose-media-icon absolute right-0 top-2 text-gray-400 hover:text-blue-600 cursor-pointer transition-colors" title="{{ t.add_photo }}">
-          <i class='bx bx-image-add text-xl'></i>
+        <label class="compose-media-icon" title="{{ t.add_photo }}">
+          <i class='bx bx-image-add'></i>
           <input type="file" name="photo" accept="image/*" style="display:none" id="composePhotoInput">
         </label>
       </div>
     </div>
-    <span class="compose-photo-name block text-xs text-gray-500 mt-1 ml-14" id="composePhotoName"></span>
-    <div class="new-post-actions compose-actions-collapsed flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-100" id="composeActions">
-      <select name="post_type" class="post-type-select text-sm text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer">
+    <span class="compose-photo-name" id="composePhotoName"></span>
+    <div class="new-post-actions compose-actions-collapsed" id="composeActions">
+      <select name="post_type" class="post-type-select">
         <option value="general">{{ t.feed }}</option>
         <option value="job">{{ t.post_job }}</option>
         <option value="skill">{{ t.job_seeker_post }}</option>
       </select>
-      <button type="submit" id="composeSubmitButton" class="btn btn-primary btn-disabled bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-full font-medium text-sm transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600" disabled>{{ t.post_button }}</button>
+      <button type="submit" id="composeSubmitButton" class="btn btn-primary btn-disabled" disabled>{{ t.post_button }}</button>
     </div>
   </form>
 </div>
@@ -72,9 +72,15 @@
   {% endif %}
 
   {% if not posts_data %}
-    <p class="empty-state-note" id="noPostsMsg">{{ t.no_posts }}</p>
+    <div class="empty-state-note" id="noPostsMsg">
+      <i class='bx bx-news'></i>
+      <span>{{ t.no_posts }}</span>
+    </div>
   {% endif %}
-  <p class="empty-state-note empty-state-note-hidden" id="noFilterResultsMsg">No posts match this filter yet.</p>
+  <div class="empty-state-note empty-state-note-hidden" id="noFilterResultsMsg">
+    <i class='bx bx-filter-alt'></i>
+    <span>No posts match this filter yet.</span>
+  </div>
 
 <div id="feedPostsContainer">
 {% include "_feed_posts.html" %}

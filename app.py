@@ -374,10 +374,7 @@ def init_postgres_db():
             wallet_id TEXT UNIQUE DEFAULT NULL,
             referral_code TEXT DEFAULT NULL,
             is_admin BOOLEAN DEFAULT FALSE,
-            is_verified BOOLEAN DEFAULT FALSE,
             verified_until TEXT DEFAULT NULL,
-            is_vip BOOLEAN DEFAULT FALSE,
-            vip_until TEXT DEFAULT NULL,
             verification_tier TEXT DEFAULT 'none',
             is_banned BOOLEAN DEFAULT FALSE,
             banned_until TEXT DEFAULT NULL,
@@ -1001,10 +998,7 @@ def migrate_db():
         "wallet_balance": "INTEGER DEFAULT 0",
         "balance": "REAL DEFAULT 0.0",
         "wallet_id": "TEXT DEFAULT NULL",
-        "is_verified": "INTEGER DEFAULT 0",
         "verified_until": "TEXT DEFAULT NULL",
-        "is_vip": "INTEGER DEFAULT 0",
-        "vip_until": "TEXT DEFAULT NULL",
         "verification_tier": "TEXT DEFAULT 'none'",
         "is_banned": "INTEGER DEFAULT 0",
         "referral_code": "TEXT DEFAULT NULL",
@@ -1021,22 +1015,10 @@ def migrate_db():
             db.execute(f"ALTER TABLE users ADD COLUMN {col} {coltype}")
     db.commit()
 
-    # One-time backfill: derive verification_tier from the legacy is_verified /
-    # is_vip flags so existing rows land on the new column automatically.
-    # Gold (is_vip) takes priority over Blue (is_verified) if both are set.
-    # Safe to re-run: only touches rows still sitting at the 'none' default.
-    try:
-        db.execute(
-            """UPDATE users SET verification_tier = 'gold', verified_until = COALESCE(verified_until, vip_until)
-               WHERE (verification_tier IS NULL OR verification_tier = 'none') AND is_vip = 1"""
-        )
-        db.execute(
-            """UPDATE users SET verification_tier = 'blue'
-               WHERE (verification_tier IS NULL OR verification_tier = 'none') AND is_verified = 1"""
-        )
-        db.commit()
-    except Exception as exc:
-        print(f"Warning: could not backfill verification_tier: {exc}")
+    # NOTE: the legacy is_verified/is_vip/vip_until columns have been dropped
+    # from the users table in production. verification_tier/verified_until
+    # is now the sole source of truth for verification status - no backfill
+    # needed since those columns no longer exist to backfill from.
 
     wallet_tx_cols = {row[1] for row in db.execute("PRAGMA table_info(wallet_transactions)")}
     for col, coltype in {
@@ -1271,8 +1253,6 @@ def ensure_postgres_boolean_columns():
         db = get_db()
         boolean_columns = [
             ("users", "is_admin", "FALSE"),
-            ("users", "is_verified", "FALSE"),
-            ("users", "is_vip", "FALSE"),
             ("users", "is_banned", "FALSE"),
             ("users", "is_suspended", "FALSE"),
             ("bank_accounts", "is_active", "FALSE"),
@@ -1334,10 +1314,8 @@ def ensure_postgres_wallet_columns():
         db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_id TEXT UNIQUE DEFAULT NULL")
         db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS wallet_balance INTEGER DEFAULT 0")
         db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS alta_tokens INTEGER DEFAULT 0")
-        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE")
         db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS verified_until TEXT DEFAULT NULL")
-        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_vip BOOLEAN DEFAULT FALSE")
-        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS vip_until TEXT DEFAULT NULL")
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_tier TEXT DEFAULT 'none'")
         db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE")
         db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_until TEXT DEFAULT NULL")
         db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT DEFAULT NULL")
@@ -1785,37 +1763,51 @@ def get_verification_tier(user):
 
 
 def set_verification_tier(db, user_id, tier, until):
-    """Write a verification tier + expiry, keeping the legacy is_verified /
-    is_vip / vip_until columns in sync so older queries elsewhere in the app
-    keep working untouched. `until` is a datetime."""
+    """Write a verification tier + expiry. `until` is a datetime.
+    (Legacy is_verified/is_vip/vip_until columns have been dropped from the
+    users table - verification_tier/verified_until are now the only source
+    of truth.)"""
     until_iso = until.isoformat()
     db.execute(
-        """UPDATE users SET
-               verification_tier = ?,
-               verified_until = ?,
-               is_verified = ?,
-               is_vip = ?,
-               vip_until = ?
-           WHERE id = ?""",
-        (
-            tier,
-            until_iso,
-            1 if tier in ("blue", "gold") else 0,
-            1 if tier == "gold" else 0,
-            until_iso if tier == "gold" else None,
-            user_id,
-        ),
+        "UPDATE users SET verification_tier = ?, verified_until = ? WHERE id = ?",
+        (tier, until_iso, user_id),
     )
 
 
 def is_currently_verified(user):
     """ተጠቃሚው አሁን ላይ Blue Tick አለው ወይስ የለውም የሚለውን ይመልሳል"""
-    return get_verification_tier(user) in ("blue", "gold")
+    if not user:
+        return False
+    tier = _field(user, "verification_tier") or "none"
+    if tier not in ("blue", "gold"):
+        return False
+    until = _field(user, "verified_until")
+    if not until:
+        return False
+    try:
+        if datetime.datetime.utcnow() > datetime.datetime.fromisoformat(until):
+            return False
+    except Exception:
+        return False
+    return True
 
 
 def is_currently_vip(user):
     """ተጠቃሚው አሁን ላይ VIP/Gold ነው ወይስ አይደለም የሚለውን ይመልሳል"""
-    return get_verification_tier(user) == "gold"
+    if not user:
+        return False
+    tier = _field(user, "verification_tier") or "none"
+    if tier != "gold":
+        return False
+    until = _field(user, "verified_until")
+    if not until:
+        return False
+    try:
+        if datetime.datetime.utcnow() > datetime.datetime.fromisoformat(until):
+            return False
+    except Exception:
+        return False
+    return True
 
 
 def channel_is_verified(channel):
@@ -2681,7 +2673,7 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE):
                    LIMIT ? OFFSET ?
                )
                SELECT p.*, u.username, u.full_name, u.avatar, u.user_type,
-                      u.is_verified, u.verified_until, u.is_vip, u.vip_until,
+                      u.verification_tier, u.verified_until,
                       COALESCE(like_counts.like_count, 0) AS like_count,
                       COALESCE(comment_counts.comment_count, 0) AS comment_count
                FROM latest_posts p
@@ -2766,8 +2758,9 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE):
             row.setdefault("avatar", None)
             row.setdefault("like_count", 0)
             row.setdefault("comment_count", 0)
-            row.setdefault("is_verified", False)
-            row.setdefault("is_vip", False)
+            row.setdefault("verification_tier", "none")
+            row["is_verified"] = row.get("verification_tier") in ("blue", "gold")
+            row["is_vip"] = row.get("verification_tier") == "gold"
             payload.append({
                 "post": row,
                 "author_name": row.get("full_name") or row.get("username") or "Unknown",
@@ -2955,7 +2948,7 @@ def post_detail(post_id):
     record_unique_view(db, post_id, session["user_id"])
     post = db.execute(
         """SELECT posts.*, users.username, users.full_name, users.avatar,
-                  users.is_verified, users.verified_until, users.is_vip, users.vip_until
+                  users.verification_tier, users.verified_until
            FROM posts JOIN users ON posts.user_id = users.id
            WHERE posts.id = ?""", (post_id,)
     ).fetchone()
@@ -3124,7 +3117,7 @@ def view_applicants(post_id):
         abort(403)
     applicants = db.execute(
         """SELECT job_applications.*, users.username, users.full_name, users.avatar,
-                  users.is_verified, users.verified_until
+                  users.verification_tier, users.verified_until
            FROM job_applications JOIN users ON job_applications.applicant_id = users.id
            WHERE post_id = ? ORDER BY job_applications.created_at DESC""",
         (post_id,),
@@ -3330,7 +3323,7 @@ def saved_jobs():
     db = get_db()
     posts = db.execute(
         """SELECT posts.*, users.username, users.full_name, users.avatar,
-                  users.is_verified, users.verified_until, users.is_vip, users.vip_until
+                  users.verification_tier, users.verified_until
            FROM saved_posts
            JOIN posts ON saved_posts.post_id = posts.id
            JOIN users ON posts.user_id = users.id
@@ -3393,7 +3386,7 @@ def profile(user_id):
 
     posts = db.execute(
         """SELECT posts.*, users.username, users.full_name, users.avatar, users.user_type,
-                  users.is_verified, users.verified_until, users.is_vip, users.vip_until,
+                  users.verification_tier, users.verified_until,
                   (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) AS like_count,
                   (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) AS comment_count
            FROM posts JOIN users ON posts.user_id = users.id
@@ -4031,7 +4024,7 @@ def marketplace():
                 return redirect(url_for("marketplace"))
 
     listings = db.execute(
-        """SELECT p.*, u.username, u.full_name, u.is_verified, u.verified_until, u.is_vip, u.vip_until
+        """SELECT p.*, u.username, u.full_name, u.verification_tier, u.verified_until
            FROM products p
            JOIN users u ON p.user_id = u.id
            ORDER BY p.created_at DESC LIMIT 50"""
@@ -4330,14 +4323,15 @@ def _submit_withdrawal_request(user_id, amount, bank_name, account_number, accou
         return False, "invalid_account_name"
 
     db = get_db()
-    user = db.execute("SELECT id, balance, wallet_balance, is_verified FROM users WHERE id = ?", (user_id,)).fetchone()
+    user = db.execute("SELECT id, balance, wallet_balance, verification_tier FROM users WHERE id = ?", (user_id,)).fetchone()
     if not user:
         return False, "user_not_found"
 
     balance_value = float(_get_row_value(user, "balance", 0) or 0)
     wallet_balance_value = float(_get_row_value(user, "wallet_balance", 0) or 0)
     balance = balance_value if balance_value > 0 else wallet_balance_value
-    daily_limit = 50000.0 if not _get_row_value(user, "is_verified", False) else 500000.0
+    is_verified_user = _get_row_value(user, "verification_tier", "none") in ("blue", "gold")
+    daily_limit = 50000.0 if not is_verified_user else 500000.0
     today_start = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
     today_total = db.execute(
         "SELECT COALESCE(SUM(amount), 0) AS total FROM wallet_transactions WHERE user_id = ? AND tx_type = 'withdrawal' AND status = 'approved' AND created_at >= ?",
@@ -4491,9 +4485,12 @@ def buy_verification():
         if fresh and is_currently_verified(fresh):
             base = datetime.datetime.fromisoformat(fresh["verified_until"]) if fresh["verified_until"] else base
         verified_until = base + datetime.timedelta(days=30)
+        # Don't downgrade an existing gold/VIP tier to blue.
+        current_tier = _get_row_value(fresh, "verification_tier", "none")
+        new_tier = "gold" if current_tier == "gold" else "blue"
         db.execute(
-            "UPDATE users SET is_verified = true, verified_until = ? WHERE id = ?",
-            (verified_until.isoformat(), user["id"]),
+            "UPDATE users SET verification_tier = ?, verified_until = ? WHERE id = ?",
+            (new_tier, verified_until.isoformat(), user["id"]),
         )
         # Award points for obtaining Blue Tick verification
         try:
@@ -4576,10 +4573,10 @@ def buy_vip():
 
         base = datetime.datetime.utcnow()
         if fresh and is_currently_vip(fresh):
-            base = datetime.datetime.fromisoformat(fresh["vip_until"]) if fresh["vip_until"] else base
+            base = datetime.datetime.fromisoformat(fresh["verified_until"]) if fresh["verified_until"] else base
         vip_until = base + datetime.timedelta(days=30)
         db.execute(
-            "UPDATE users SET is_vip = true, vip_until = ? WHERE id = ?",
+            "UPDATE users SET verification_tier = 'gold', verified_until = ? WHERE id = ?",
             (vip_until.isoformat(), user["id"]),
         )
         db.execute(
@@ -4656,7 +4653,8 @@ def follow_suggestions():
     placeholders = ",".join("?" * len(already_ids))
     suggestions = db.execute(
         f"""SELECT * FROM users WHERE id NOT IN ({placeholders})
-            ORDER BY is_verified DESC, is_vip DESC, created_at DESC LIMIT 15""",
+            ORDER BY CASE verification_tier WHEN 'gold' THEN 0 WHEN 'blue' THEN 1 ELSE 2 END,
+                     created_at DESC LIMIT 15""",
         tuple(already_ids),
     ).fetchall()
     gate = viral_gate_status(db, session["user_id"])
@@ -5170,17 +5168,19 @@ def admin_panel():
                LIMIT 100"""
         ).fetchall()
         total_users = db.execute("SELECT COUNT(*) c FROM users").fetchone()["c"]
-        pending_unverified_users = db.execute("SELECT COUNT(*) c FROM users WHERE is_verified = false").fetchone()["c"]
+        pending_unverified_users = db.execute(
+            "SELECT COUNT(*) c FROM users WHERE verification_tier IS NULL OR verification_tier = 'none'"
+        ).fetchone()["c"]
         pending_deposits_count = db.execute("SELECT COUNT(*) c FROM wallet_transactions WHERE status = 'pending' AND tx_type = 'deposit'").fetchone()["c"]
         pending_withdrawals_count = db.execute("SELECT COUNT(*) c FROM wallet_transactions WHERE status = 'pending' AND tx_type = 'withdrawal'").fetchone()["c"]
         gift_earnings = db.execute(
             "SELECT COALESCE(SUM(platform_cut), 0) total FROM gifts"
         ).fetchone()["total"]
         verified_users_count = db.execute(
-            "SELECT COUNT(*) c FROM users WHERE is_verified = true"
+            "SELECT COUNT(*) c FROM users WHERE verification_tier IN ('blue', 'gold')"
         ).fetchone()["c"]
         vip_users_count = db.execute(
-            "SELECT COUNT(*) c FROM users WHERE is_vip = true"
+            "SELECT COUNT(*) c FROM users WHERE verification_tier = 'gold'"
         ).fetchone()["c"]
         subscription_revenue = db.execute(
             "SELECT COALESCE(SUM(amount), 0) total FROM payments WHERE status = 'approved'"
@@ -5375,6 +5375,8 @@ def admin_dashboard():
             """SELECT wallet_transactions.id,
                       users.username,
                       wallet_transactions.amount,
+                      wallet_transactions.bank,
+                      wallet_transactions.note,
                       wallet_transactions.created_at
                FROM wallet_transactions
                JOIN users ON wallet_transactions.user_id = users.id
@@ -5762,7 +5764,7 @@ def admin_users():
                        COALESCE(balance, wallet_balance, 0) AS balance,
                        wallet_id,
                        created_at,
-                       is_banned, banned_until, ban_reason, is_verified, is_admin
+                       is_banned, banned_until, ban_reason, verification_tier, is_admin
                 FROM users {where}
                 ORDER BY created_at DESC LIMIT ? OFFSET ?""",
             params + [per_page, offset],
@@ -5804,14 +5806,14 @@ def admin_verify():
         results = []
         if q:
             results = db.execute(
-                """SELECT id, username, full_name, is_verified, verified_until
+                """SELECT id, username, full_name, verification_tier, verified_until
                    FROM users WHERE username LIKE ? OR full_name LIKE ?
                    ORDER BY username LIMIT 25""",
                 (f"%{q}%", f"%{q}%"),
             ).fetchall()
         verified_users = db.execute(
-            """SELECT id, username, full_name, verified_until FROM users
-               WHERE is_verified = true ORDER BY verified_until DESC LIMIT 50"""
+            """SELECT id, username, full_name, verification_tier, verified_until FROM users
+               WHERE verification_tier IN ('blue', 'gold') ORDER BY verified_until DESC LIMIT 50"""
         ).fetchall()
         return render_template(
             "admin_verify.html", q=q, results=results, verified_users=verified_users,
