@@ -5450,7 +5450,7 @@ def approve_deposit(tx_id):
         tx = _claim_pending_transaction(db, tx_id, "deposit", "approved")
         if tx:
             db.execute(
-                "UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
+             "UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
                 (tx["amount"], tx["user_id"]),
             )
             add_notification(
@@ -5877,7 +5877,7 @@ def admin_announcements():
         if action == "add-word":
             word = (request.form.get("word") or "").strip()
             if word:
-                db.execute("INSERT OR IGNORE INTO restricted_words (word, created_at) VALUES (?, ?)", (word, datetime.datetime.utcnow().isoformat()))
+                db.execute("INSERT INTO restricted_words (word, created_at) VALUES (?, ?) ON CONFLICT (word) DO NOTHING", (word, datetime.datetime.utcnow().isoformat()))
                 db.commit()
             return redirect(url_for("admin_announcements"))
         if action == "delete-word":
