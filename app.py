@@ -1515,6 +1515,73 @@ def _credit_wallet_balance(db, user_id, amount):
         )
 
 
+def _get_user_effective_balance(user):
+    if not user:
+        return 0.0
+    wallet_balance_value = float(_get_row_value(user, "wallet_balance", 0) or 0)
+    balance_value = float(_get_row_value(user, "balance", 0) or 0)
+    return max(wallet_balance_value, balance_value)
+
+
+def _debit_user_balance(db, user_id, amount):
+    amount = float(amount or 0)
+    if amount <= 0:
+        return True
+
+    if _table_has_column(db, "users", "wallet_balance"):
+        cur = db.execute(
+            "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ? AND wallet_balance >= ?",
+            (amount, user_id, amount),
+        )
+        if getattr(cur, "rowcount", 0):
+            if _table_has_column(db, "users", "balance"):
+                db.execute("UPDATE users SET balance = wallet_balance WHERE id = ?", (user_id,))
+            return True
+
+    if _table_has_column(db, "users", "balance"):
+        cur = db.execute(
+            "UPDATE users SET balance = balance - ? WHERE id = ? AND balance >= ?",
+            (amount, user_id, amount),
+        )
+        if getattr(cur, "rowcount", 0):
+            if _table_has_column(db, "users", "wallet_balance"):
+                db.execute("UPDATE users SET wallet_balance = balance WHERE id = ?", (user_id,))
+            return True
+
+    return False
+
+
+def _get_user_wallet_balance(user):
+    if not user:
+        return 0.0
+    wallet_balance_value = float(_get_row_value(user, "wallet_balance", 0) or 0)
+    balance_value = float(_get_row_value(user, "balance", 0) or 0)
+    return wallet_balance_value if wallet_balance_value > balance_value else balance_value
+
+
+def _debit_user_wallet_balance(db, user_id, amount):
+    amount = float(amount or 0)
+    if amount <= 0:
+        return True
+    if _table_has_column(db, "users", "wallet_balance"):
+        cur = db.execute(
+            "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ? AND wallet_balance >= ?",
+            (amount, user_id, amount),
+        )
+        if getattr(cur, "rowcount", 0):
+            return True
+    if _table_has_column(db, "users", "balance"):
+        cur = db.execute(
+            "UPDATE users SET balance = balance - ? WHERE id = ? AND balance >= ?",
+            (amount, user_id, amount),
+        )
+        if getattr(cur, "rowcount", 0):
+            if _table_has_column(db, "users", "wallet_balance"):
+                db.execute("UPDATE users SET wallet_balance = balance WHERE id = ?", (user_id,))
+            return True
+    return False
+
+
 @app.before_request
 def enforce_maintenance_mode():
     # Allow static assets and admin settings to be reachable for admins.
@@ -2006,10 +2073,9 @@ def save_photo(file_storage):
     if _cloudinary_enabled:
         url = _upload_to_cloudinary(file_storage, folder="altajobs")
         if url:
-            # Store the public Cloudinary URL in the database so it can be
-            # rendered directly by photo_url() without a local file path.
+            print(f"Cloudinary upload successful: {url}")
             return url
-        # Cloudinary failed (e.g. quota/network) — fall through to Supabase/local below.
+        print("Cloudinary upload returned no URL; falling back to local/Supabase storage.")
 
     if _supabase_client:
         try:
@@ -2026,7 +2092,9 @@ def save_photo(file_storage):
 
     # --- Local disk storage (default behaviour, unchanged) ---
     try:
-        file_storage.save(os.path.join(app.config["UPLOAD_FOLDER"], unique))
+        local_path = os.path.join(app.config["UPLOAD_FOLDER"], unique)
+        file_storage.save(local_path)
+        print(f"Saved uploaded file locally: {local_path}")
         return unique
     except Exception as exc:
         print(f"Failed to save uploaded file locally: {exc}")
@@ -2709,10 +2777,11 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE):
                 pass
 
         post_statuses = "('approved', 'posted')"
-        if _table_has_column(db, "posts", "status") and _table_exists(db, "likes") and _table_exists(db, "comments"):
+        # Always load feed posts. If likes/comments are missing, fall back to a simple query.
+        if _table_has_column(db, "posts", "status"):
             posts_query = f"""WITH latest_posts AS (
                    SELECT * FROM posts
-                   WHERE status IN {post_statuses}
+                   WHERE COALESCE(NULLIF(status, ''), 'approved') IN {post_statuses}
                    ORDER BY created_at DESC
                    LIMIT ? OFFSET ?
                )
@@ -2735,6 +2804,21 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE):
                    GROUP BY post_id
                ) comment_counts ON comment_counts.post_id = p.id
                ORDER BY p.created_at DESC"""
+            if not _table_exists(db, "likes") or not _table_exists(db, "comments"):
+                posts_query = """WITH latest_posts AS (
+                       SELECT * FROM posts
+                       WHERE COALESCE(NULLIF(status, ''), 'approved') IN ('approved', 'posted')
+                       ORDER BY created_at DESC
+                       LIMIT ? OFFSET ?
+                   )
+                   SELECT p.id, p.user_id, p.content, p.photo, p.post_type, p.created_at, p.status,
+                          p.view_count,
+                          u.username, u.full_name, u.user_type,
+                          0 AS like_count,
+                          0 AS comment_count
+                   FROM latest_posts p
+                   JOIN users u ON p.user_id = u.id
+                   ORDER BY p.created_at DESC"""
         else:
             posts_query = """WITH latest_posts AS (
                    SELECT * FROM posts
@@ -3882,17 +3966,19 @@ def buy_channel_verification(channel_id):
     user = get_current_user()
     if not channel or channel["creator_id"] != session["user_id"]:
         abort(403)
-    if user["wallet_balance"] < CHANNEL_VERIFICATION_MONTHLY_PRICE:
+    if not _debit_user_balance(db, user["id"], CHANNEL_VERIFICATION_MONTHLY_PRICE):
+        db.rollback()
         flash("insufficient_balance")
         return redirect(url_for("channel_view", channel_id=channel_id))
 
-    new_balance = user["wallet_balance"] - CHANNEL_VERIFICATION_MONTHLY_PRICE
     base = datetime.datetime.utcnow()
     if channel_is_verified(channel):
-        base = datetime.datetime.fromisoformat(channel["verified_until"])
+        try:
+            base = datetime.datetime.fromisoformat(channel["verified_until"])
+        except Exception:
+            base = datetime.datetime.utcnow()
     verified_until = base + datetime.timedelta(days=30)
 
-    db.execute("UPDATE users SET wallet_balance = ? WHERE id = ?", (new_balance, user["id"]))
     db.execute(
         "UPDATE channels SET is_verified = true, verified_until = ? WHERE id = ?",
         (verified_until.isoformat(), channel_id),
@@ -4105,9 +4191,67 @@ def marketplace():
         """SELECT p.*, u.username, u.full_name, u.verification_tier, u.verified_until
            FROM products p
            JOIN users u ON p.user_id = u.id
+           WHERE p.status = 'approved'
            ORDER BY p.created_at DESC LIMIT 50"""
     ).fetchall()
     return render_template("marketplace.html", listings=listings, user=user)
+
+
+@app.route("/marketplace/buy/<int:product_id>", methods=["POST"])
+@login_required
+def marketplace_buy(product_id):
+    db = get_db()
+    buyer = get_current_user()
+    product = db.execute(
+        "SELECT p.*, u.username, u.full_name FROM products p JOIN users u ON p.user_id = u.id WHERE p.id = ? LIMIT 1",
+        (product_id,),
+    ).fetchone()
+    if not product or product["status"] != "approved":
+        flash("This product is not available for purchase.")
+        return redirect(url_for("marketplace"))
+    if product["user_id"] == buyer["id"]:
+        flash("You cannot purchase your own listing.")
+        return redirect(url_for("marketplace"))
+
+    price = float(product["price"] or 0)
+    if price <= 0:
+        flash("This product cannot be purchased at the moment.")
+        return redirect(url_for("marketplace"))
+
+    if getattr(db, "is_sqlite", False):
+        db.execute("BEGIN IMMEDIATE")
+    try:
+        if not _debit_user_balance(db, buyer["id"], price):
+            db.rollback()
+            flash("insufficient_balance")
+            return redirect(url_for("wallet"))
+
+        seller_id = product["user_id"]
+        _credit_wallet_balance(db, seller_id, price)
+
+        db.execute(
+            "UPDATE products SET status = 'sold' WHERE id = ?",
+            (product_id,),
+        )
+        db.execute(
+            "INSERT INTO offers (product_id, buyer_id, seller_id, offered_price, status, created_at) VALUES (?, ?, ?, ?, 'approved', ?)",
+            (product_id, buyer["id"], seller_id, price, datetime.datetime.utcnow().isoformat()),
+        )
+        db.execute(
+            "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'product_purchase', ?, ?, 'approved', ?)",
+            (buyer["id"], price, f"Marketplace purchase: {product['title']}", datetime.datetime.utcnow().isoformat()),
+        )
+        db.execute(
+            "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'product_sale', ?, ?, 'approved', ?)",
+            (seller_id, price, f"Marketplace sale: {product['title']}", datetime.datetime.utcnow().isoformat()),
+        )
+        db.commit()
+        flash("Product purchased successfully.")
+    except Exception as exc:
+        db.rollback()
+        print(f"Marketplace purchase failed: {exc}")
+        flash("We couldn't complete the purchase right now.")
+    return redirect(url_for("marketplace"))
 
 # ---------------------------------------------------------------------------
 # Wallet (deposit / withdraw)
@@ -4611,20 +4755,58 @@ def get_verified():
     )
 
 
-@app.route("/checkout")
+@app.route("/checkout", methods=["GET", "POST"])
 @login_required
 def checkout():
-    """Placeholder checkout screen. NOTE: this does not take payment yet —
-    it's wired up to VERIFICATION_PLANS so the order summary is always
-    accurate, ready for a real gateway (Telebirr/Chapa/etc.) to be dropped in.
-    """
-    tier = request.args.get("tier", "")
-    duration_id = request.args.get("duration", "")
+    """Checkout screen. Supports viewing the plan via GET and paying from wallet via POST."""
+    if request.method == "GET":
+        tier = request.args.get("tier", "")
+        duration_id = request.args.get("duration", "")
+        plan = get_verification_plan(tier, duration_id)
+        if not plan:
+            flash("That plan isn't available. Please choose a plan again.")
+            return redirect(url_for("get_verified"))
+        return render_template("checkout.html", plan=plan)
+
+    # POST: pay from wallet and activate verification tier
+    tier = request.form.get("tier", "")
+    duration_id = request.form.get("duration", "")
     plan = get_verification_plan(tier, duration_id)
     if not plan:
         flash("That plan isn't available. Please choose a plan again.")
         return redirect(url_for("get_verified"))
-    return render_template("checkout.html", plan=plan)
+
+    db = get_db()
+    if getattr(db, "is_sqlite", False):
+        db.execute("BEGIN IMMEDIATE")
+    try:
+        if not _debit_user_balance(db, session["user_id"], plan["price"]):
+            db.rollback()
+            flash("insufficient_balance")
+            return redirect(url_for("wallet"))
+
+        current_user = get_current_user()
+        base = datetime.datetime.utcnow()
+        if is_currently_verified(current_user):
+            try:
+                base = datetime.datetime.fromisoformat(current_user["verified_until"])
+            except Exception:
+                base = datetime.datetime.utcnow()
+        verified_until = base + datetime.timedelta(days=30 * plan["months"])
+
+        db.execute(
+            "UPDATE users SET verification_tier = ?, verified_until = ? WHERE id = ?",
+            (plan["tier"], verified_until.isoformat(), session["user_id"]),
+        )
+        db.execute(
+            "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'verification', ?, ?, 'approved', ?)",
+            (session["user_id"], plan["price"], f"{plan['label']} verification purchase", datetime.datetime.utcnow().isoformat()),
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return redirect(url_for("wallet"))
 
 
 # ---------------------------------------------------------------------------
@@ -4640,18 +4822,17 @@ def buy_vip():
     try:
         fresh = db.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
         vip_price = float(get_setting("vip_price", VIP_MONTHLY_PRICE) or VIP_MONTHLY_PRICE)
-        cur = db.execute(
-            "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ? AND wallet_balance >= ?",
-            (vip_price, user["id"], vip_price),
-        )
-        if cur.rowcount == 0:
+        if not _debit_user_balance(db, user["id"], vip_price):
             db.rollback()
             flash("insufficient_balance")
             return redirect(url_for("wallet"))
 
         base = datetime.datetime.utcnow()
         if fresh and is_currently_vip(fresh):
-            base = datetime.datetime.fromisoformat(fresh["verified_until"]) if fresh["verified_until"] else base
+            try:
+                base = datetime.datetime.fromisoformat(fresh["verified_until"]) if fresh["verified_until"] else base
+            except Exception:
+                base = datetime.datetime.utcnow()
         vip_until = base + datetime.timedelta(days=30)
         db.execute(
             "UPDATE users SET verification_tier = 'gold', verified_until = ? WHERE id = ?",
@@ -4874,7 +5055,8 @@ def join_challenge(tier):
         if len(pitch_text) < 30:
             flash("pitch_too_short")
             return redirect(url_for("join_challenge", tier=tier))
-        if user["wallet_balance"] < tier:
+        if not _debit_user_balance(db, user["id"], tier):
+            db.rollback()
             flash("insufficient_balance")
             return redirect(url_for("join_challenge", tier=tier))
 
@@ -6131,6 +6313,9 @@ def uploaded_file(filename):
     data_upload_dir = os.path.join(DATA_DIR, "uploads")
     if data_upload_dir not in search_directories:
         search_directories.append(data_upload_dir)
+    static_upload_dir = os.path.join(BASE_DIR, "static", "uploads")
+    if static_upload_dir not in search_directories:
+        search_directories.append(static_upload_dir)
 
     for directory in search_directories:
         file_path = os.path.join(directory, safe_name)
