@@ -41,9 +41,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # DATA_DIR points at a persistent volume/disk in production (e.g. Render Disk
 # mounted at /var/data, Railway Volume mounted at /data). Falls back to
-# BASE_DIR for local development, where the source folder is fine to use.
+# a dedicated data directory under the source tree for local development.
 # See render.yaml / railway.json for how DATA_DIR is set per platform.
-DATA_DIR = os.environ.get("DATA_DIR", BASE_DIR)
+DATA_DIR = os.environ.get("DATA_DIR") or os.path.join(BASE_DIR, "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
@@ -159,6 +159,7 @@ GIFT_CATALOG = {
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "alta-jobs-secret-key-change-in-production"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+print(f"UPLOAD_FOLDER={UPLOAD_FOLDER}")
 app.config["MAX_CONTENT_LENGTH"] = 15 * 1024 * 1024  # 15MB (photo/receipt/CV-photo uploads only, no video)
 app.config["PREFERRED_URL_SCHEME"] = os.environ.get("PREFERRED_URL_SCHEME", "https")
 app.config["MAIL_SERVER"] = os.environ.get("MAIL_SERVER", "")
