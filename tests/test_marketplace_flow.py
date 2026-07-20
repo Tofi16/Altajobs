@@ -33,7 +33,6 @@ class MarketplaceFlowTests(unittest.TestCase):
         with self.client.session_transaction() as session:
             session['user_id'] = 1
 
-        response = self.client.post('/cv-maker', data={
             'title': 'Reliable Laptop',
             'description': 'Used laptop in great shape',
             'price': '2500',

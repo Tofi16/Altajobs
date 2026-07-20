@@ -1,13 +1,11 @@
 # ---------------------------------------------------------------------------
 # REPLACE the entire existing:
-#     @app.route("/cv-maker", methods=["GET", "POST"])
 #     @login_required
 #     def cv_maker(): ...
 # function with the version below, and ADD the new
 # cv_headshot_studio() route directly after it.
 # ---------------------------------------------------------------------------
 
-@app.route("/cv-maker", methods=["GET", "POST"])
 @login_required
 def cv_maker():
     payload = None
@@ -101,7 +99,6 @@ def cv_maker():
     )
 
 
-@app.route("/cv-maker/headshot", methods=["POST"])
 @login_required
 def cv_headshot_studio():
     """AI Headshot Studio upload step. NOTE: this currently just stores the

@@ -1962,9 +1962,10 @@ def save_photo(file_storage):
     unique = f"{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{filename}"
 
     if _cloudinary_enabled:
-        url = _upload_to_cloudinary(file_storage, folder="altajobs/uploads")
+        url = _upload_to_cloudinary(file_storage, folder="altajobs")
         if url:
-            # Full HTTPS URL — photo_url() passes these straight through unchanged.
+            # Store the public Cloudinary URL in the database so it can be
+            # rendered directly by photo_url() without a local file path.
             return url
         # Cloudinary failed (e.g. quota/network) — fall through to Supabase/local below.
 
@@ -3939,7 +3940,6 @@ def api_complete_task():
 # ---------------------------------------------------------------------------
 # Marketplace
 # ---------------------------------------------------------------------------
-@app.route("/cv-maker", methods=["GET", "POST"])
 @login_required
 def cv_maker():
     """Legacy CV route repurposed: accepts the old form POSTs and creates
