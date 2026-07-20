@@ -6119,7 +6119,22 @@ def uploaded_file(filename):
     safe_name = str(filename).replace("\\", "/").lstrip("/")
     if safe_name.startswith("..") or "/../" in safe_name:
         abort(404)
-    return send_from_directory(app.config["UPLOAD_FOLDER"], safe_name)
+
+    search_directories = [app.config["UPLOAD_FOLDER"]]
+    legacy_upload_dir = os.path.join(BASE_DIR, "uploads")
+    if legacy_upload_dir not in search_directories:
+        search_directories.append(legacy_upload_dir)
+    data_upload_dir = os.path.join(DATA_DIR, "uploads")
+    if data_upload_dir not in search_directories:
+        search_directories.append(data_upload_dir)
+
+    for directory in search_directories:
+        file_path = os.path.join(directory, safe_name)
+        if os.path.isfile(file_path):
+            return send_from_directory(directory, safe_name)
+
+    print(f"Upload not found: {safe_name}. Searched: {search_directories}")
+    abort(404)
 
 
 if __name__ == "__main__":
