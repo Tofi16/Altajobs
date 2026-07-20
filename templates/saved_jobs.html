@@ -24,12 +24,7 @@
         <a href="{{ url_for('profile', user_id=post['user_id']) }}" class="post-author">
           {{ post['full_name'] or post['username'] }}
         </a>
-        {% if is_verified_now(post) %}
-          <span class="verified-badge" title="{{ t.verified_badge }}">
-            <svg class="verified-icon" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true" focusable="false"><path fill="#1DA1F2" d="M12 2l2.2 3.6L18 6l-2.4 1.8L16 12l-4-2-4 2 .4-4.2L6 6l3.8-.4L12 2z"/><path fill="#fff" d="M10.6 12.3l1.8 1.5 3-4-1.2-1-2.3 2.9-1.3-1z"/></svg>
-          </span>
-        {% endif %}
-        {% if is_vip_now(post) %}<span class="badge-icon-vip">👑</span>{% endif %}
+        {{ verification_badge_svg(post) }}
         <div class="post-meta">{{ post['created_at'][:16].replace('T',' ') }}</div>
       </div>
     </div>

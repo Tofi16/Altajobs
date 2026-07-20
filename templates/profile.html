@@ -34,9 +34,21 @@
           <h1 class="truncate text-base font-extrabold text-slate-100 lg:text-lg">{{ profile_user['full_name'] or profile_user['username'] }}</h1>
           <span class="profile-activity-pill">{{ activity_badge_for(profile_user) }}</span>
           {% if is_vip_now(profile_user) %}
-            <span class="verified-badge vip-badge">{{ t.vip if t.vip is defined else 'VIP' }}</span>
+            <span class="profile-tier-pill">
+              {{ verification_badge_svg(profile_user) }}
+              {{ t.vip if t.vip is defined else 'VIP' }}
+              {% if verification_days_left(profile_user) is not none %}
+                · {{ verification_days_left(profile_user) }} {{ t.days_left|lower }}
+              {% endif %}
+            </span>
           {% elif is_verified_now(profile_user) %}
-            <span class="verified-badge">{{ t.verified if t.verified is defined else 'Verified' }}</span>
+            <span class="profile-tier-pill">
+              {{ verification_badge_svg(profile_user) }}
+              {{ t.verified if t.verified is defined else 'Verified' }}
+              {% if verification_days_left(profile_user) is not none %}
+                · {{ verification_days_left(profile_user) }} {{ t.days_left|lower }}
+              {% endif %}
+            </span>
           {% endif %}
         </div>
         <div class="mt-0.5 text-xs text-slate-500">@{{ profile_user['username'] }} · {{ t.worker if profile_user['user_type'] == 'worker' else t.employer }}</div>

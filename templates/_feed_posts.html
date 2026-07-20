@@ -31,7 +31,7 @@
           <a href="{{ url_for('profile', user_id=post_user_id) }}" class="post-author font-semibold text-gray-900 hover:underline text-[15px]">
             {{ item['author_name'] }}
           </a>
-          {{ badge_html_for(post) }}
+          {{ verification_badge_svg(post) }}
           {% if post_user_id != current_user['id'] %}
             <button type="button" class="follow-btn js-follow-btn {{ 'following' if item['following'] }} text-xs font-semibold text-blue-600 hover:underline ml-1"
                     data-user-id="{{ post_user_id }}"

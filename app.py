@@ -1880,39 +1880,20 @@ def set_verification_tier(db, user_id, tier, until):
 
 
 def is_currently_verified(user):
-    """ተጠቃሚው አሁን ላይ Blue Tick አለው ወይስ የለውም የሚለውን ይመልሳል"""
-    if not user:
-        return False
-    tier = _field(user, "verification_tier") or "none"
-    if tier not in ("blue", "gold"):
-        return False
-    until = _field(user, "verified_until")
-    if not until:
-        return False
-    try:
-        if datetime.datetime.utcnow() > datetime.datetime.fromisoformat(until):
-            return False
-    except Exception:
-        return False
-    return True
+    """Return True if the user is currently verified (Blue or Gold).
+
+    Uses the effective verification tier logic from get_verification_tier(), so
+    legacy rows that still use is_verified/is_vip remain supported.
+    """
+    return get_verification_tier(user) in ("blue", "gold")
 
 
 def is_currently_vip(user):
-    """ተጠቃሚው አሁን ላይ VIP/Gold ነው ወይስ አይደለም የሚለውን ይመልሳል"""
-    if not user:
-        return False
-    tier = _field(user, "verification_tier") or "none"
-    if tier != "gold":
-        return False
-    until = _field(user, "verified_until")
-    if not until:
-        return False
-    try:
-        if datetime.datetime.utcnow() > datetime.datetime.fromisoformat(until):
-            return False
-    except Exception:
-        return False
-    return True
+    """Return True if the user is currently VIP/Gold.
+
+    Uses get_verification_tier() so legacy VIP rows continue to work.
+    """
+    return get_verification_tier(user) == "gold"
 
 
 def channel_is_verified(channel):
@@ -2190,6 +2171,19 @@ def activity_badge_for(user):
     if points >= 101:
         return "Silver Expert"
     return "Bronze Member"
+
+
+@app.template_global()
+def verification_days_left(user):
+    """Return remaining verification days for the user, or None if not active."""
+    until = _field(user, "verified_until")
+    if not until:
+        return None
+    try:
+        delta = datetime.datetime.fromisoformat(until) - datetime.datetime.utcnow()
+        return max(0, delta.days)
+    except Exception:
+        return None
 
 
 from markupsafe import Markup
@@ -4710,15 +4704,16 @@ def wallet_withdraw():
 def buy_verification():
     db = get_db()
     user = get_current_user()
+    user_id = session.get("user_id")
     if getattr(db, "is_sqlite", False):
         db.execute("BEGIN IMMEDIATE")
     try:
         # re-fetch fresh user row inside transaction
-        fresh = db.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
+        fresh = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
         verification_price = float(get_setting("verification_price", VERIFICATION_MONTHLY_PRICE) or VERIFICATION_MONTHLY_PRICE)
         cur = db.execute(
             "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ? AND wallet_balance >= ?",
-            (verification_price, user["id"], verification_price),
+            (verification_price, user_id, verification_price),
         )
         if cur.rowcount == 0:
             db.rollback()
@@ -4730,15 +4725,15 @@ def buy_verification():
             base = datetime.datetime.fromisoformat(fresh["verified_until"]) if fresh["verified_until"] else base
         verified_until = base + datetime.timedelta(days=30)
         # Don't downgrade an existing gold/VIP tier to blue.
-        current_tier = _get_row_value(fresh, "verification_tier", "none")
+        current_tier = get_verification_tier(fresh)
         new_tier = "gold" if current_tier == "gold" else "blue"
         db.execute(
             "UPDATE users SET verification_tier = ?, verified_until = ? WHERE id = ?",
-            (new_tier, verified_until.isoformat(), user["id"]),
+            (new_tier, verified_until.isoformat(), user_id),
         )
         # Award points for obtaining Blue Tick verification
         try:
-            db.execute("UPDATE users SET points = COALESCE(points,0) + ? WHERE id = ?", (100, user["id"]))
+            db.execute("UPDATE users SET points = COALESCE(points,0) + ? WHERE id = ?", (100, user_id))
         except Exception:
             pass
         admin_user = db.execute(
@@ -4751,7 +4746,7 @@ def buy_verification():
             )
         db.execute(
             "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'verification', ?, ?, 'approved', ?)",
-            (user["id"], verification_price, "Blue Tick purchase", datetime.datetime.utcnow().isoformat()),
+            (user_id, verification_price, "Blue Tick purchase", datetime.datetime.utcnow().isoformat()),
         )
         db.commit()
     except Exception:
@@ -4774,6 +4769,7 @@ def get_verified():
         plans=VERIFICATION_PLANS,
         current_tier=get_verification_tier(user),
         current_verified_until=_field(user, "verified_until"),
+        verification_days_left=verification_days_left(user),
     )
 
 
@@ -4814,11 +4810,14 @@ def checkout():
                 base = datetime.datetime.fromisoformat(current_user["verified_until"])
             except Exception:
                 base = datetime.datetime.utcnow()
+
+        current_tier = get_verification_tier(current_user)
+        effective_tier = current_tier if current_tier == "gold" and plan["tier"] == "blue" else plan["tier"]
         verified_until = base + datetime.timedelta(days=30 * plan["months"])
 
         db.execute(
             "UPDATE users SET verification_tier = ?, verified_until = ? WHERE id = ?",
-            (plan["tier"], verified_until.isoformat(), session["user_id"]),
+            (effective_tier, verified_until.isoformat(), session["user_id"]),
         )
         db.execute(
             "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'verification', ?, ?, 'approved', ?)",

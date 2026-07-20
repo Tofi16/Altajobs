@@ -296,8 +296,29 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 }
 
 /* Verified badge (Twitter-like) */
-.verified-badge { display:inline-flex;align-items:center;gap:6px;color:transparent; }
-.verified-badge .verified-icon { display:inline-block; vertical-align:middle }
+.verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.28rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.verified-badge.vip-badge {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  border-color: transparent;
+}
+.verified-badge .verified-icon {
+  display: inline-flex;
+  vertical-align: middle;
+  width: 14px;
+  height: 14px;
+}
 
 /* ---------- User Badge Styles (Gamification) ---------- */
 .user-badge { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; margin-left:8px; vertical-align:middle; border-radius:6px; overflow:hidden; }
@@ -321,6 +342,25 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.01em;
+}
+
+.profile-tier-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.profile-tier-pill svg {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
 }
 
 /* Subtle hover reveal for extra emphasis */

@@ -19,11 +19,7 @@
     </a>
     <div style="flex:1">
       <a href="{{ url_for('profile', user_id=a['applicant_id']) }}" class="post-author">{{ a['full_name'] or a['username'] }}</a>
-      {% if is_verified_now(a) %}
-        <span class="verified-badge" title="{{ t.verified_badge }}">
-          <svg class="verified-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false"><path fill="#1DA1F2" d="M12 2l2.2 3.6L18 6l-2.4 1.8L16 12l-4-2-4 2 .4-4.2L6 6l3.8-.4L12 2z"/><path fill="#fff" d="M10.6 12.3l1.8 1.5 3-4-1.2-1-2.3 2.9-1.3-1z"/></svg>
-        </span>
-      {% endif %}
+      {{ verification_badge_svg(a) }}
       <div class="post-meta">{{ a['created_at'][:16].replace('T',' ') }}</div>
       {% if a['message'] %}<p class="post-content" style="margin-top:6px">{{ a['message'] }}</p>{% endif %}
       <a href="{{ url_for('chat_start', user_id=a['applicant_id']) }}" class="btn btn-small" style="margin-top:8px">💬 {{ t.send }}</a>
