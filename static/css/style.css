@@ -305,8 +305,23 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .user-badge-gold { box-shadow: 0 4px 10px rgba(255, 183, 77, 0.12); border: 1px solid rgba(255,200,80,0.12); background: linear-gradient(180deg, rgba(255,235,179,0.04), rgba(255,204,102,0.02)); border-radius:6px }
 .user-badge-silver { box-shadow: 0 4px 10px rgba(189, 189, 189, 0.08); border: 1px solid rgba(200,200,200,0.06); background: linear-gradient(180deg, rgba(224,224,224,0.03), rgba(189,189,189,0.02)); border-radius:6px }
 .user-badge-bronze { box-shadow: 0 4px 10px rgba(184, 115, 51, 0.08); border: 1px solid rgba(184,115,51,0.06); background: linear-gradient(180deg, rgba(214,170,122,0.03), rgba(184,115,51,0.02)); border-radius:6px }
+.user-badge-tier-blue { background: rgba(29,155,240,0.12); border: 1px solid rgba(29,155,240,0.2); }
+.user-badge-tier-gold { background: rgba(250,204,21,0.16); border: 1px solid rgba(237,154,0,0.22); }
 .user-badge-verified { margin-left:6px; width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center }
 .user-badge-vip { margin-left:6px; width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center }
+
+.profile-activity-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
 
 /* Subtle hover reveal for extra emphasis */
 .user-badge:hover { transform: translateY(-1px); transition: transform 0.12s ease; }

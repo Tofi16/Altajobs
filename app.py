@@ -2777,57 +2777,48 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE):
                 pass
 
         post_statuses = "('approved', 'posted')"
-        # Always load feed posts. If likes/comments are missing, fall back to a simple query.
-        if _table_has_column(db, "posts", "status"):
-            posts_query = f"""WITH latest_posts AS (
+        has_status = _table_has_column(db, "posts", "status")
+        has_likes = _table_exists(db, "likes")
+        has_comments = _table_exists(db, "comments")
+
+        has_user_avatar = _table_has_column(db, "users", "avatar")
+        has_user_type = _table_has_column(db, "users", "user_type")
+        has_user_verification_tier = _table_has_column(db, "users", "verification_tier")
+        has_user_verified_until = _table_has_column(db, "users", "verified_until")
+
+        user_field_selects = [
+            "u.username",
+            "u.full_name",
+            "u.avatar" if has_user_avatar else "NULL AS avatar",
+            "u.user_type" if has_user_type else "NULL AS user_type",
+            "u.verification_tier" if has_user_verification_tier else "NULL AS verification_tier",
+            "u.verified_until" if has_user_verified_until else "NULL AS verified_until",
+        ]
+        user_select_fields = ", ".join(user_field_selects)
+
+        latest_posts_where = "WHERE COALESCE(NULLIF(status, ''), 'approved') IN " + post_statuses if has_status else ""
+        latest_posts_query = f"""WITH latest_posts AS (
                    SELECT * FROM posts
-                   WHERE COALESCE(NULLIF(status, ''), 'approved') IN {post_statuses}
+                   {latest_posts_where}
                    ORDER BY created_at DESC
                    LIMIT ? OFFSET ?
-               )
-               SELECT p.*, u.username, u.full_name, u.avatar, u.user_type,
-                      u.verification_tier, u.verified_until,
-                      COALESCE(like_counts.like_count, 0) AS like_count,
-                      COALESCE(comment_counts.comment_count, 0) AS comment_count
+               )"""
+
+        if has_likes or has_comments:
+            like_count_select = "COALESCE(like_counts.like_count, 0) AS like_count" if has_likes else "0 AS like_count"
+            comment_count_select = "COALESCE(comment_counts.comment_count, 0) AS comment_count" if has_comments else "0 AS comment_count"
+            posts_query = f"""{latest_posts_query}
+               SELECT p.*, {user_select_fields},
+                      {like_count_select},
+                      {comment_count_select}
                FROM latest_posts p
                JOIN users u ON p.user_id = u.id
-               LEFT JOIN (
-                   SELECT post_id, COUNT(*) AS like_count
-                   FROM likes
-                   WHERE post_id IN (SELECT id FROM latest_posts)
-                   GROUP BY post_id
-               ) like_counts ON like_counts.post_id = p.id
-               LEFT JOIN (
-                   SELECT post_id, COUNT(*) AS comment_count
-                   FROM comments
-                   WHERE post_id IN (SELECT id FROM latest_posts)
-                   GROUP BY post_id
-               ) comment_counts ON comment_counts.post_id = p.id
+               {('LEFT JOIN (\n                   SELECT post_id, COUNT(*) AS like_count\n                   FROM likes\n                   WHERE post_id IN (SELECT id FROM latest_posts)\n                   GROUP BY post_id\n               ) like_counts ON like_counts.post_id = p.id' if has_likes else '')}
+               {('LEFT JOIN (\n                   SELECT post_id, COUNT(*) AS comment_count\n                   FROM comments\n                   WHERE post_id IN (SELECT id FROM latest_posts)\n                   GROUP BY post_id\n               ) comment_counts ON comment_counts.post_id = p.id' if has_comments else '')}
                ORDER BY p.created_at DESC"""
-            if not _table_exists(db, "likes") or not _table_exists(db, "comments"):
-                posts_query = """WITH latest_posts AS (
-                       SELECT * FROM posts
-                       WHERE COALESCE(NULLIF(status, ''), 'approved') IN ('approved', 'posted')
-                       ORDER BY created_at DESC
-                       LIMIT ? OFFSET ?
-                   )
-                   SELECT p.id, p.user_id, p.content, p.photo, p.post_type, p.created_at, p.status,
-                          p.view_count,
-                          u.username, u.full_name, u.user_type,
-                          0 AS like_count,
-                          0 AS comment_count
-                   FROM latest_posts p
-                   JOIN users u ON p.user_id = u.id
-                   ORDER BY p.created_at DESC"""
         else:
-            posts_query = """WITH latest_posts AS (
-                   SELECT * FROM posts
-                   ORDER BY created_at DESC
-                   LIMIT ? OFFSET ?
-               )
-               SELECT p.id, p.user_id, p.content, p.photo, p.post_type, p.created_at, p.status,
-                      p.view_count,
-                      u.username, u.full_name, u.user_type,
+            posts_query = f"""{latest_posts_query}
+               SELECT p.*, {user_select_fields},
                       0 AS like_count,
                       0 AS comment_count
                FROM latest_posts p
@@ -3547,16 +3538,47 @@ def profile(user_id):
     profile_user.setdefault("user_type", "worker")
     profile_user.setdefault("full_name", profile_user.get("username") or "User")
 
-    posts = db.execute(
-        """SELECT posts.*, users.username, users.full_name, users.avatar, users.user_type,
-                  users.verification_tier, users.verified_until,
-                  (SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) AS like_count,
-                  (SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) AS comment_count
-           FROM posts JOIN users ON posts.user_id = users.id
-           WHERE posts.user_id = ?
-           ORDER BY posts.created_at DESC""",
-        (user_id,),
-    ).fetchall()
+    has_likes = _table_exists(db, "likes")
+    has_comments = _table_exists(db, "comments")
+    has_user_avatar = _table_has_column(db, "users", "avatar")
+    has_user_type = _table_has_column(db, "users", "user_type")
+    has_user_verification_tier = _table_has_column(db, "users", "verification_tier")
+    has_user_verified_until = _table_has_column(db, "users", "verified_until")
+
+    user_field_selects = [
+        "users.username",
+        "users.full_name",
+        "users.avatar" if has_user_avatar else "NULL AS avatar",
+        "users.user_type" if has_user_type else "NULL AS user_type",
+        "users.verification_tier" if has_user_verification_tier else "NULL AS verification_tier",
+        "users.verified_until" if has_user_verified_until else "NULL AS verified_until",
+    ]
+    user_select_fields = ", ".join(user_field_selects)
+
+    if has_likes or has_comments:
+        posts = db.execute(
+            (
+                "SELECT posts.*, " + user_select_fields + ", "
+                + ("(SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) AS like_count, " if has_likes else "0 AS like_count, ")
+                + ("(SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) AS comment_count" if has_comments else "0 AS comment_count")
+                + " FROM posts JOIN users ON posts.user_id = users.id"
+                + " WHERE posts.user_id = ?"
+                + " ORDER BY posts.created_at DESC"
+            ),
+            (user_id,),
+        ).fetchall()
+    else:
+        posts = db.execute(
+            (
+                "SELECT posts.*, " + user_select_fields + ", "
+                + "0 AS like_count, "
+                + "0 AS comment_count"
+                + " FROM posts JOIN users ON posts.user_id = users.id"
+                + " WHERE posts.user_id = ?"
+                + " ORDER BY posts.created_at DESC"
+            ),
+            (user_id,),
+        ).fetchall()
 
     ratings = db.execute(
         """SELECT ratings.*, users.username as employer_username

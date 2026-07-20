@@ -32,12 +32,6 @@
             {{ item['author_name'] }}
           </a>
           {{ badge_html_for(post) }}
-          {% if is_verified_now(post) %}
-            <span class="verified-badge" title="{{ t.verified_badge }}">
-              <svg class="verified-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path fill="#1DA1F2" d="M12 2l2.2 3.6L18 6l-2.4 1.8L16 12l-4-2-4 2 .4-4.2L6 6l3.8-.4L12 2z"/><path fill="#fff" d="M10.6 12.3l1.8 1.5 3-4-1.2-1-2.3 2.9-1.3-1z"/></svg>
-            </span>
-          {% endif %}
-          {% if is_vip_now(post) %}<span class="badge-icon-vip" title="{{ t.vip }}">👑</span>{% endif %}
           {% if post_user_id != current_user['id'] %}
             <button type="button" class="follow-btn js-follow-btn {{ 'following' if item['following'] }} text-xs font-semibold text-blue-600 hover:underline ml-1"
                     data-user-id="{{ post_user_id }}"

@@ -32,7 +32,12 @@
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-1.5">
           <h1 class="truncate text-base font-extrabold text-slate-100 lg:text-lg">{{ profile_user['full_name'] or profile_user['username'] }}</h1>
-          {{ badge_html_for(profile_user) }}
+          <span class="profile-activity-pill">{{ activity_badge_for(profile_user) }}</span>
+          {% if is_vip_now(profile_user) %}
+            <span class="verified-badge vip-badge">{{ t.vip if t.vip is defined else 'VIP' }}</span>
+          {% elif is_verified_now(profile_user) %}
+            <span class="verified-badge">{{ t.verified if t.verified is defined else 'Verified' }}</span>
+          {% endif %}
         </div>
         <div class="mt-0.5 text-xs text-slate-500">@{{ profile_user['username'] }} · {{ t.worker if profile_user['user_type'] == 'worker' else t.employer }}</div>
 
