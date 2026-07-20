@@ -1510,7 +1510,7 @@ def login_required(f):
 
         db = get_db()
         user = db.execute(
-            "SELECT is_banned, banned_until FROM users WHERE id = ?",
+         "SELECT is_banned, banned_until FROM users WHERE id = %s",   
             (uid,),
         ).fetchone()
         if not user:
@@ -4766,7 +4766,7 @@ def challenges():
             ).fetchone()["c"]
             prize_pool = pool["prize_pool"]
             my_entry = db.execute(
-                "SELECT * FROM challenge_entries WHERE pool_id = ? AND user_id = ?",
+                "SELECT * FROM challenge_entries WHERE pool_id = %s AND user_id = %s",
                 (pool["id"], user["id"]),
             ).fetchone()
         pools.append({
@@ -5270,7 +5270,7 @@ def admin_settings():
                 return redirect(url_for("admin_settings"))
             is_active = request.form.get("is_active") == "1"
             db.execute(
-                "UPDATE bank_accounts SET is_active = ? WHERE id = ?",
+                "UPDATE bank_accounts SET is_active = %s WHERE id = %s",
                 (True if is_active else False, bank_id),
             )
             db.commit()
