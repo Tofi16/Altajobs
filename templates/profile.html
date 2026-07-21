@@ -11,10 +11,10 @@
   </defs>
 </svg>
 
-<div class="mx-auto max-w-2xl px-4 py-4 text-slate-200">
+<div class="profile-shell mx-auto max-w-2xl px-3 py-4 text-slate-200 sm:px-4">
 
   <!-- ============ COMPACT HEADER ============ -->
-  <section class="rounded-2xl border border-white/5 bg-zinc-900/60 p-4 lg:p-5">
+  <section class="profile-card profile-card--hero rounded-2xl border border-white/5 bg-zinc-900/60 p-4 lg:p-5">
     <div class="flex items-start gap-3">
 
       <!-- Avatar with initials fallback -->
@@ -30,7 +30,7 @@
       </div>
 
       <div class="min-w-0 flex-1">
-        <div class="flex flex-wrap items-center gap-1.5">
+        <div class="profile-pill-row flex flex-wrap items-center gap-1.5">
           <h1 class="truncate text-base font-extrabold text-slate-100 lg:text-lg">{{ profile_user['full_name'] or profile_user['username'] }}</h1>
           <span class="profile-activity-pill">{{ activity_badge_for(profile_user) }}</span>
           {% if is_vip_now(profile_user) %}
@@ -82,16 +82,16 @@
   </section>
 
   <!-- ============ HORIZONTAL STATS BAR ============ -->
-  <section class="mt-3 grid grid-cols-3 divide-x divide-white/5 overflow-hidden rounded-2xl border border-white/5 bg-zinc-900/60 text-center">
-    <div class="px-2 py-3">
+  <section class="profile-stats mt-3 grid grid-cols-3 divide-x divide-white/5 overflow-hidden rounded-2xl border border-white/5 bg-zinc-900/60 text-center">
+    <div class="profile-stat-card px-2 py-3">
       <div class="text-lg font-extrabold text-slate-100">{{ followers_count }}</div>
       <div class="text-[11px] text-slate-500">{{ t.followers }}</div>
     </div>
-    <div class="px-2 py-3">
+    <div class="profile-stat-card px-2 py-3">
       <div class="text-lg font-extrabold text-slate-100">{{ following_count }}</div>
       <div class="text-[11px] text-slate-500">{{ t.follow }}</div>
     </div>
-    <div class="px-2 py-3">
+    <div class="profile-stat-card px-2 py-3">
       <div class="text-lg font-extrabold text-slate-100">{{ posts_count }}</div>
       <div class="text-[11px] text-slate-500">{{ t.feed }}</div>
     </div>
@@ -109,7 +109,7 @@
     <div data-tab-panel="feed" class="mt-3 space-y-3">
       {% if posts %}
         {% for p in posts %}
-        <article class="rounded-2xl border border-white/5 bg-zinc-900/60 p-4">
+        <article class="profile-card profile-post-card rounded-2xl border border-white/5 bg-zinc-900/60 p-4">
           {% if p['content'] %}
             <p class="text-sm text-slate-200">{{ p['content'] }}</p>
           {% endif %}
@@ -276,11 +276,6 @@
     </div>
   </div>
 </div>
-
-<style>
-  .profile-tab-btn { color: #64748b; background: transparent; }
-  .profile-tab-btn[aria-selected="true"] { background: #10b981; color: #09090b; }
-</style>
 
 <script>
   (function () {

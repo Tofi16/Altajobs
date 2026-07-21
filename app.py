@@ -60,18 +60,49 @@ def _ensure_postgres_ssl(url):
     return url
 
 
+def _resolve_database_path():
+    explicit_path = ""
+    if DATABASE_URL.startswith("sqlite:///"):
+        explicit_path = DATABASE_URL[len("sqlite:///"):].strip()
+
+    candidates = [
+        os.path.join(BASE_DIR, "altajobs.db"),
+        os.path.join(BASE_DIR, "database.db"),
+        os.path.join(DATA_DIR, "database.db"),
+    ]
+    if explicit_path:
+        candidates.append(explicit_path)
+
+    seen = set()
+    ordered = []
+    for candidate in candidates:
+        if not candidate:
+            continue
+        normalized = os.path.abspath(os.path.normpath(candidate))
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        ordered.append(normalized)
+
+    for candidate in ordered:
+        if os.path.exists(candidate):
+            return candidate
+
+    return os.path.join(DATA_DIR, "database.db")
+
+
 if DATABASE_URL:
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
     if DATABASE_URL.startswith("sqlite:///"):
-        DATABASE = DATABASE_URL[len("sqlite:///" ):]
+        DATABASE = _resolve_database_path()
         USE_SQLITE = True
     else:
         DATABASE_URL = _ensure_postgres_ssl(DATABASE_URL)
         DATABASE = DATABASE_URL
         USE_SQLITE = False
 else:
-    DATABASE = os.path.join(DATA_DIR, "database.db")
+    DATABASE = _resolve_database_path()
     DATABASE_URL = "sqlite:///" + DATABASE.replace('\\', '/')
     USE_SQLITE = True
 
@@ -843,9 +874,8 @@ def init_db():
 def migrate_db():
     """አስቀድሞ ለተፈጠረ altajobs.db አዲስ columns በደህና ይጨምራል (idempotent)."""
     db = sqlite3.connect(DATABASE)
-
     db.executescript(
-        """
+            """
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE,
@@ -2190,13 +2220,13 @@ from markupsafe import Markup
 
 
 _VERIFICATION_BADGE_SVG = {
-    "blue": '''<span class="user-badge user-badge-tier-blue" title="Verified">
+    "blue": '''<span class="verification-badge verification-badge--blue" title="Verified">
             <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false" width="18" height="18">
                 <path fill="#1D9BF0" d="M20.396 11c0-1.196-.734-2.222-1.789-2.65.19-1.098-.128-2.301-.947-3.12-.82-.82-2.023-1.137-3.121-.947C14.111 3.228 13.085 2.494 11.89 2.494c-1.197 0-2.223.734-2.651 1.789-1.098-.19-2.301.127-3.12.947-.82.819-1.137 2.022-.947 3.12C4.228 8.778 3.494 9.804 3.494 11c0 1.196.734 2.222 1.789 2.65-.19 1.098.127 2.301.946 3.12.82.82 2.023 1.137 3.121.947.428 1.055 1.454 1.789 2.651 1.789 1.196 0 2.222-.734 2.65-1.789 1.098.19 2.301-.128 3.12-.947.82-.819 1.137-2.022.947-3.12 1.055-.428 1.789-1.454 1.789-2.65z"/>
                 <path fill="#fff" d="M9.323 14.416l-3.5-3.5 1.415-1.415 2.085 2.085 4.939-4.939 1.415 1.415z"/>
             </svg>
         </span>''',
-    "gold": '''<span class="user-badge user-badge-tier-gold" title="Verified Organization">
+    "gold": '''<span class="verification-badge verification-badge--gold" title="Verified Organization">
             <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false" width="18" height="18">
                 <defs>
                     <linearGradient id="g_tier_gold" x1="0%" x2="100%" y1="0%" y2="100%">
@@ -2230,41 +2260,41 @@ def badge_html_for(user):
     parts = []
     # Activity badge icon
     if badge.startswith("Gold"):
-                parts.append('''<span class="user-badge user-badge-gold" title="{t}">
-                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <defs>
-                                <linearGradient id="g_gold" x1="0%" x2="100%" y1="0%" y2="100%">
-                                    <stop offset="0%" stop-color="#FFD54A"/>
-                                    <stop offset="100%" stop-color="#FFB300"/>
-                                </linearGradient>
-                            </defs>
-                            <path fill="url(#g_gold)" d="M12 2l2.7 5.5L20 9l-4 3.6L17 19l-5-2.6L7 19l1-6.4L4 9l5.3-1.5L12 2z" />
-                        </svg>
-                    </span>'''.format(t=badge))
+        parts.append('''<span class="user-badge user-badge--activity-gold" title="{t}">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <defs>
+                        <linearGradient id="g_gold" x1="0%" x2="100%" y1="0%" y2="100%">
+                            <stop offset="0%" stop-color="#FFD54A"/>
+                            <stop offset="100%" stop-color="#FFB300"/>
+                        </linearGradient>
+                    </defs>
+                    <path fill="url(#g_gold)" d="M12 2l2.7 5.5L20 9l-4 3.6L17 19l-5-2.6L7 19l1-6.4L4 9l5.3-1.5L12 2z" />
+                </svg>
+            </span>'''.format(t=badge))
     elif badge.startswith("Silver"):
-                parts.append('''<span class="user-badge user-badge-silver" title="{t}">
-                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <defs>
-                                <linearGradient id="g_silver" x1="0%" x2="100%" y1="0%" y2="100%">
-                                    <stop offset="0%" stop-color="#E0E0E0"/>
-                                    <stop offset="100%" stop-color="#BDBDBD"/>
-                                </linearGradient>
-                            </defs>
-                            <path fill="url(#g_silver)" d="M12 2L4 5v6c0 5 4 9 8 11 4-2 8-6 8-11V5l-8-3z" />
-                        </svg>
-                    </span>'''.format(t=badge))
+        parts.append('''<span class="user-badge user-badge--activity-silver" title="{t}">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <defs>
+                        <linearGradient id="g_silver" x1="0%" x2="100%" y1="0%" y2="100%">
+                            <stop offset="0%" stop-color="#E0E0E0"/>
+                            <stop offset="100%" stop-color="#BDBDBD"/>
+                        </linearGradient>
+                    </defs>
+                    <path fill="url(#g_silver)" d="M12 2L4 5v6c0 5 4 9 8 11 4-2 8-6 8-11V5l-8-3z" />
+                </svg>
+            </span>'''.format(t=badge))
     else:
-                parts.append('''<span class="user-badge user-badge-bronze" title="{t}">
-                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <defs>
-                                <linearGradient id="g_bronze" x1="0%" x2="100%" y1="0%" y2="100%">
-                                    <stop offset="0%" stop-color="#D7A86A"/>
-                                    <stop offset="100%" stop-color="#B87333"/>
-                                </linearGradient>
-                            </defs>
-                            <circle cx="12" cy="12" r="9" fill="url(#g_bronze)" />
-                        </svg>
-                    </span>'''.format(t=badge))
+        parts.append('''<span class="user-badge user-badge--activity-bronze" title="{t}">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <defs>
+                        <linearGradient id="g_bronze" x1="0%" x2="100%" y1="0%" y2="100%">
+                            <stop offset="0%" stop-color="#D7A86A"/>
+                            <stop offset="100%" stop-color="#B87333"/>
+                        </linearGradient>
+                    </defs>
+                    <circle cx="12" cy="12" r="9" fill="url(#g_bronze)" />
+                </svg>
+            </span>'''.format(t=badge))
     # Verification tier overlay (Blue/Gold) — delegates to the single
     # verification_badge_svg() source, never inlined here.
     parts.append(str(verification_badge_svg(tier)))

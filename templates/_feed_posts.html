@@ -105,14 +105,6 @@
             <button type="submit" class="btn-apply btn-full w-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm px-4 py-2 rounded-lg transition-colors">{{ t.apply_now }}</button>
           </form>
         {% endif %}
-        <form method="POST" action="{{ url_for('save_post', post_id=post_id) }}" class="job-action-form">
-          <button type="submit" class="btn-save {{ 'saved' if item['saved'] }} btn-full flex items-center justify-center px-3.5 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
-            <i class='bx {{ "bxs-bookmark" if item['saved'] else "bx-bookmark" }}'></i>
-          </button>
-        </form>
-        <form method="POST" action="{{ url_for('share_post', post_id=post_id) }}" class="job-action-form">
-          <button type="submit" class="btn-share btn-full flex items-center justify-center px-3.5 py-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"> <i class='bx bx-share-alt'></i></button>
-        </form>
       </div>
     {% endif %}
 

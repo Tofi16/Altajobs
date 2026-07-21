@@ -1,5 +1,6 @@
 import io
 import os
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -88,6 +89,41 @@ class PostingFlowTests(unittest.TestCase):
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertIn('hello without social tables', response.get_data(as_text=True))
+
+    def test_resolve_database_path_prefers_existing_root_database(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_base_dir = app_module.BASE_DIR
+            original_data_dir = app_module.DATA_DIR
+            original_database = app_module.DATABASE
+            original_database_url = app_module.DATABASE_URL
+            try:
+                app_module.BASE_DIR = temp_dir
+                app_module.DATA_DIR = os.path.join(temp_dir, 'data')
+                os.makedirs(app_module.DATA_DIR, exist_ok=True)
+                root_db = os.path.join(temp_dir, 'altajobs.db')
+                data_db = os.path.join(app_module.DATA_DIR, 'database.db')
+                conn = sqlite3.connect(root_db)
+                try:
+                    conn.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT)')
+                    conn.execute('CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, content TEXT)')
+                    conn.execute('INSERT INTO users (username) VALUES (?)', ('root-user',))
+                    conn.execute('INSERT INTO posts (user_id, content) VALUES (?, ?)', (1, 'from root db'))
+                    conn.commit()
+                finally:
+                    conn.close()
+                conn = sqlite3.connect(data_db)
+                try:
+                    conn.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT)')
+                    conn.commit()
+                finally:
+                    conn.close()
+                app_module.DATABASE_URL = 'sqlite:///' + os.path.join(temp_dir, 'data', 'database.db').replace('\\', '/')
+                self.assertEqual(app_module._resolve_database_path(), root_db)
+            finally:
+                app_module.BASE_DIR = original_base_dir
+                app_module.DATA_DIR = original_data_dir
+                app_module.DATABASE = original_database
+                app_module.DATABASE_URL = original_database_url
 
 
 if __name__ == '__main__':
