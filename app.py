@@ -1437,6 +1437,13 @@ with app.app_context():
     ensure_postgres_admin_user()
     ensure_postgres_boolean_columns()
     ensure_postgres_wallet_columns()
+    try:
+        db = get_db()
+        updated = backfill_verification_flags(db)
+        if updated:
+            print(f"Backfilled legacy verification flags for {updated} users.")
+    except Exception as exc:
+        print(f"Warning: could not backfill verification flags on startup: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -1569,6 +1576,32 @@ def get_current_user():
     db = get_db()
     row = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
     return dict(row) if row is not None else None
+
+
+def backfill_verification_flags(db):
+    """Ensure legacy verified flags are consistent with verification_tier."""
+    if not _table_has_column(db, "users", "is_verified") or not _table_has_column(db, "users", "is_vip"):
+        return 0
+    rows = db.execute(
+        "SELECT id, verification_tier FROM users WHERE verification_tier IN ('blue', 'gold')"
+    ).fetchall()
+    updated = 0
+    for row in rows:
+        tier = _get_row_value(row, "verification_tier", "none")
+        if tier not in ("blue", "gold"):
+            continue
+        is_vip = 1 if tier == "gold" else 0
+        cur = db.execute(
+            "UPDATE users SET is_verified = 1, is_vip = ? WHERE id = ?",
+            (is_vip, _get_row_value(row, "id")),
+        )
+        updated += cur.rowcount if hasattr(cur, 'rowcount') else 1
+    if updated:
+        try:
+            db.commit()
+        except Exception:
+            pass
+    return updated
 
 
 def _credit_wallet_balance(db, user_id, amount):
@@ -3240,6 +3273,12 @@ def new_post():
         insert_sql += ", ".join(["?"] * len(insert_values))
         insert_sql += ", ?)"
         insert_values.append(datetime.datetime.utcnow().isoformat())
+        # Temporary diagnostic logging for Render: record DB type and the insert payload (sanitized)
+        try:
+            short_vals = [str(v)[:200] for v in insert_values]
+            app.logger.info("New post insert: DB=%s is_sqlite=%s SQL=%s VALUES=%s", DATABASE, db.is_sqlite, insert_sql, short_vals)
+        except Exception:
+            pass
         db.execute(insert_sql, tuple(insert_values))
         # Award points for creating a post
         try:
@@ -3247,6 +3286,10 @@ def new_post():
         except Exception:
             pass
         db.commit()
+        try:
+            app.logger.info("New post committed: user_id=%s", session.get("user_id"))
+        except Exception:
+            pass
         refresh_trust_status(db, user["id"])
         db.commit()
     except Exception as exc:
@@ -3691,6 +3734,8 @@ def profile(user_id):
     else:
         profile_user = dict(profile_user)
     profile_user.setdefault("avatar", None)
+    profile_user.setdefault("verification_tier", profile_user.get("verification_tier") or "none")
+    profile_user.setdefault("verified_until", None)
     profile_user.setdefault("bio", "")
     profile_user.setdefault("phone", "")
     profile_user.setdefault("skills", "")
@@ -4895,8 +4940,8 @@ def buy_verification():
         current_tier = get_verification_tier(fresh)
         new_tier = "gold" if current_tier == "gold" else "blue"
         db.execute(
-            "UPDATE users SET verification_tier = ?, verified_until = ? WHERE id = ?",
-            (new_tier, verified_until.isoformat(), user_id),
+            "UPDATE users SET verification_tier = ?, verified_until = ?, is_verified = 1, is_vip = ? WHERE id = ?",
+            (new_tier, verified_until.isoformat(), 1 if new_tier == 'gold' else 0, user_id),
         )
         # Award points for obtaining Blue Tick verification
         try:
@@ -4983,8 +5028,8 @@ def checkout():
         verified_until = base + datetime.timedelta(days=30 * plan["months"])
 
         db.execute(
-            "UPDATE users SET verification_tier = ?, verified_until = ? WHERE id = ?",
-            (effective_tier, verified_until.isoformat(), session["user_id"]),
+            "UPDATE users SET verification_tier = ?, verified_until = ?, is_verified = 1, is_vip = ? WHERE id = ?",
+            (effective_tier, verified_until.isoformat(), 1 if effective_tier == 'gold' else 0, session["user_id"]),
         )
         db.execute(
             "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'verification', ?, ?, 'approved', ?)",
@@ -5023,7 +5068,7 @@ def buy_vip():
                 base = datetime.datetime.utcnow()
         vip_until = base + datetime.timedelta(days=30)
         db.execute(
-            "UPDATE users SET verification_tier = 'gold', verified_until = ? WHERE id = ?",
+            "UPDATE users SET verification_tier = 'gold', verified_until = ?, is_verified = 1, is_vip = 1 WHERE id = ?",
             (vip_until.isoformat(), user["id"]),
         )
         db.execute(
