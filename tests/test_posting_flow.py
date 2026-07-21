@@ -125,6 +125,45 @@ class PostingFlowTests(unittest.TestCase):
                 app_module.DATABASE = original_database
                 app_module.DATABASE_URL = original_database_url
 
+    def test_resolve_database_path_prefers_verified_duplicate(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_base_dir = app_module.BASE_DIR
+            original_data_dir = app_module.DATA_DIR
+            original_database = app_module.DATABASE
+            original_database_url = app_module.DATABASE_URL
+            try:
+                app_module.BASE_DIR = temp_dir
+                app_module.DATA_DIR = os.path.join(temp_dir, 'data')
+                os.makedirs(app_module.DATA_DIR, exist_ok=True)
+                root_db = os.path.join(temp_dir, 'altajobs.db')
+                data_db = os.path.join(app_module.DATA_DIR, 'database.db')
+
+                conn = sqlite3.connect(root_db)
+                try:
+                    conn.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT)')
+                    conn.execute('CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, content TEXT)')
+                    conn.execute('INSERT INTO users (username) VALUES (?)', ('root-user',))
+                    conn.execute('INSERT INTO posts (user_id, content) VALUES (?, ?)', (1, 'from root db'))
+                    conn.commit()
+                finally:
+                    conn.close()
+
+                conn = sqlite3.connect(data_db)
+                try:
+                    conn.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, verification_tier TEXT, verified_until TEXT)')
+                    conn.execute('INSERT INTO users (username, verification_tier, verified_until) VALUES (?, ?, ?)', ('verified-user', 'blue', '2099-01-01T00:00:00'))
+                    conn.commit()
+                finally:
+                    conn.close()
+
+                app_module.DATABASE_URL = ''
+                self.assertEqual(app_module._resolve_database_path(), data_db)
+            finally:
+                app_module.BASE_DIR = original_base_dir
+                app_module.DATA_DIR = original_data_dir
+                app_module.DATABASE = original_database
+                app_module.DATABASE_URL = original_database_url
+
 
 if __name__ == '__main__':
     unittest.main()

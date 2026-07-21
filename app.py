@@ -60,18 +60,65 @@ def _ensure_postgres_ssl(url):
     return url
 
 
+def _database_preference_score(path):
+    if not path or not os.path.exists(path):
+        return -1
+
+    conn = None
+    try:
+        conn = sqlite3.connect(path)
+        cur = conn.cursor()
+        tables = {row[0] for row in cur.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        score = 0
+        if "users" in tables:
+            score += 1000
+            try:
+                user_count = cur.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+                score += min(user_count, 20) * 6
+            except Exception:
+                pass
+            try:
+                user_cols = {row[1] for row in cur.execute("PRAGMA table_info(users)")}
+                if "verification_tier" in user_cols:
+                    score += 250
+                if "verified_until" in user_cols:
+                    score += 100
+                if "verification_tier" in user_cols:
+                    verified_users = cur.execute("SELECT COUNT(*) FROM users WHERE verification_tier IN ('blue', 'gold')").fetchone()[0]
+                    score += verified_users * 300
+            except Exception:
+                pass
+        if "posts" in tables:
+            score += 500
+            try:
+                post_count = cur.execute("SELECT COUNT(*) FROM posts").fetchone()[0]
+                score += min(post_count, 20) * 8
+            except Exception:
+                pass
+        if "wallets" in tables:
+            score += 50
+        return score
+    except Exception:
+        return -1
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 def _resolve_database_path():
     explicit_path = ""
     if DATABASE_URL.startswith("sqlite:///"):
         explicit_path = DATABASE_URL[len("sqlite:///"):].strip()
 
-    candidates = [
+    candidates = []
+    if explicit_path:
+        candidates.append(explicit_path)
+
+    candidates.extend([
         os.path.join(BASE_DIR, "altajobs.db"),
         os.path.join(BASE_DIR, "database.db"),
         os.path.join(DATA_DIR, "database.db"),
-    ]
-    if explicit_path:
-        candidates.append(explicit_path)
+    ])
 
     seen = set()
     ordered = []
@@ -84,9 +131,10 @@ def _resolve_database_path():
         seen.add(normalized)
         ordered.append(normalized)
 
-    for candidate in ordered:
-        if os.path.exists(candidate):
-            return candidate
+    existing = [candidate for candidate in ordered if os.path.exists(candidate)]
+    if existing:
+        ranked = sorted(existing, key=lambda path: (-_database_preference_score(path), -os.path.getmtime(path)))
+        return ranked[0]
 
     return os.path.join(DATA_DIR, "database.db")
 
