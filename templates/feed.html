@@ -70,8 +70,12 @@
     </div>
   </div>
   {% endif %}
-
   {% if not posts_data %}
+    {% if db_warning_message %}
+      <div class="debug-banner" style="border:1px dashed #f0ad4e;padding:10px;margin-bottom:8px;background:#fff7e6;color:#6a4b00;">
+        <strong>Debug:</strong> {{ db_warning_message }}
+      </div>
+    {% endif %}
     <div class="empty-state-note" id="noPostsMsg">
       <i class='bx bx-news'></i>
       <span>{{ t.no_posts }}</span>

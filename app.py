@@ -2898,6 +2898,33 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE):
                ORDER BY p.created_at DESC"""
 
         posts = db.execute(posts_query, (page_size, offset)).fetchall()
+        # Temporary diagnostic: log a small sanitized sample of rows returned
+        try:
+            sample_rows = []
+            for r in (posts or [])[:3]:
+                try:
+                    row = dict(r) if hasattr(r, 'keys') else dict(r)
+                except Exception:
+                    # fallback for simple tuples
+                    try:
+                        row = {i: r[i] for i in range(len(r))}
+                    except Exception:
+                        row = {}
+                sample = {
+                    'id': row.get('id'),
+                    'user_id': row.get('user_id'),
+                    'username': row.get('username') or None,
+                    'full_name': row.get('full_name') or None,
+                    'verification_tier': row.get('verification_tier') or None,
+                    'status': row.get('status') or None,
+                    'created_at': row.get('created_at') or None,
+                    'content_preview': (row.get('content') or '')[:120].replace('\n', ' '),
+                }
+                sample_rows.append(sample)
+            if sample_rows:
+                app.logger.info("Feed sample rows: %s", sample_rows)
+        except Exception:
+            pass
     except Exception as exc:
         print(f"Warning: could not load feed posts: {exc}")
         posts = []
@@ -3026,6 +3053,27 @@ def feed():
 
     has_posts = len(posts_data) > 0
 
+    db_warning_message = None
+    if not has_posts:
+        try:
+            # try to get a quick posts count to help diagnose empty-feed issues
+            posts_count = 0
+            try:
+                posts_count = db.execute("SELECT COUNT(*) as c FROM posts").fetchone()["c"]
+            except Exception:
+                # fallback for DBs where posts table may be missing
+                try:
+                    posts_count = db.execute("SELECT COUNT(*) FROM posts").fetchone()[0]
+                except Exception:
+                    posts_count = 0
+
+            app.logger.info(f"Feed loaded with 0 posts for user={getattr(user,'id',None)}; resolved DATABASE={DATABASE}; is_sqlite={db.is_sqlite}; posts_count={posts_count}")
+            if posts_count == 0:
+                db_warning_message = f"No posts found in database ({os.path.basename(DATABASE)}). If you expect posts, verify the app's DATABASE setting and that the DB contains posts."
+        except Exception:
+            # swallow any diagnostics errors
+            pass
+
     return render_template(
         "feed.html",
         posts_data=posts_data,
@@ -3035,6 +3083,7 @@ def feed():
         has_next=has_next,
         days_left=trial_days_left(user) if user else 0,
         show_trial_banner=bool(user and not _get_row_value(user, "paid_until")),
+        db_warning_message=db_warning_message,
     )
 
 
@@ -3060,6 +3109,46 @@ def feed_load_more(page):
         "has_posts": len(posts_data) > 0,
         "page": page,
     })
+
+
+@app.route('/__debug/db')
+def debug_db():
+    """Restricted debug endpoint returning resolved DB path and quick counts.
+    Only available when running in debug mode or from localhost to avoid public data leaks.
+    """
+    allowed_local = request.remote_addr in ("127.0.0.1", "::1")
+    if not (app.debug or app.config.get('TESTING') or allowed_local):
+        abort(404)
+
+    info = {"resolved_database": DATABASE}
+    try:
+        db = get_db()
+        info['is_sqlite'] = bool(db.is_sqlite)
+        # try counts via the configured DB connection
+        try:
+            r = db.execute("SELECT COUNT(*) as c FROM posts").fetchone()
+            info['posts'] = r['c'] if isinstance(r, dict) or hasattr(r, 'keys') else r[0]
+        except Exception:
+            info['posts'] = None
+        try:
+            r = db.execute("SELECT COUNT(*) as c FROM users").fetchone()
+            info['users'] = r['c'] if isinstance(r, dict) or hasattr(r, 'keys') else r[0]
+        except Exception:
+            info['users'] = None
+        try:
+            # table info: DB-neutral attempt; for sqlite -> PRAGMA, for PG -> information_schema
+            if db.is_sqlite:
+                r = db.execute("PRAGMA table_info(users)").fetchall()
+                info['user_columns'] = [row[1] for row in r]
+            else:
+                r = db.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'").fetchall()
+                info['user_columns'] = [row[0] for row in r]
+        except Exception:
+            info['user_columns'] = None
+    except Exception as exc:
+        info['error'] = str(exc)
+
+    return jsonify(info)
 
 
 @app.route("/home.html")
