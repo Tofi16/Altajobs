@@ -37,6 +37,48 @@
   color: var(--accent);
   font-size: 1.2rem;
 }
+
+/* Premium banner variant — distinguishes paid upgrades (Verified, VIP) from
+   plain menu links like "Join Challenge" */
+.upgrade-link.upgrade-premium {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(29, 155, 240, 0.28);
+  background: linear-gradient(120deg, rgba(29, 155, 240, 0.14), rgba(88, 80, 248, 0.12) 60%, rgba(15, 23, 42, 0.4));
+  box-shadow: 0 10px 26px rgba(2, 6, 23, 0.22);
+}
+.upgrade-link.upgrade-premium::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120px 80px at 12% 20%, rgba(255,255,255,0.12), transparent 70%);
+  pointer-events: none;
+}
+.upgrade-link.upgrade-premium:hover {
+  border-color: rgba(29, 155, 240, 0.45);
+  transform: translateY(-1px);
+}
+.upgrade-link.upgrade-premium .upgrade-icon {
+  background: linear-gradient(135deg, var(--accent), #5850f8);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(29, 155, 240, 0.32);
+}
+.upgrade-link.upgrade-premium.upgrade-vip {
+  border-color: rgba(234, 179, 8, 0.32);
+  background: linear-gradient(120deg, rgba(234, 179, 8, 0.16), rgba(217, 119, 6, 0.1) 60%, rgba(15, 23, 42, 0.4));
+}
+.upgrade-link.upgrade-premium.upgrade-vip .upgrade-icon {
+  background: linear-gradient(135deg, #eab308, #d97706);
+  color: #1a1300;
+  box-shadow: 0 6px 16px rgba(234, 179, 8, 0.32);
+}
+.upgrade-link.upgrade-premium.upgrade-vip:hover {
+  border-color: rgba(234, 179, 8, 0.5);
+}
+.upgrade-link.upgrade-premium .upgrade-action {
+  position: relative;
+  z-index: 1;
+}
 .upgrade-copy {
   flex: 1;
   min-width: 0;
@@ -89,7 +131,7 @@
 <div class="card" style="padding:0;">
   <div class="settings-section-title">Premium Upgrades</div>
   <div class="upgrade-list">
-    <a href="{{ url_for('checkout', tier='blue', duration='1m') }}" class="upgrade-row upgrade-link">
+    <a href="{{ url_for('checkout', tier='blue', duration='1m') }}" class="upgrade-row upgrade-link upgrade-premium">
       <div class="upgrade-icon"><i class='bx bx-check-shield'></i></div>
       <div class="upgrade-copy">
         <div class="upgrade-title">{{ t.get_verified }}</div>
@@ -98,7 +140,7 @@
       <span class="upgrade-action">Upgrade</span>
     </a>
 
-    <a href="{{ url_for('checkout', tier='gold', duration='1y') }}" class="upgrade-row upgrade-link">
+    <a href="{{ url_for('checkout', tier='gold', duration='1y') }}" class="upgrade-row upgrade-link upgrade-premium upgrade-vip">
       <div class="upgrade-icon"><i class='bx bx-crown'></i></div>
       <div class="upgrade-copy">
         <div class="upgrade-title">{{ t.get_vip }}</div>

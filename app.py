@@ -1971,12 +1971,15 @@ def get_verification_tier(user):
             return "none"
     until = _field(user, "verified_until")
     if not until:
-        return "none"
+        # No expiry set (e.g. admin-granted or legacy backfilled row) —
+        # treat as a permanently active badge instead of hiding it.
+        return tier
     try:
         if datetime.datetime.utcnow() > datetime.datetime.fromisoformat(until):
             return "none"
     except Exception:
-        return "none"
+        # Unparseable date shouldn't silently hide a real badge either.
+        return tier
     return tier
 
 

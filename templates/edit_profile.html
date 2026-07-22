@@ -1,32 +1,209 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card">
-  <h2>{{ t.edit_profile }}</h2>
-  <form method="POST" enctype="multipart/form-data">
-    <label>{{ t.username }}</label>
-    <input type="text" name="username" value="{{ user['username'] or '' }}" required>
+<style>
+  /* ---------- Edit Profile: modern vertical form ---------- */
+  .ep-shell {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 4px 4px 24px;
+  }
+  .ep-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text);
+    margin: 4px 4px 18px;
+  }
+  .ep-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .ep-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ep-group label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--muted);
+    padding-left: 2px;
+  }
+  .ep-group input[type="text"],
+  .ep-group textarea {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    outline: none;
+    transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+  }
+  .ep-group input[type="text"]::placeholder,
+  .ep-group textarea::placeholder {
+    color: var(--muted);
+    opacity: 0.7;
+  }
+  .ep-group input[type="text"]:focus,
+  .ep-group textarea:focus {
+    border-color: var(--accent);
+    background: rgba(29, 155, 240, 0.06);
+    box-shadow: 0 0 0 3px rgba(29, 155, 240, 0.15);
+  }
+  .ep-group textarea {
+    resize: vertical;
+    min-height: 90px;
+  }
 
-    <label>{{ t.full_name }}</label>
-    <input type="text" name="full_name" value="{{ user['full_name'] or '' }}">
+  /* Custom file upload */
+  .ep-upload {
+    position: relative;
+  }
+  .ep-upload input[type="file"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .ep-upload-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px dashed rgba(255, 255, 255, 0.18);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text);
+    transition: border-color 0.16s ease, background 0.16s ease;
+  }
+  .ep-upload:hover .ep-upload-box,
+  .ep-upload:focus-within .ep-upload-box {
+    border-color: var(--accent);
+    background: rgba(29, 155, 240, 0.06);
+  }
+  .ep-upload-icon {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: #fff;
+    font-size: 1.1rem;
+  }
+  .ep-upload-copy { min-width: 0; flex: 1; }
+  .ep-upload-title { font-weight: 700; font-size: 0.9rem; color: var(--text); }
+  .ep-upload-sub { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+  .ep-upload-filename {
+    font-size: 0.78rem;
+    color: var(--accent);
+    margin-top: 2px;
+    display: none;
+    word-break: break-all;
+  }
+  .ep-upload-filename.show { display: block; }
 
-    <label>{{ t.phone }}</label>
-    <input type="text" name="phone" value="{{ user['phone'] or '' }}">
+  .ep-submit {
+    width: 100%;
+    border: none;
+    border-radius: 999px;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: #fff;
+    font-weight: 800;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 4px;
+    box-shadow: 0 10px 24px rgba(29, 155, 240, 0.28);
+    transition: transform 0.14s ease, box-shadow 0.14s ease, opacity 0.14s ease;
+  }
+  .ep-submit:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(29, 155, 240, 0.36);
+  }
+  .ep-submit:active { transform: translateY(0); opacity: 0.92; }
+
+  @media (max-width: 480px) {
+    .ep-shell { padding: 4px 0 20px; }
+  }
+</style>
+
+<div class="ep-shell">
+  <h2 class="ep-title">{{ t.edit_profile }}</h2>
+
+  <form method="POST" enctype="multipart/form-data" class="ep-form">
+    <div class="ep-group">
+      <label for="ep-username">{{ t.username }}</label>
+      <input id="ep-username" type="text" name="username" value="{{ user['username'] or '' }}" required>
+    </div>
+
+    <div class="ep-group">
+      <label for="ep-full-name">{{ t.full_name }}</label>
+      <input id="ep-full-name" type="text" name="full_name" value="{{ user['full_name'] or '' }}">
+    </div>
+
+    <div class="ep-group">
+      <label for="ep-phone">{{ t.phone }}</label>
+      <input id="ep-phone" type="text" name="phone" value="{{ user['phone'] or '' }}">
+    </div>
 
     {% if user['user_type'] == 'worker' %}
-      <label>{{ t.skills }}</label>
-      <textarea name="skills">{{ user['skills'] or '' }}</textarea>
+      <div class="ep-group">
+        <label for="ep-skills">{{ t.skills }}</label>
+        <textarea id="ep-skills" name="skills">{{ user['skills'] or '' }}</textarea>
+      </div>
 
-      <label>{{ t.experience }}</label>
-      <textarea name="experience">{{ user['experience'] or '' }}</textarea>
+      <div class="ep-group">
+        <label for="ep-experience">{{ t.experience }}</label>
+        <textarea id="ep-experience" name="experience">{{ user['experience'] or '' }}</textarea>
+      </div>
     {% endif %}
 
-    <label>{{ t.bio }}</label>
-    <textarea name="bio">{{ user['bio'] or '' }}</textarea>
+    <div class="ep-group">
+      <label for="ep-bio">{{ t.bio }}</label>
+      <textarea id="ep-bio" name="bio">{{ user['bio'] or '' }}</textarea>
+    </div>
 
-    <label>{{ t.add_photo }} ({{ t.profile }})</label>
-    <input type="file" name="avatar" accept="image/*">
+    <div class="ep-group">
+      <label>{{ t.add_photo }} ({{ t.profile }})</label>
+      <div class="ep-upload">
+        <input type="file" name="avatar" id="ep-avatar" accept="image/*">
+        <div class="ep-upload-box">
+          <div class="ep-upload-icon"><i class='bx bx-camera'></i></div>
+          <div class="ep-upload-copy">
+            <div class="ep-upload-title">{{ t.add_photo }}</div>
+            <div class="ep-upload-sub">PNG, JPG — tap to choose a file</div>
+            <div class="ep-upload-filename" id="ep-avatar-filename"></div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <button type="submit" class="btn btn-full">{{ t.edit_profile }}</button>
+    <button type="submit" class="ep-submit">{{ t.save_changes if t.save_changes is defined else 'Save Changes' }}</button>
   </form>
 </div>
+
+<script>
+  (function () {
+    var fileInput = document.getElementById('ep-avatar');
+    var filenameEl = document.getElementById('ep-avatar-filename');
+    if (fileInput && filenameEl) {
+      fileInput.addEventListener('change', function () {
+        if (fileInput.files && fileInput.files.length > 0) {
+          filenameEl.textContent = '✓ ' + fileInput.files[0].name;
+          filenameEl.classList.add('show');
+        } else {
+          filenameEl.classList.remove('show');
+        }
+      });
+    }
+  })();
+</script>
 {% endblock %}

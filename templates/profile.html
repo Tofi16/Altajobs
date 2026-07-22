@@ -31,19 +31,22 @@
 
       <div class="min-w-0 flex-1">
         <div class="profile-pill-row flex flex-wrap items-center gap-1.5">
-          <h1 class="truncate text-base font-extrabold text-slate-100 lg:text-lg">{{ profile_user['full_name'] or profile_user['username'] }}</h1>
-          {% set v_tier = get_verification_tier(profile_user) %}
-          {% if v_tier == 'gold' %}
-            <span class="profile-tier-pill">
+          <h1 class="truncate text-base font-extrabold text-slate-100 lg:text-lg flex items-center gap-1">
+            {{ profile_user['full_name'] or profile_user['username'] }}
+            {% set v_tier = get_verification_tier(profile_user) %}
+            {% if v_tier in ('blue', 'gold') %}
               {{ verification_badge_svg(profile_user) }}
+            {% endif %}
+          </h1>
+          {% if v_tier == 'gold' %}
+            <span class="profile-tier-pill profile-tier-pill--gold">
               {{ t.vip if t.vip is defined else 'VIP' }}
               {% if verification_days_left(profile_user) is not none %}
                 · {{ verification_days_left(profile_user) }} {{ t.days_left|lower }}
               {% endif %}
             </span>
           {% elif v_tier == 'blue' %}
-            <span class="profile-tier-pill">
-              {{ verification_badge_svg(profile_user) }}
+            <span class="profile-tier-pill profile-tier-pill--blue">
               {{ t.verified if t.verified is defined else 'Verified' }}
               {% if verification_days_left(profile_user) is not none %}
                 · {{ verification_days_left(profile_user) }} {{ t.days_left|lower }}
