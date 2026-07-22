@@ -331,6 +331,8 @@ def get_db():
             "ALTER TABLE posts ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0",
             "ALTER TABLE posts ADD COLUMN IF NOT EXISTS virality_score REAL DEFAULT 0.0",
             "ALTER TABLE posts ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'approved'",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS points INTEGER DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS activity_badge TEXT DEFAULT 'Bronze Member'",
         ]
         for s in stmts:
             try:
@@ -3280,12 +3282,21 @@ def new_post():
         except Exception:
             pass
         db.execute(insert_sql, tuple(insert_values))
-        # Award points for creating a post
+        db.commit()  # commit the post insert on its own before touching anything else
+        # Award points for creating a post. This is best-effort and must never be
+        # allowed to poison/rollback the post insert above if it fails (e.g. a
+        # missing/renamed column) — Postgres aborts the whole transaction on any
+        # error, and a later commit() on an aborted transaction silently rolls
+        # back instead of raising, which would delete the post with no error.
         try:
             db.execute("UPDATE users SET points = COALESCE(points,0) + ? WHERE id = ?", (10, session["user_id"]))
-        except Exception:
-            pass
-        db.commit()
+            db.commit()
+        except Exception as points_exc:
+            print(f"Warning: could not award post points: {points_exc}")
+            try:
+                db.rollback()
+            except Exception:
+                pass
         try:
             app.logger.info("New post committed: user_id=%s", session.get("user_id"))
         except Exception:
