@@ -1,112 +1,151 @@
+<style>
+  .xpost { border-bottom: 1px solid rgba(255,255,255,0.08); padding: 14px 16px; display: flex; gap: 12px; background: transparent; transition: background 0.15s ease; }
+  .xpost:hover { background: rgba(255,255,255,0.025); }
+  .xpost-avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg,#10b981,#047857); color: #05130d; font-weight: 800; font-size: 1.05rem; text-decoration: none; }
+  .xpost-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .xpost-body { flex: 1; min-width: 0; }
+  .xpost-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .xpost-headline { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; }
+  .xpost-name { font-weight: 800; color: #f1f5f9; text-decoration: none; font-size: 0.95rem; }
+  .xpost-badge { display: inline-flex; align-items: center; }
+  .xpost-meta { color: #71767b; font-size: 0.87rem; font-weight: 400; }
+  .xpost-dot::before { content: "·"; margin: 0 4px; color: #71767b; }
+  .xpost-menu-btn { border: none; background: transparent; color: #71767b; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+  .xpost-menu-btn:hover { background: rgba(29,155,240,0.1); color: #1d9bf0; }
+  .xpost-content { color: #e7e9ea; font-size: 0.96rem; line-height: 1.45; margin: 2px 0 8px; white-space: pre-wrap; word-break: break-word; }
+  .xpost-content.xpost-clamped { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+  .xpost-seemore { background: none; border: none; color: #1d9bf0; font-weight: 700; font-size: 0.9rem; cursor: pointer; padding: 2px 0; margin-bottom: 6px; display: none; }
+  .xpost-photo-wrap { border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; margin-bottom: 10px; }
+  .xpost-photo { width: 100%; max-height: 420px; object-fit: cover; display: block; }
+  .xpost-job-pill { display: inline-flex; align-items: center; gap: 4px; background: rgba(16,185,129,0.12); color: #34d399; font-size: 0.78rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; margin-bottom: 8px; }
+  .xpost-actions { display: flex; align-items: center; gap: 4px; margin-top: 2px; max-width: 380px; }
+  .xpost-action { display: flex; align-items: center; gap: 6px; border: none; background: transparent; color: #71767b; font-size: 0.85rem; font-weight: 500; cursor: pointer; padding: 6px 10px; border-radius: 999px; text-decoration: none; }
+  .xpost-action i { font-size: 1.15rem; }
+  .xpost-action.like:hover, .xpost-action.like.liked { color: #f91880; background: rgba(249,24,128,0.1); }
+  .xpost-action.comment:hover { color: #1d9bf0; background: rgba(29,155,240,0.1); }
+  .xpost-action.share:hover, .xpost-action.save:hover { color: #10b981; background: rgba(16,185,129,0.1); }
+  .xpost-action.follow-btn { margin-left: auto; border: 1px solid rgba(255,255,255,0.15); border-radius: 999px; padding: 5px 14px; font-weight: 700; color: #e7e9ea; }
+  .xpost-action.follow-btn.following { background: transparent; }
+  .xpost-action.follow-btn:not(.following) { background: #10b981; color: #05130d; border-color: transparent; }
+</style>
+
 {% for item in posts_data %}
-  {% set post = item['post'] if item is mapping else (item.post if item.post is defined else {}) %}
-  {% set post_id = post['id'] if (post is mapping and 'id' in post.keys()) else (post.get('id') if post is mapping else '') %}
-  {% set post_user_id = post['user_id'] if (post is mapping and 'user_id' in post.keys()) else (post.get('user_id') if post is mapping else '') %}
-  {% set post_type = (post['post_type'] if (post is mapping and 'post_type' in post.keys()) else (post.get('post_type') if post is mapping else 'general')) %}
-  {% set post_content = post['content'] if (post is mapping and 'content' in post.keys()) else (post.get('content','') if post is mapping else '') %}
-  {% set post_photo = post['photo'] if (post is mapping and 'photo' in post.keys()) else (post.get('photo') if post is mapping else None) %}
-  {% if not post_photo and post is mapping %}
-    {% set post_photo = post.get('post_photo') or post.get('image') or post.get('media_url') %}
-  {% endif %}
-  {% set post_created_at = post['created_at'] if (post is mapping and 'created_at' in post.keys()) else (post.get('created_at','') if post is mapping else '') %}
-  {% set post_view_count = post['view_count'] if (post is mapping and 'view_count' in post.keys()) else (post.get('view_count',0) if post is mapping else 0) %}
-  <div class="card post-card {{ 'post-card-job' if post_type == 'job' }} relative bg-white rounded-xl shadow-sm border border-gray-100 p-4" data-post-type="{{ post_type }}">
-    <button type="button" class="post-menu-btn js-post-menu-btn absolute top-3 right-3 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full p-1.5 transition-colors"
-            data-post-id="{{ post_id }}"
-            data-can-delete="{{ '1' if (post_user_id == current_user['id'] or current_user['is_admin']) else '0' }}"
-            data-can-report="{{ '0' if post_user_id == current_user['id'] else '1' }}"
-            aria-label="More options">
-      <i class='bx bx-dots-vertical-rounded'></i>
-    </button>
-    <div class="post-header flex items-start gap-3 mb-2 pr-8">
-      <a href="{{ url_for('profile', user_id=post_user_id) }}" class="avatar w-11 h-11 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center font-semibold overflow-hidden flex-shrink-0">
-        {% if post.get('avatar') %}
-          <img src="{{ photo_url(post.get('avatar')) }}" loading="lazy" decoding="async" alt="{{ item['author_name'] }}" class="w-full h-full object-cover">
-        {% else %}
-          {{ item['author_name'][0] if item['author_name'] else 'U' }}
-        {% endif %}
-      </a>
-      <div class="post-header-body flex-1 min-w-0">
-        <div class="post-header-meta flex items-center flex-wrap gap-1.5">
-          <a href="{{ url_for('profile', user_id=post_user_id) }}" class="post-author font-semibold text-gray-900 hover:underline text-[15px]">
-            {{ item['author_name'] }}
-          </a>
-          {{ verification_badge_svg(post) }}
-          {% if post_user_id != current_user['id'] %}
-            <button type="button" class="follow-btn js-follow-btn {{ 'following' if item['following'] }} text-xs font-semibold text-blue-600 hover:underline ml-1"
-                    data-user-id="{{ post_user_id }}"
-                    data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
-              {{ t.unfollow if item['following'] else t.follow }}
-            </button>
-          {% endif %}
-        </div>
-        <span class="badge badge-{{ post_type }} inline-block text-[11px] font-medium px-2 py-0.5 rounded-full mt-0.5">
-          {% if post_type == 'job' %}{{ t.post_job }}
-          {% elif post_type == 'skill' %}{{ t.job_seeker_post }}
-          {% else %}{{ t.feed }}{% endif %}
-        </span>
-        <div class="post-meta text-xs text-gray-400 mt-1 flex items-center gap-1">{{ post_created_at[:16].replace('T',' ') if post_created_at else '' }} · <i class='bx bx-show'></i> {{ post_view_count }}</div>
-      </div>
-    </div>
-
-    {% if post_type == 'job' and post_content %}
-      {% set job_lines = post_content.split('\n') %}
-      <div class="job-eyebrow flex items-center gap-1.5 text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1"><i class='bx bxs-briefcase'></i> Job Opportunity</div>
-      <h3 class="job-title text-lg font-semibold text-gray-900 mb-1">{{ job_lines[0] }}</h3>
-      {% if job_lines|length > 1 %}
-        <p class="post-content job-description text-gray-700 text-[15px] leading-relaxed whitespace-pre-line mb-3">{{ job_lines[1:] | join('\n') | trim }}</p>
+  {% set post = item.post %}
+  <article class="xpost" data-post-type="{{ post.post_type }}">
+    <a href="{{ url_for('profile', user_id=post.user_id) }}" class="xpost-avatar">
+      {% if post.avatar %}
+        <img src="{{ photo_url(post.avatar) }}" loading="lazy" alt="">
+      {% else %}
+        {{ (post.full_name or post.username)[0]|upper }}
       {% endif %}
-    {% elif post_content %}
-      <p class="post-content text-gray-700 text-[15px] leading-relaxed whitespace-pre-line mb-3">{{ post_content }}</p>
-    {% endif %}
-    {% if post_photo %}
-      <div class="post-media rounded-lg overflow-hidden mb-3" data-post-id="{{ post_id }}">
-        <img class="post-photo w-full h-auto object-cover" src="{{ photo_url(post_photo) }}" alt="Product preview" loading="lazy" decoding="async" fetchpriority="low">
-        <div class="double-tap-heart" aria-hidden="true"><i class='bx bxs-heart'></i></div>
-      </div>
-    {% endif %}
-
-    <div class="product-engagement-card border-t border-gray-100 pt-1 mt-1">
-      <div class="engagement-bar post-footer flex items-center gap-1">
-        <button type="button" class="post-action-btn js-like-btn {{ 'liked' if item['liked'] }} flex items-center gap-1.5 text-gray-500 hover:text-blue-600 hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium"
-                data-post-id="{{ post_id }}" aria-label="Like">
-          <svg viewBox="0 0 24 24" class="post-action-icon w-[18px] h-[18px]" aria-hidden="true"><path d="M12 21s-7.33-4.07-10-7.72C-1.8 9.55.9 4.97 5.4 4.97c2.9 0 4.3 1.9 6.6 4.68C13.3 6.87 14.7 4.97 17.6 4.97c4.5 0 7.2 4.58 3.4 8.31C19.33 16.93 12 21 12 21z"></path></svg>
-          <span>{{ item['like_count'] }}</span>
+    </a>
+    <div class="xpost-body">
+      <div class="xpost-head">
+        <div class="xpost-headline">
+          <a href="{{ url_for('profile', user_id=post.user_id) }}" class="xpost-name">{{ item.author_name }}</a>
+          <span class="xpost-badge">{{ verification_badge_svg(post) }}</span>
+          <span class="xpost-meta xpost-dot">@{{ post.username }} · {{ post.created_at[:16].replace('T',' ') if post.created_at else '' }}</span>
+        </div>
+        <button type="button" class="xpost-menu-btn js-post-menu-btn"
+                data-post-id="{{ post.id }}"
+                data-delete-url="{{ url_for('delete_post', post_id=post.id) }}"
+                aria-label="More options">
+          <i class='bx bx-dots-horizontal-rounded'></i>
         </button>
-        <a href="{{ url_for('post_detail', post_id=post_id) }}#comments" class="post-action-btn flex items-center gap-1.5 text-gray-500 hover:text-blue-600 hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium" aria-label="Comment">
-          <svg viewBox="0 0 24 24" class="post-action-icon w-[18px] h-[18px]" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"></path></svg>
-          <span>{{ item['comment_count'] }}</span>
-        </a>
-        <form method="POST" action="{{ url_for('share_post', post_id=post_id) }}">
-          <button type="submit" class="post-action-btn text-gray-500 hover:text-blue-600 hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-colors flex items-center" aria-label="Share">
-            <svg viewBox="0 0 24 24" class="post-action-icon w-[18px] h-[18px]" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>
-          </button>
-        </form>
-        <form method="POST" action="{{ url_for('save_post', post_id=post_id) }}" class="ml-auto">
-          <button type="submit" class="post-action-btn {{ 'saved' if item['saved'] }} text-gray-500 hover:text-blue-600 hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-colors flex items-center" aria-label="Save">
-            <svg viewBox="0 0 24 24" class="post-action-icon w-[18px] h-[18px]" aria-hidden="true"><path d="M6 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18l-6-4-6 4V4Z"></path></svg>
-          </button>
-        </form>
       </div>
-    </div>
 
-    {% if post_type == 'job' %}
-      <div class="job-actions flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-        {% if post_user_id == current_user['id'] %}
-          <a href="{{ url_for('view_applicants', post_id=post_id) }}" class="btn-apply btn-full flex-1 flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm px-4 py-2 rounded-lg transition-colors">
-            <i class='bx bxs-user-detail'></i> {{ t.applicants }}
-          </a>
-        {% elif item['applied'] %}
-          <button class="btn-apply btn-disabled flex-1 flex items-center justify-center gap-1.5 bg-gray-100 text-gray-400 font-medium text-sm px-4 py-2 rounded-lg cursor-not-allowed" disabled>
-            <i class='bx bx-check'></i> {{ t.applied }}
+      {% if post.post_type == 'job' %}
+        <div class="xpost-job-pill">💼 {{ t.post_job if t.post_job is defined else 'Job' }}</div>
+      {% endif %}
+
+      {% if post.content %}
+        <a href="{{ url_for('post_detail', post_id=post.id) }}" style="text-decoration:none">
+          <p class="xpost-content xpost-clamped js-xpost-content">{{ post.content }}</p>
+        </a>
+        <button type="button" class="xpost-seemore js-xpost-seemore">{{ t.see_more if t.see_more is defined else 'See more' }}</button>
+      {% endif %}
+
+      {% if post.photo %}
+        <a href="{{ url_for('post_detail', post_id=post.id) }}" class="xpost-photo-wrap">
+          <img class="xpost-photo" src="{{ photo_url(post.photo) }}" loading="lazy" alt="">
+        </a>
+      {% endif %}
+
+      <div class="xpost-actions">
+        <button type="button" class="xpost-action like js-like-btn {{ 'liked' if item.liked }}"
+                data-post-id="{{ post.id }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}">
+          <i class='bx {{ "bxs-heart" if item.liked else "bx-heart" }}'></i>
+          <span class="like-count">{{ item.like_count }}</span>
+        </button>
+        <a href="{{ url_for('post_detail', post_id=post.id) }}" class="xpost-action comment">
+          <i class='bx bx-comment'></i><span>{{ item.comment_count }}</span>
+        </a>
+        <form method="POST" action="{{ url_for('share_post', post_id=post.id) }}" style="margin:0">
+          <button type="submit" class="xpost-action share">
+            <i class='bx bx-repost'></i><span>{{ post.share_count or 0 }}</span>
           </button>
-        {% else %}
-          <form method="POST" action="{{ url_for('apply_to_job', post_id=post_id) }}" class="job-action-form job-action-form-apply flex-1">
-            <button type="submit" class="btn-apply btn-full w-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm px-4 py-2 rounded-lg transition-colors">{{ t.apply_now }}</button>
-          </form>
+        </form>
+        {% if current_user and post.user_id != current_user['id'] %}
+          <button type="button" class="xpost-action follow-btn js-follow-btn {{ 'following' if item.following }}"
+                  data-user-id="{{ post.user_id }}"
+                  data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
+            {{ t.unfollow if item.following else t.follow }}
+          </button>
         {% endif %}
       </div>
-    {% endif %}
-
-  </div>
+    </div>
+  </article>
 {% endfor %}
+
+<script>
+(function () {
+  // "See more" truncation toggle - guarded so this only wires up once even
+  // if this partial is re-inserted (e.g. by the "Load More" AJAX handler).
+  document.querySelectorAll('.js-xpost-content').forEach(function (el) {
+    if (el.dataset.xpostBound) return;
+    el.dataset.xpostBound = '1';
+    // Only show the "See more" button if the text actually overflows the clamp.
+    if (el.scrollHeight > el.clientHeight + 4) {
+      var btn = el.parentElement.querySelector('.js-xpost-seemore');
+      if (btn) {
+        btn.style.display = 'inline-block';
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          el.classList.remove('xpost-clamped');
+          btn.style.display = 'none';
+        });
+      }
+    }
+  });
+
+  // Post options menu (⋯) -> reuses the existing bottom sheet in feed.html
+  // (#bottomSheetOverlay / #postActionsSheet / #sheetDeleteForm /
+  // #sheetReportTargetId). Delegated + guarded against double-binding.
+  if (!window.__xpostMenuBound) {
+    window.__xpostMenuBound = true;
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('.js-post-menu-btn');
+      if (!btn) return;
+      var overlay = document.getElementById('bottomSheetOverlay');
+      var sheet = document.getElementById('postActionsSheet');
+      var deleteForm = document.getElementById('sheetDeleteForm');
+      var reportTargetId = document.getElementById('sheetReportTargetId');
+      if (!overlay || !sheet) return;
+      if (deleteForm) deleteForm.action = btn.dataset.deleteUrl || '#';
+      if (reportTargetId) reportTargetId.value = btn.dataset.postId || '';
+      overlay.classList.add('open');
+      sheet.classList.add('open');
+    });
+    var cancelBtn = document.getElementById('sheetCancelBtn');
+    var overlayEl = document.getElementById('bottomSheetOverlay');
+    function closeSheet() {
+      var sheet = document.getElementById('postActionsSheet');
+      if (overlayEl) overlayEl.classList.remove('open');
+      if (sheet) sheet.classList.remove('open');
+    }
+    if (cancelBtn) cancelBtn.addEventListener('click', closeSheet);
+    if (overlayEl) overlayEl.addEventListener('click', closeSheet);
+  }
+})();
+</script>

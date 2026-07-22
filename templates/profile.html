@@ -32,7 +32,6 @@
       <div class="min-w-0 flex-1">
         <div class="profile-pill-row flex flex-wrap items-center gap-1.5">
           <h1 class="truncate text-base font-extrabold text-slate-100 lg:text-lg">{{ profile_user['full_name'] or profile_user['username'] }}</h1>
-          <span class="profile-activity-pill">{{ activity_badge_for(profile_user) }}</span>
           {% set v_tier = get_verification_tier(profile_user) %}
           {% if v_tier == 'gold' %}
             <span class="profile-tier-pill">
@@ -53,10 +52,6 @@
           {% endif %}
         </div>
         <div class="mt-0.5 text-xs text-slate-500">@{{ profile_user['username'] }} · {{ t.worker if profile_user['user_type'] == 'worker' else t.employer }}</div>
-
-        <div class="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-400">
-          🏅 {{ activity_badge_for(profile_user) }} · {{ profile_user['points'] or 0 }} {{ t.points|lower if t.points is defined else 'pts' }}
-        </div>
 
         {% if profile_user['bio'] %}
           <p class="mt-2 text-sm text-slate-300">{{ profile_user['bio'] }}</p>
@@ -84,14 +79,14 @@
 
   <!-- ============ HORIZONTAL STATS BAR ============ -->
   <section class="profile-stats mt-3 grid grid-cols-3 divide-x divide-white/5 overflow-hidden rounded-2xl border border-white/5 bg-zinc-900/60 text-center">
-    <div class="profile-stat-card px-2 py-3">
+    <a href="{{ url_for('profile_followers', user_id=profile_user['id']) }}" class="profile-stat-card px-2 py-3 block hover:bg-white/5">
       <div class="text-lg font-extrabold text-slate-100">{{ followers_count }}</div>
       <div class="text-[11px] text-slate-500">{{ t.followers }}</div>
-    </div>
-    <div class="profile-stat-card px-2 py-3">
+    </a>
+    <a href="{{ url_for('profile_following', user_id=profile_user['id']) }}" class="profile-stat-card px-2 py-3 block hover:bg-white/5">
       <div class="text-lg font-extrabold text-slate-100">{{ following_count }}</div>
       <div class="text-[11px] text-slate-500">{{ t.follow }}</div>
-    </div>
+    </a>
     <div class="profile-stat-card px-2 py-3">
       <div class="text-lg font-extrabold text-slate-100">{{ posts_count }}</div>
       <div class="text-[11px] text-slate-500">{{ t.feed }}</div>

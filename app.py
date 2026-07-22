@@ -2654,8 +2654,20 @@ def record_unique_view(db, post_id, user_id):
         db.execute("UPDATE posts SET view_count = view_count + 1 WHERE id = ?", (post_id,))
         db.commit()
         return True
-    except sqlite3.IntegrityError:
-        return False  # already viewed by this user before - not counted again
+    except (sqlite3.IntegrityError, PG_INTEGRITY_ERROR):
+        # already viewed by this user before - not counted again. This must
+        # catch BOTH sqlite3's and psycopg2's IntegrityError classes: on
+        # Postgres, re-visiting a post you've already viewed (e.g. the
+        # redirect back to post_detail() right after posting a comment)
+        # raises psycopg2's IntegrityError, which is a different class from
+        # sqlite3.IntegrityError. Catching only the sqlite3 one meant this
+        # exception went uncaught on Postgres and surfaced as a 500 error
+        # every single time a post was viewed a second time.
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -3838,6 +3850,84 @@ def profile(user_id):
     )
 
 
+def _build_follow_list_entries(db, rows, current_uid):
+    """Shared helper for the followers/following lists. For each user row,
+    works out both directions of the follow relationship so the template can
+    decide between Follow / Unfollow / "Follow Back":
+      - viewer_follows: True if the logged-in viewer already follows this user
+      - follows_viewer: True if this user already follows the logged-in viewer
+    "Follow Back" is shown when follows_viewer is True but viewer_follows is
+    False - i.e. they follow you, but you haven't followed them yet.
+    """
+    entries = []
+    user_ids = [r["id"] for r in rows]
+    viewer_following_ids = set()
+    followers_of_viewer_ids = set()
+    if current_uid and user_ids:
+        placeholders = ", ".join("?" for _ in user_ids)
+        viewer_following_ids = {
+            r["followed_id"] for r in db.execute(
+                f"SELECT followed_id FROM follows WHERE follower_id = ? AND followed_id IN ({placeholders})",
+                tuple([current_uid] + user_ids),
+            ).fetchall()
+        }
+        followers_of_viewer_ids = {
+            r["follower_id"] for r in db.execute(
+                f"SELECT follower_id FROM follows WHERE followed_id = ? AND follower_id IN ({placeholders})",
+                tuple([current_uid] + user_ids),
+            ).fetchall()
+        }
+    for r in rows:
+        entries.append({
+            "user": r,
+            "viewer_follows": r["id"] in viewer_following_ids,
+            "follows_viewer": r["id"] in followers_of_viewer_ids,
+        })
+    return entries
+
+
+@app.route("/profile/<int:user_id>/followers")
+@login_required
+def profile_followers(user_id):
+    db = get_db()
+    profile_user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not profile_user:
+        abort(404)
+    rows = db.execute(
+        """SELECT users.* FROM follows
+           JOIN users ON users.id = follows.follower_id
+           WHERE follows.followed_id = ?
+           ORDER BY follows.created_at DESC""",
+        (user_id,),
+    ).fetchall()
+    entries = _build_follow_list_entries(db, rows, session.get("user_id"))
+    return render_template(
+        "follow_list.html", profile_user=profile_user, entries=entries,
+        list_kind="followers",
+    )
+
+
+@app.route("/profile/<int:user_id>/following")
+@login_required
+def profile_following(user_id):
+    db = get_db()
+    profile_user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not profile_user:
+        abort(404)
+    rows = db.execute(
+        """SELECT users.* FROM follows
+           JOIN users ON users.id = follows.followed_id
+           WHERE follows.follower_id = ?
+           ORDER BY follows.created_at DESC""",
+        (user_id,),
+    ).fetchall()
+    entries = _build_follow_list_entries(db, rows, session.get("user_id"))
+    return render_template(
+        "follow_list.html", profile_user=profile_user, entries=entries,
+        list_kind="following",
+    )
+
+
 @app.route("/settings")
 @login_required
 def settings_page():
@@ -4951,8 +5041,8 @@ def buy_verification():
         current_tier = get_verification_tier(fresh)
         new_tier = "gold" if current_tier == "gold" else "blue"
         db.execute(
-            "UPDATE users SET verification_tier = ?, verified_until = ?, is_verified = 1, is_vip = ? WHERE id = ?",
-            (new_tier, verified_until.isoformat(), 1 if new_tier == 'gold' else 0, user_id),
+            "UPDATE users SET verification_tier = ?, verified_until = ? WHERE id = ?",
+            (new_tier, verified_until.isoformat(), user_id),
         )
         # Award points for obtaining Blue Tick verification
         try:
@@ -5035,12 +5125,17 @@ def checkout():
                 base = datetime.datetime.utcnow()
 
         current_tier = get_verification_tier(current_user)
-        effective_tier = current_tier if current_tier == "gold" and plan["tier"] == "blue" else plan["tier"]
+        # Badge tier follows subscription LENGTH, not which plan card was
+        # clicked: a 12-month purchase (whether bought as "Blue" or "Gold")
+        # grants the Gold tick; a 1-month or 6-month purchase grants the
+        # Blue tick. An existing Gold tier is never downgraded by a shorter
+        # renewal purchase.
+        effective_tier = "gold" if (plan["months"] >= 12 or current_tier == "gold") else "blue"
         verified_until = base + datetime.timedelta(days=30 * plan["months"])
 
         db.execute(
-            "UPDATE users SET verification_tier = ?, verified_until = ?, is_verified = 1, is_vip = ? WHERE id = ?",
-            (effective_tier, verified_until.isoformat(), 1 if effective_tier == 'gold' else 0, session["user_id"]),
+            "UPDATE users SET verification_tier = ?, verified_until = ? WHERE id = ?",
+            (effective_tier, verified_until.isoformat(), session["user_id"]),
         )
         db.execute(
             "INSERT INTO wallet_transactions (user_id, tx_type, amount, note, status, created_at) VALUES (?, 'verification', ?, ?, 'approved', ?)",
@@ -5079,7 +5174,7 @@ def buy_vip():
                 base = datetime.datetime.utcnow()
         vip_until = base + datetime.timedelta(days=30)
         db.execute(
-            "UPDATE users SET verification_tier = 'gold', verified_until = ?, is_verified = 1, is_vip = 1 WHERE id = ?",
+            "UPDATE users SET verification_tier = 'gold', verified_until = ? WHERE id = ?",
             (vip_until.isoformat(), user["id"]),
         )
         db.execute(
