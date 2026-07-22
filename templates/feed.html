@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card new-post-box compact" id="compose">
+  <form method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data" id="composeForm">
+    <div class="compose-row">
+      <div class="avatar compose-avatar" style="width:44px;height:44px;">
+        {% if current_user['avatar'] %}
+          <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}">
+        {% else %}
+          {{ (current_user['full_name'] or current_user['username'])[0] }}
+        {% endif %}
+      </div>
+      <div class="compose-input-wrap">
+        <textarea name="content" id="composeTextarea" class="compose-textarea" rows="1"
+                  placeholder="Share a job or experience..."></textarea>
+        <label class="compose-media-icon" title="{{ t.add_photo }}">
+          <i class='bx bx-image-add'></i>
+          <input type="file" name="photo" accept="image/*" style="display:none" id="composePhotoInput">
+        </label>
+      </div>
+    </div>
+    <span class="compose-photo-name" id="composePhotoName"></span>
+    <div class="new-post-actions compose-actions-collapsed" id="composeActions">
+      <select name="post_type" class="post-type-select">
+        <option value="general">{{ t.feed }}</option>
+        <option value="job">{{ t.post_job }}</option>
+        <option value="skill">{{ t.job_seeker_post }}</option>
+      </select>
+      <button type="submit" id="composeSubmitButton" class="btn btn-primary btn-disabled" disabled>{{ t.post_button }}</button>
+    </div>
+  </form>
+</div>
+
+<div class="feed-filters" id="feedFilters">
+  <button type="button" class="filter-pill active" data-filter="all">All</button>
+  <button type="button" class="filter-pill" data-filter="job">Jobs Only 💼</button>
+  <button type="button" class="filter-pill" data-filter="general,skill">Experiences 💬</button>
+</div>
+
+<div class="feed-shell space-y-4">
+  <div class="feed-skeleton-shell" id="feedSkeletonShell" aria-hidden="true">
+    <div class="feed-skeleton-card">
+      <div class="feed-skeleton-row"></div>
+      <div class="feed-skeleton-row short"></div>
+      <div class="feed-skeleton-media"></div>
+      <div class="feed-skeleton-row"></div>
+      <div class="feed-skeleton-row short"></div>
+    </div>
+    <div class="feed-skeleton-card">
+      <div class="feed-skeleton-row"></div>
+      <div class="feed-skeleton-row short"></div>
+      <div class="feed-skeleton-media"></div>
+      <div class="feed-skeleton-row"></div>
+    </div>
+  </div>
+
+  {% if active_announcement %}
+  <div class="announcement-banner" id="announcementBanner">
+    <div class="announcement-banner-gradient"></div>
+    <div class="announcement-banner-content">
+      <div>
+        <div class="announcement-banner-tag">Live update</div>
+        <h3>{{ active_announcement['title'] }}</h3>
+        <p>{{ active_announcement['content'] }}</p>
+      </div>
+      <form method="POST" action="{{ url_for('dismiss_announcement', announcement_id=active_announcement['id']) }}" class="announcement-dismiss-form">
+        <button type="submit" class="announcement-dismiss-btn">Dismiss</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+  {% if not posts_data %}
+    {% if db_warning_message %}
+      <div class="debug-banner" style="border:1px dashed #f0ad4e;padding:10px;margin-bottom:8px;background:#fff7e6;color:#6a4b00;">
+        <strong>Debug:</strong> {{ db_warning_message }}
+      </div>
+    {% endif %}
+    <div class="empty-state-note" id="noPostsMsg">
+      <i class='bx bx-news'></i>
+      <span>{{ t.no_posts }}</span>
+    </div>
+  {% endif %}
+  <div class="empty-state-note empty-state-note-hidden" id="noFilterResultsMsg">
+    <i class='bx bx-filter-alt'></i>
+    <span>No posts match this filter yet.</span>
+  </div>
+
+<div id="feedPostsContainer">
+{% include "_feed_posts.html" %}
+</div>
+</div>
+
+<div id="feedLoadMoreWrap" class="feed-pagination" data-page="{{ page }}" data-has-next="{{ '1' if has_next else '0' }}">
+  {% if has_next %}
+    <button type="button" id="feedLoadMoreBtn" class="btn">Load More</button>
+  {% endif %}
+  <div id="feedLoadMoreSpinner" class="feed-load-more-spinner" hidden>Loading…</div>
+</div>
+
+<script>
+(function () {
+  var wrap = document.getElementById('feedLoadMoreWrap');
+  var container = document.getElementById('feedPostsContainer');
+  var btn = document.getElementById('feedLoadMoreBtn');
+  var spinner = document.getElementById('feedLoadMoreSpinner');
+  if (!wrap || !container) return;
+
+  var page = parseInt(wrap.dataset.page || '1', 10);
+  var hasNext = wrap.dataset.hasNext === '1';
+  var loading = false;
+
+  function loadNextPage() {
+    if (loading || !hasNext) return;
+    loading = true;
+    if (btn) btn.hidden = true;
+    if (spinner) spinner.hidden = false;
+
+    fetch('/feed/page/' + (page + 1), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data && data.success) {
+          if (data.html) {
+            container.insertAdjacentHTML('beforeend', data.html);
+          }
+          page = data.page;
+          hasNext = !!data.has_next;
+        } else {
+          hasNext = false;
+        }
+      })
+      .catch(function () {
+        // Network hiccup: leave the button visible so the user can retry manually.
+      })
+      .finally(function () {
+        loading = false;
+        if (spinner) spinner.hidden = true;
+        if (btn) btn.hidden = !hasNext;
+      });
+  }
+
+  if (btn) {
+    btn.addEventListener('click', loadNextPage);
+  }
+
+  // Infinite scroll: also auto-load once the button nears the viewport.
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) loadNextPage();
+      });
+    }, { rootMargin: '600px 0px' });
+    observer.observe(wrap);
+  }
+})();
+</script>
+
+<div class="bottom-sheet-overlay" id="bottomSheetOverlay"></div>
+<div class="bottom-sheet" id="postActionsSheet" role="dialog" aria-label="Post options">
+  <div class="bottom-sheet-handle"></div>
+  <form method="POST" id="sheetDeleteForm" action="">
+    <button type="submit" class="sheet-action sheet-action-danger">
+      <i class='bx bx-trash'></i> {{ t.delete }}
+    </button>
+  </form>
+  <form method="POST" id="sheetReportForm" action="{{ url_for('submit_report') }}">
+    <input type="hidden" name="target_type" value="post">
+    <input type="hidden" name="target_id" id="sheetReportTargetId" value="">
+    <input type="hidden" name="reason" value="inappropriate">
+    <button type="submit" class="sheet-action">
+      <i class='bx bx-flag'></i> Report
+    </button>
+  </form>
+  <button type="button" class="sheet-action sheet-cancel" id="sheetCancelBtn">Cancel</button>
+</div>
+
+<a href="#compose" class="fab" title="{{ t.post_a_job }}"
+   onclick="document.querySelector('select[name=post_type]').value='job';var ta=document.getElementById('composeTextarea');ta.focus();ta.dispatchEvent(new Event('focus'));">
+  <i class='bx bxs-briefcase'></i>
+</a>
+
+{% endblock %}
