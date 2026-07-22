@@ -1222,10 +1222,32 @@ def migrate_db():
         "receipt_photo": "TEXT DEFAULT NULL",
         "account_number": "TEXT DEFAULT NULL",
         "account_name": "TEXT DEFAULT NULL",
+        "refunded_at": "TEXT DEFAULT NULL",
+        "refunded_by": "INTEGER DEFAULT NULL",
     }
     for col, coltype in wallet_new_columns.items():
         if col not in wallet_cols:
             db.execute(f"ALTER TABLE wallet_transactions ADD COLUMN {col} {coltype}")
+    db.commit()
+
+    # Admin revenue payout ledger: tracks manual withdrawals of platform
+    # revenue (badge sales, platform fees) out to a recipient wallet/user.
+    # Available balance is always computed as (total revenue - sum of prior
+    # withdrawals) rather than stored as a mutable counter, so it can never
+    # drift out of sync with the underlying revenue sources.
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS admin_revenue_withdrawals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            amount REAL NOT NULL,
+            recipient_label TEXT NOT NULL,
+            recipient_user_id INTEGER DEFAULT NULL,
+            admin_id INTEGER NOT NULL,
+            note TEXT DEFAULT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(admin_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(recipient_user_id) REFERENCES users(id) ON DELETE SET NULL
+        )
+    """)
     db.commit()
 
     # backfill referral codes for any user who doesn't have one yet
@@ -5988,6 +6010,29 @@ def admin_dashboard():
                LIMIT ? OFFSET ?""",
             (page_size, withdrawal_offset),
         ).fetchall()
+
+        # Recent approved transactions across all types, for the 48-hour
+        # refund panel. refund_cutoff is computed here (not in the template)
+        # so the "is this refundable" check is a single source of truth
+        # shared with the server-side enforcement in refund_transaction().
+        refund_window_hours = 48
+        recent_transactions = db.execute(
+            """SELECT wallet_transactions.id,
+                      wallet_transactions.tx_type,
+                      wallet_transactions.amount,
+                      wallet_transactions.status,
+                      wallet_transactions.note,
+                      wallet_transactions.created_at,
+                      users.id AS user_id,
+                      users.username
+               FROM wallet_transactions
+               JOIN users ON wallet_transactions.user_id = users.id
+               WHERE wallet_transactions.status = 'approved'
+               ORDER BY wallet_transactions.created_at DESC
+               LIMIT 30""",
+        ).fetchall()
+        refund_cutoff_iso = (datetime.datetime.utcnow() - datetime.timedelta(hours=refund_window_hours)).isoformat()
+
         return render_template(
             "admin_dashboard.html",
             pending_deposits=pending_deposits,
@@ -6000,6 +6045,9 @@ def admin_dashboard():
             deposit_pages=deposit_pages,
             withdrawal_pages=withdrawal_pages,
             page_size=page_size,
+            recent_transactions=recent_transactions,
+            refund_cutoff_iso=refund_cutoff_iso,
+            refund_window_hours=refund_window_hours,
         )
     except Exception as exc:
         print(f"Admin dashboard page error: {exc}")
@@ -6016,6 +6064,9 @@ def admin_dashboard():
             deposit_pages=1,
             withdrawal_pages=1,
             page_size=20,
+            recent_transactions=[],
+            refund_cutoff_iso=(datetime.datetime.utcnow() - datetime.timedelta(hours=48)).isoformat(),
+            refund_window_hours=48,
         )
 
 
@@ -6147,10 +6198,147 @@ def reject_withdrawal(tx_id):
     return redirect(url_for("admin_dashboard"))
 
 
-@app.route("/admin/wallet/<int:tx_id>/approve", methods=["POST"])
+@app.route("/admin/refund-transaction/<int:tx_id>", methods=["POST"])
 @login_required
 @admin_required
-def approve_wallet_tx(tx_id):
+def refund_transaction(tx_id):
+    """Refund an approved transaction back to the user's wallet.
+
+    Only allowed within 48 hours of the transaction's created_at timestamp
+    (enforced here server-side, not just hidden in the UI, so this can't be
+    bypassed by posting directly to the route). Marks the transaction
+    'refunded' (a new terminal status distinct from 'approved'/'rejected' so
+    revenue totals - which filter on status = 'approved' - automatically
+    exclude refunded transactions without any extra bookkeeping). If the
+    refunded transaction was a verification or VIP purchase, the user's
+    verified badge is revoked as part of the same atomic operation.
+    """
+    db = get_db()
+    if getattr(db, "is_sqlite", False):
+        db.execute("BEGIN IMMEDIATE")
+    try:
+        tx = db.execute(
+            "SELECT * FROM wallet_transactions WHERE id = ? AND status = 'approved'",
+            (tx_id,),
+        ).fetchone()
+        if not tx:
+            db.rollback()
+            flash("Transaction was already refunded, not approved, or not found.", "warning")
+            return redirect(url_for("admin_dashboard"))
+
+        try:
+            created = datetime.datetime.fromisoformat(tx["created_at"])
+        except Exception:
+            created = None
+        if created is None or (datetime.datetime.utcnow() - created) > datetime.timedelta(hours=48):
+            db.rollback()
+            flash("This transaction is older than 48 hours and can no longer be refunded.", "warning")
+            return redirect(url_for("admin_dashboard"))
+
+        cur = db.execute(
+            "UPDATE wallet_transactions SET status = 'refunded', refunded_at = ?, refunded_by = ? "
+            "WHERE id = ? AND status = 'approved'",
+            (datetime.datetime.utcnow().isoformat(), session["user_id"], tx_id),
+        )
+        if not getattr(cur, "rowcount", 0):
+            db.rollback()
+            flash("Transaction was already processed by another admin action.", "warning")
+            return redirect(url_for("admin_dashboard"))
+
+        _credit_wallet_balance(db, tx["user_id"], tx["amount"])
+
+        if tx["tx_type"] in ("verification", "vip"):
+            db.execute(
+                "UPDATE users SET verification_tier = 'none', verified_until = NULL WHERE id = ?",
+                (tx["user_id"],),
+            )
+            add_notification(
+                db, tx["user_id"],
+                f"Your payment of {tx['amount']} ETB was refunded to your wallet and your verified badge was removed.",
+                ntype="refund",
+            )
+        else:
+            add_notification(
+                db, tx["user_id"],
+                f"Your payment of {tx['amount']} ETB was refunded to your wallet.",
+                ntype="refund",
+            )
+
+        flash(f"Refunded {tx['amount']} ETB to the user's wallet.", "success")
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/admin/revenue/withdraw", methods=["POST"])
+@login_required
+@admin_required
+def admin_revenue_withdraw():
+    """Pay out platform revenue to a recipient username or wallet ID.
+
+    This does not touch any individual user's wallet balance - it only
+    records a withdrawal against the platform's own revenue ledger. If the
+    recipient resolves to a real user account, that user's wallet is
+    credited (e.g. paying a partner or refunding the platform's own cut
+    somewhere); otherwise it's recorded as an external payout (e.g. a bank
+    transfer done manually outside the app) for bookkeeping purposes only.
+    """
+    db = get_db()
+    amount_raw = (request.form.get("amount") or "").strip()
+    recipient = (request.form.get("recipient") or "").strip()
+    note = (request.form.get("note") or "").strip()
+
+    try:
+        amount = float(amount_raw)
+    except ValueError:
+        flash("Enter a valid withdrawal amount.", "warning")
+        return redirect(url_for("admin_revenue"))
+    if amount <= 0:
+        flash("Withdrawal amount must be greater than zero.", "warning")
+        return redirect(url_for("admin_revenue"))
+    if not recipient:
+        flash("Enter a recipient username or wallet ID.", "warning")
+        return redirect(url_for("admin_revenue"))
+
+    if getattr(db, "is_sqlite", False):
+        db.execute("BEGIN IMMEDIATE")
+    try:
+        available = _admin_revenue_available_balance(db)
+        if amount > available:
+            db.rollback()
+            flash(f"Amount exceeds available revenue balance ({available:.2f} ETB).", "warning")
+            return redirect(url_for("admin_revenue"))
+
+        recipient_user = db.execute(
+            "SELECT id, username FROM users WHERE username = ? OR wallet_id = ?",
+            (recipient, recipient),
+        ).fetchone()
+
+        db.execute(
+            "INSERT INTO admin_revenue_withdrawals (amount, recipient_label, recipient_user_id, admin_id, note, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (amount, recipient, recipient_user["id"] if recipient_user else None,
+             session["user_id"], note or None, datetime.datetime.utcnow().isoformat()),
+        )
+
+        if recipient_user:
+            _credit_wallet_balance(db, recipient_user["id"], amount)
+            add_notification(
+                db, recipient_user["id"],
+                f"You received a payout of {amount} ETB from platform revenue.",
+                ntype="payout",
+            )
+            flash(f"Paid out {amount} ETB to @{recipient_user['username']}'s wallet.", "success")
+        else:
+            flash(f"Recorded a payout of {amount} ETB to '{recipient}'. No matching in-app wallet was found, so credit it manually if this was an external transfer.", "warning")
+
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return redirect(url_for("admin_revenue"))
     db = get_db()
     if getattr(db, "is_sqlite", False):
         db.execute("BEGIN IMMEDIATE")
@@ -6592,6 +6780,38 @@ def delete_reported_post(report_id):
 # ---------------------------------------------------------------------------
 # Admin - Platform Revenue Analytics
 # ---------------------------------------------------------------------------
+def _admin_revenue_wallet_gross(db):
+    """Gross revenue that counts toward the Admin Revenue Wallet: Blue
+    Tick/VIP badge sales plus the platform's cut of gifts. Deliberately
+    narrower than the page's overall `total_revenue` figure (which also
+    includes marketplace listings and subscriptions) - this wallet tracks
+    money the platform actually collected as fees, which is what can
+    legitimately be withdrawn out."""
+    verification_revenue = db.execute(
+        "SELECT COALESCE(SUM(amount), 0) total FROM wallet_transactions WHERE tx_type = 'verification' AND status = 'approved'"
+    ).fetchone()["total"]
+    vip_revenue = db.execute(
+        "SELECT COALESCE(SUM(amount), 0) total FROM wallet_transactions WHERE tx_type = 'vip' AND status = 'approved'"
+    ).fetchone()["total"]
+    gift_earnings = db.execute(
+        "SELECT COALESCE(SUM(platform_cut), 0) total FROM gifts"
+    ).fetchone()["total"]
+    return float(verification_revenue) + float(vip_revenue) + float(gift_earnings)
+
+
+def _admin_revenue_withdrawn_total(db):
+    return float(db.execute(
+        "SELECT COALESCE(SUM(amount), 0) total FROM admin_revenue_withdrawals"
+    ).fetchone()["total"])
+
+
+def _admin_revenue_available_balance(db):
+    """Available-to-withdraw balance = gross badge/fee revenue collected so
+    far, minus everything already paid out. Computed fresh every time
+    instead of stored as a mutable counter, so it can't drift out of sync."""
+    return _admin_revenue_wallet_gross(db) - _admin_revenue_withdrawn_total(db)
+
+
 @app.route("/admin/revenue")
 @login_required
 @admin_required
@@ -6626,6 +6846,14 @@ def admin_revenue():
     wallet_activity_revenue = gift_earnings
     total_revenue = subscription_revenue + marketplace_revenue + premium_services_revenue + wallet_activity_revenue
 
+    admin_wallet_gross = _admin_revenue_wallet_gross(db)
+    admin_wallet_withdrawn = _admin_revenue_withdrawn_total(db)
+    admin_wallet_available = admin_wallet_gross - admin_wallet_withdrawn
+    recent_revenue_withdrawals = db.execute(
+        "SELECT w.*, u.username AS admin_username FROM admin_revenue_withdrawals w "
+        "LEFT JOIN users u ON u.id = w.admin_id ORDER BY w.created_at DESC LIMIT 20"
+    ).fetchall()
+
     return render_template(
         "admin_revenue.html",
         subscription_revenue=subscription_revenue,
@@ -6639,6 +6867,10 @@ def admin_revenue():
         withdrawal_volume=withdrawal_volume,
         challenge_prize_pool_volume=challenge_prize_pool_volume,
         total_revenue=total_revenue,
+        admin_wallet_gross=admin_wallet_gross,
+        admin_wallet_withdrawn=admin_wallet_withdrawn,
+        admin_wallet_available=admin_wallet_available,
+        recent_revenue_withdrawals=recent_revenue_withdrawals,
     )
 
 

@@ -337,6 +337,29 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   height: 14px;
 }
 
+/* Inline icon-only variant: used when the badge sits directly next to a
+   username/display name (feed post header, profile name, comments, chat).
+   Strips the chip/pill treatment (background, padding, border) so only the
+   scalloped tick renders, sized to sit cleanly on the text baseline. */
+.verification-badge--inline {
+  display: inline-flex;
+  align-items: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.verification-badge--inline svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
 /* ---------- User Badge Styles (Gamification) ---------- */
 .user-badge {
   display: inline-flex;
@@ -396,6 +419,19 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   background: rgba(245, 158, 11, 0.14);
   border-color: rgba(245, 158, 11, 0.32);
 }
+.profile-name-badge {
+  display: inline-flex;
+  align-items: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+.profile-name-badge .verification-badge {
+  width: 18px; height: 18px; display: inline-flex; align-items: center;
+  padding: 0; margin: 0; background: none; border: none; border-radius: 0;
+}
+.profile-name-badge .verification-badge svg { width: 18px; height: 18px; display: block; }
 
 .profile-tier-pill svg {
   width: 16px;

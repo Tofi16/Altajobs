@@ -7,7 +7,12 @@
   .xpost-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
   .xpost-headline { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; }
   .xpost-name { font-weight: 800; color: #f1f5f9; text-decoration: none; font-size: 0.95rem; }
-  .xpost-badge { display: inline-flex; align-items: center; }
+  .xpost-badge { display: inline-flex; align-items: center; margin-left: 2px; }
+  .xpost-badge .verification-badge {
+    width: 18px; height: 18px; display: inline-flex; align-items: center;
+    padding: 0; margin: 0; background: none; border: none; border-radius: 0;
+  }
+  .xpost-badge .verification-badge svg { width: 18px; height: 18px; display: block; }
   .xpost-meta { color: #71767b; font-size: 0.87rem; font-weight: 400; }
   .xpost-dot::before { content: "·"; margin: 0 4px; color: #71767b; }
   .xpost-menu-btn { border: none; background: transparent; color: #71767b; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
@@ -24,9 +29,15 @@
   .xpost-action.like:hover, .xpost-action.like.liked { color: #f91880; background: rgba(249,24,128,0.1); }
   .xpost-action.comment:hover { color: #1d9bf0; background: rgba(29,155,240,0.1); }
   .xpost-action.share:hover, .xpost-action.save:hover { color: #10b981; background: rgba(16,185,129,0.1); }
-  .xpost-action.follow-btn { margin-left: auto; border: 1px solid rgba(255,255,255,0.15); border-radius: 999px; padding: 5px 14px; font-weight: 700; color: #e7e9ea; }
-  .xpost-action.follow-btn.following { background: transparent; }
-  .xpost-action.follow-btn:not(.following) { background: #10b981; color: #05130d; border-color: transparent; }
+  .xpost-head-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .xpost-follow-chip {
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 999px; padding: 5px 14px;
+    font-weight: 700; font-size: 0.8rem; color: #e7e9ea; background: #10b981;
+    cursor: pointer; white-space: nowrap; transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .xpost-follow-chip:not(.following) { background: #10b981; color: #05130d; border-color: transparent; }
+  .xpost-follow-chip.following { background: transparent; color: #e7e9ea; }
+  .xpost-follow-chip.following:hover { border-color: rgba(239,68,68,0.4); color: #f87171; }
 </style>
 
 {% for item in posts_data %}
@@ -46,12 +57,21 @@
           <span class="xpost-badge">{{ verification_badge_svg(post) }}</span>
           <span class="xpost-meta xpost-dot">@{{ post.username }} · {{ post.created_at[:16].replace('T',' ') if post.created_at else '' }}</span>
         </div>
-        <button type="button" class="xpost-menu-btn js-post-menu-btn"
-                data-post-id="{{ post.id }}"
-                data-delete-url="{{ url_for('delete_post', post_id=post.id) }}"
-                aria-label="More options">
-          <i class='bx bx-dots-horizontal-rounded'></i>
-        </button>
+        <div class="xpost-head-actions">
+          {% if current_user and post.user_id != current_user['id'] %}
+            <button type="button" class="xpost-follow-chip js-follow-btn {{ 'following' if item.following }}"
+                    data-user-id="{{ post.user_id }}"
+                    data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
+              {{ t.unfollow if item.following else t.follow }}
+            </button>
+          {% endif %}
+          <button type="button" class="xpost-menu-btn js-post-menu-btn"
+                  data-post-id="{{ post.id }}"
+                  data-delete-url="{{ url_for('delete_post', post_id=post.id) }}"
+                  aria-label="More options">
+            <i class='bx bx-dots-horizontal-rounded'></i>
+          </button>
+        </div>
       </div>
 
       {% if post.post_type == 'job' %}
@@ -62,7 +82,9 @@
         <a href="{{ url_for('post_detail', post_id=post.id) }}" style="text-decoration:none">
           <p class="xpost-content xpost-clamped js-xpost-content">{{ post.content }}</p>
         </a>
-        <button type="button" class="xpost-seemore js-xpost-seemore">{{ t.see_more if t.see_more is defined else 'See more' }}</button>
+        <button type="button" class="xpost-seemore js-xpost-seemore"
+                data-see-more="{{ t.see_more if t.see_more is defined else 'See more' }}"
+                data-see-less="{{ t.see_less if t.see_less is defined else 'See less' }}">{{ t.see_more if t.see_more is defined else 'See more' }}</button>
       {% endif %}
 
       {% if post.photo %}
@@ -85,13 +107,6 @@
             <i class='bx bx-repost'></i><span>{{ post.share_count or 0 }}</span>
           </button>
         </form>
-        {% if current_user and post.user_id != current_user['id'] %}
-          <button type="button" class="xpost-action follow-btn js-follow-btn {{ 'following' if item.following }}"
-                  data-user-id="{{ post.user_id }}"
-                  data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
-            {{ t.unfollow if item.following else t.follow }}
-          </button>
-        {% endif %}
       </div>
     </div>
   </article>
@@ -99,8 +114,8 @@
 
 <script>
 (function () {
-  // "See more" truncation toggle - guarded so this only wires up once even
-  // if this partial is re-inserted (e.g. by the "Load More" AJAX handler).
+  // "See more" / "See less" truncation toggle - guarded so this only wires up
+  // once even if this partial is re-inserted (e.g. by the "Load More" AJAX handler).
   document.querySelectorAll('.js-xpost-content').forEach(function (el) {
     if (el.dataset.xpostBound) return;
     el.dataset.xpostBound = '1';
@@ -112,8 +127,8 @@
         btn.addEventListener('click', function (e) {
           e.preventDefault();
           e.stopPropagation();
-          el.classList.remove('xpost-clamped');
-          btn.style.display = 'none';
+          var expanded = el.classList.toggle('xpost-clamped') === false;
+          btn.textContent = expanded ? btn.dataset.seeLess : btn.dataset.seeMore;
         });
       }
     }

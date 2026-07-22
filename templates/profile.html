@@ -35,7 +35,7 @@
             {{ profile_user['full_name'] or profile_user['username'] }}
             {% set v_tier = get_verification_tier(profile_user) %}
             {% if v_tier in ('blue', 'gold') %}
-              {{ verification_badge_svg(profile_user) }}
+              <span class="profile-name-badge">{{ verification_badge_svg(profile_user) }}</span>
             {% endif %}
           </h1>
           {% if v_tier == 'gold' %}

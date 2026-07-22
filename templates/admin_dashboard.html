@@ -197,6 +197,52 @@
       </div>
       {% endif %}
     </section>
+
+    <!-- Transaction History with 48-hour refund window -->
+    <section class="admin-card mt-5">
+      <div class="mb-3 flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 class="text-sm font-bold text-slate-100">Transaction History</h2>
+          <p class="mt-0.5 text-[11px] text-slate-500">Refund is available for {{ refund_window_hours }} hours after a transaction is processed. Refunding a verification/VIP purchase also removes the user's badge.</p>
+        </div>
+        <span class="admin-pill">Last {{ recent_transactions|length }}</span>
+      </div>
+
+      {% if not recent_transactions %}
+        <p class="admin-empty-state">No approved transactions yet.</p>
+      {% else %}
+      <div class="divide-y divide-white/5 overflow-hidden rounded-xl border border-white/5">
+        {% for tx in recent_transactions %}
+        {% set refundable = tx['created_at'] and tx['created_at'] > refund_cutoff_iso %}
+        <div class="flex items-center gap-3 bg-zinc-900/40 px-3 py-3 flex-wrap">
+          <div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/5 text-xs font-bold text-slate-200">{{ tx['username'][0]|upper }}</div>
+          <div class="min-w-0 flex-1">
+            <div class="truncate text-sm font-semibold text-slate-100">
+              {{ tx['username'] }}
+              <span class="admin-badge admin-badge-info" style="text-transform:capitalize">{{ tx['tx_type'] }}</span>
+            </div>
+            <div class="truncate text-[11px] text-slate-500">{{ tx['created_at'][:16].replace('T',' ') if tx['created_at'] else '' }}{{ ' · ' ~ tx['note'] if tx['note'] else '' }}</div>
+          </div>
+          <div class="shrink-0 text-right">
+            <div class="text-sm font-extrabold text-slate-100">{{ tx['amount'] }} ETB</div>
+          </div>
+          <div class="shrink-0">
+            {% if refundable %}
+              <form method="POST" action="{{ url_for('refund_transaction', tx_id=tx['id']) }}"
+                    onsubmit="return confirm('Refund {{ tx['amount'] }} ETB to {{ tx['username'] }}? {{ 'This will also remove their verified badge.' if tx['tx_type'] in ('verification','vip') else '' }}');">
+                <button type="submit" class="rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-400 hover:bg-amber-500/20">
+                  ↩ Refund
+                </button>
+              </form>
+            {% else %}
+              <span class="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-slate-600">Expired</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
   </main>
 </div>
 {% endblock %}
