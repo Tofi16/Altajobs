@@ -3425,6 +3425,7 @@ html[dir="rtl"] .compose-textarea { padding: 4px 0 8px 34px; }
 }
 .post-menu-btn:hover { background: var(--surface-2); color: var(--text); }
 html[dir="rtl"] .post-menu-btn { right: auto; left: 12px; }
+.xpost-menu-btn { position: relative; z-index: 3; }
 
 /* ---------- Bottom sheet (post actions) ---------- */
 .bottom-sheet-overlay {

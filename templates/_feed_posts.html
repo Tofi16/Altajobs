@@ -68,7 +68,8 @@
           <button type="button" class="xpost-menu-btn js-post-menu-btn"
                   data-post-id="{{ post.id }}"
                   data-delete-url="{{ url_for('delete_post', post_id=post.id) }}"
-                  aria-label="More options">
+                  aria-label="More options"
+                  onclick="event.preventDefault(); event.stopPropagation(); openPostActionsSheet(this); return false;">
             <i class='bx bx-dots-horizontal-rounded'></i>
           </button>
         </div>
@@ -116,12 +117,31 @@
 
 <script>
 (function () {
-  // "See more" / "See less" truncation toggle - guarded so this only wires up
-  // once even if this partial is re-inserted (e.g. by the "Load More" AJAX handler).
+  window.openPostActionsSheet = function (btn) {
+    if (!btn) return;
+    var overlay = document.getElementById('bottomSheetOverlay');
+    var sheet = document.getElementById('postActionsSheet');
+    var deleteForm = document.getElementById('sheetDeleteForm');
+    var reportTargetId = document.getElementById('sheetReportTargetId');
+    if (!overlay || !sheet) return;
+    if (deleteForm) deleteForm.action = btn.getAttribute('data-delete-url') || '#';
+    if (reportTargetId) reportTargetId.value = btn.getAttribute('data-post-id') || '';
+    overlay.classList.add('open');
+    sheet.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  };
+
+  window.closePostActionsSheet = function () {
+    var overlay = document.getElementById('bottomSheetOverlay');
+    var sheet = document.getElementById('postActionsSheet');
+    if (overlay) overlay.classList.remove('open');
+    if (sheet) sheet.classList.remove('open');
+    document.body.style.overflow = '';
+  };
+
   document.querySelectorAll('.js-xpost-content').forEach(function (el) {
     if (el.dataset.xpostBound) return;
     el.dataset.xpostBound = '1';
-    // Only show the "See more" button if the text actually overflows the clamp.
     if (el.scrollHeight > el.clientHeight + 4) {
       var btn = el.parentElement.querySelector('.js-xpost-seemore');
       if (btn) {
@@ -136,33 +156,24 @@
     }
   });
 
-  // Post options menu (⋯) -> reuses the existing bottom sheet in feed.html
-  // (#bottomSheetOverlay / #postActionsSheet / #sheetDeleteForm /
-  // #sheetReportTargetId). Delegated + guarded against double-binding.
   if (!window.__xpostMenuBound) {
     window.__xpostMenuBound = true;
     document.addEventListener('click', function (e) {
       var btn = e.target.closest('.js-post-menu-btn');
       if (!btn) return;
-      var overlay = document.getElementById('bottomSheetOverlay');
-      var sheet = document.getElementById('postActionsSheet');
-      var deleteForm = document.getElementById('sheetDeleteForm');
-      var reportTargetId = document.getElementById('sheetReportTargetId');
-      if (!overlay || !sheet) return;
-      if (deleteForm) deleteForm.action = btn.dataset.deleteUrl || '#';
-      if (reportTargetId) reportTargetId.value = btn.dataset.postId || '';
-      overlay.classList.add('open');
-      sheet.classList.add('open');
+      e.preventDefault();
+      e.stopPropagation();
+      window.openPostActionsSheet(btn);
     });
     var cancelBtn = document.getElementById('sheetCancelBtn');
     var overlayEl = document.getElementById('bottomSheetOverlay');
-    function closeSheet() {
-      var sheet = document.getElementById('postActionsSheet');
-      if (overlayEl) overlayEl.classList.remove('open');
-      if (sheet) sheet.classList.remove('open');
-    }
-    if (cancelBtn) cancelBtn.addEventListener('click', closeSheet);
-    if (overlayEl) overlayEl.addEventListener('click', closeSheet);
+    if (cancelBtn) cancelBtn.addEventListener('click', window.closePostActionsSheet);
+    if (overlayEl) overlayEl.addEventListener('click', window.closePostActionsSheet);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        window.closePostActionsSheet();
+      }
+    });
   }
 })();
 </script>
