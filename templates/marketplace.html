@@ -84,8 +84,13 @@
   </section>
 
   <div id="addListingModal" class="fixed inset-0 bg-gray-950/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+    <!-- Header / scrollable body / sticky footer layout so the Publish
+         button is ALWAYS visible and reachable, no matter how tall the
+         form gets or how small the viewport (mobile keyboards, short
+         screens, etc). The card itself is capped to 90vh and is a flex
+         column; only the middle section scrolls. -->
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
         <div>
           <h3 class="text-lg font-semibold text-gray-900">List a product</h3>
           <p class="text-sm text-gray-500">Create a premium listing and share it with buyers across AltaJobs.</p>
@@ -94,32 +99,40 @@
           <i class='bx bx-x text-xl'></i>
         </button>
       </div>
-      <form method="POST" enctype="multipart/form-data" class="marketplace-form px-6 py-5 space-y-4" id="newListing">
-        <div class="form-row grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+      <form method="POST" enctype="multipart/form-data" class="marketplace-form flex flex-col flex-1 min-h-0" id="newListing">
+        <div class="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-4">
+          <div class="form-row grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label class="form-group flex flex-col gap-1">
+              <span class="text-xs font-medium text-gray-600">{{ t.product_title if t.product_title is defined else 'Title' }}</span>
+              <input type="text" name="title" placeholder="Product title" required class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            </label>
+            <label class="form-group flex flex-col gap-1">
+              <span class="text-xs font-medium text-gray-600">{{ t.price if t.price is defined else 'Price' }}</span>
+              <input type="number" step="0.01" name="price" placeholder="Price (ETB)" required class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            </label>
+          </div>
           <label class="form-group flex flex-col gap-1">
-            <span class="text-xs font-medium text-gray-600">{{ t.product_title if t.product_title is defined else 'Title' }}</span>
-            <input type="text" name="title" placeholder="Product title" required class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            <span class="text-xs font-medium text-gray-600">{{ t.product_description if t.product_description is defined else 'Description' }}</span>
+            <textarea name="description" rows="4" placeholder="Describe your product" class="border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500"></textarea>
           </label>
-          <label class="form-group flex flex-col gap-1">
-            <span class="text-xs font-medium text-gray-600">{{ t.price if t.price is defined else 'Price' }}</span>
-            <input type="number" step="0.01" name="price" placeholder="Price (ETB)" required class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
-          </label>
+          <div class="form-row grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label class="form-group flex flex-col gap-1">
+              <span class="text-xs font-medium text-gray-600">{{ t.location if t.location is defined else 'Location' }}</span>
+              <input type="text" name="location" placeholder="Location" value="Addis Ababa" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
+            </label>
+            <label class="form-group flex flex-col gap-1">
+              <span class="text-xs font-medium text-gray-600">{{ t.photo if t.photo is defined else 'Photo' }}</span>
+              <input type="file" name="photo" accept="image/*" class="text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-600 file:text-sm file:font-medium hover:file:bg-indigo-100">
+            </label>
+          </div>
         </div>
-        <label class="form-group flex flex-col gap-1">
-          <span class="text-xs font-medium text-gray-600">{{ t.product_description if t.product_description is defined else 'Description' }}</span>
-          <textarea name="description" rows="4" placeholder="Describe your product" class="border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500"></textarea>
-        </label>
-        <div class="form-row grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label class="form-group flex flex-col gap-1">
-            <span class="text-xs font-medium text-gray-600">{{ t.location if t.location is defined else 'Location' }}</span>
-            <input type="text" name="location" placeholder="Location" value="Addis Ababa" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
-          </label>
-          <label class="form-group flex flex-col gap-1">
-            <span class="text-xs font-medium text-gray-600">{{ t.photo if t.photo is defined else 'Photo' }}</span>
-            <input type="file" name="photo" accept="image/*" class="text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-600 file:text-sm file:font-medium hover:file:bg-indigo-100">
-          </label>
+
+        <!-- Sticky footer: stays pinned to the bottom of the modal card,
+             independent of scroll position in the body above. -->
+        <div class="shrink-0 border-t border-gray-100 bg-white px-6 py-4" style="padding-bottom: calc(1rem + env(safe-area-inset-bottom));">
+          <button type="submit" class="btn btn-primary btn-full w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg transition">{{ t.publish_listing if t.publish_listing is defined else 'Publish listing' }}</button>
         </div>
-        <button type="submit" class="btn btn-primary btn-full w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg transition">{{ t.publish_listing if t.publish_listing is defined else 'Publish listing' }}</button>
       </form>
     </div>
   </div>

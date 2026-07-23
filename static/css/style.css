@@ -907,7 +907,14 @@ html[dir="rtl"] .fab { right: auto; left: 18px; }
   border-radius: 24px;
   padding: 22px;
   margin-bottom: 20px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
+.admin-metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.28);
+  border-color: rgba(56, 189, 248, 0.24);
+}
+.admin-action-required { box-shadow: 0 18px 40px rgba(217, 119, 6, 0.08); }
 .admin-metric-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3427,7 +3434,7 @@ html[dir="rtl"] .post-menu-btn { right: auto; left: 12px; }
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
-  z-index: 90;
+  z-index: 1090; /* must sit above the FAB (z-index:100) or it clips sheet actions */
 }
 .bottom-sheet-overlay.open { opacity: 1; pointer-events: auto; }
 
@@ -3443,10 +3450,51 @@ html[dir="rtl"] .post-menu-btn { right: auto; left: 12px; }
   padding: 10px 14px calc(16px + env(safe-area-inset-bottom));
   transform: translateY(100%);
   transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
-  z-index: 91;
+  z-index: 1091; /* above the FAB and any other fixed chrome so actions are never covered */
   box-shadow: 0 -8px 30px rgba(0,0,0,0.4);
+  max-height: min(72vh, 420px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .bottom-sheet.open { transform: translateY(0); }
+/* Extra sheet content used by the Share sheet (Copy Link / Send to Follower) */
+.bottom-sheet .sheet-title {
+  padding: 2px 12px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.sheet-follower-list {
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sheet-follower-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.sheet-follower-row:hover { background: var(--surface-2); }
+.sheet-follower-row .sheet-follower-avatar {
+  width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+  background: var(--surface-2); display:flex; align-items:center; justify-content:center; font-weight:800; color: var(--muted);
+}
+.sheet-follower-row.sent { color: #10b981; pointer-events: none; }
+.sheet-empty-note { padding: 14px 12px; color: var(--muted); font-size: 0.85rem; text-align: center; }
 .bottom-sheet-handle {
   width: 40px;
   height: 4px;

@@ -174,37 +174,10 @@ document.addEventListener("DOMContentLoaded", function () {
   updateComposeSubmitState();
 });
 
-// ---------- Quick feed filters (pill bar) ----------
-document.addEventListener("DOMContentLoaded", function () {
-  const bar = document.getElementById("feedFilters");
-  if (!bar) return;
-
-  const posts = document.querySelectorAll(".post-card[data-post-type]");
-  const emptyMsg = document.getElementById("noFilterResultsMsg");
-
-  bar.addEventListener("click", function (e) {
-    const pill = e.target.closest(".filter-pill");
-    if (!pill) return;
-
-    bar.querySelectorAll(".filter-pill").forEach((p) => p.classList.remove("active"));
-    pill.classList.add("active");
-
-    const filter = pill.dataset.filter;
-    const allowed = filter === "all" ? null : filter.split(",");
-
-    let visibleCount = 0;
-    posts.forEach((card) => {
-      const type = card.dataset.postType;
-      const show = !allowed || allowed.includes(type);
-      card.style.display = show ? "" : "none";
-      if (show) visibleCount++;
-    });
-
-    if (emptyMsg) {
-      emptyMsg.style.display = (posts.length > 0 && visibleCount === 0) ? "block" : "none";
-    }
-  });
-});
+// NOTE: the Jobs Only / Experiences / All feed filter pills are now handled
+// by the backend-enforced AJAX logic inlined in feed.html (see the script
+// next to #feedLoadMoreWrap), which re-queries /feed/page/1?type=... so
+// filtering is a real server-side query rather than a client-side CSS hide.
 
 // ---------- Premium header: search, notifications, and slide-in menu ----------
 document.addEventListener("DOMContentLoaded", function () {
@@ -516,6 +489,185 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 });
+
+// ---------- Repost (instant AJAX, optimistic) + modal "send to chat/followers" ----------
+(function () {
+  let currentRepostPostId = null;
+  let followersCache = null;
+
+  function fetchFollowers() {
+    if (followersCache) return Promise.resolve(followersCache);
+    return fetch("/api/followers-list")
+      .then((r) => r.json())
+      .then((data) => {
+        followersCache = data.followers || [];
+        return followersCache;
+      })
+      .catch(() => []);
+  }
+
+  function renderFollowerList(container, postId, closeAfterSend) {
+    container.innerHTML = '<div class="sheet-empty-note">Loading your followers…</div>';
+    fetchFollowers().then((followers) => {
+      if (!followers.length) {
+        container.innerHTML = '<div class="sheet-empty-note">You have no followers yet to send this to.</div>';
+        return;
+      }
+      container.innerHTML = "";
+      followers.forEach((f) => {
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "sheet-follower-row";
+        row.innerHTML =
+          (f.avatar
+            ? `<img class="sheet-follower-avatar" src="${f.avatar}" alt="">`
+            : `<span class="sheet-follower-avatar">${(f.name || "?")[0].toUpperCase()}</span>`) +
+          `<span>${f.name}</span>`;
+        row.addEventListener("click", function () {
+          row.disabled = true;
+          fetch(`/api/post/${postId}/send-to-follower`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ follower_id: f.id }),
+          })
+            .then((r) => r.json())
+            .then((data) => {
+              if (data.success) {
+                row.classList.add("sent");
+                row.innerHTML += ' <i class="bx bx-check" style="margin-left:auto"></i>';
+                if (closeAfterSend) setTimeout(closeAfterSend, 700);
+              } else {
+                row.disabled = false;
+              }
+            })
+            .catch(() => {
+              row.disabled = false;
+            });
+        });
+        container.appendChild(row);
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const overlay = document.getElementById("repostModalOverlay");
+    const modal = document.getElementById("repostModal");
+    const quickBtn = document.getElementById("repostQuickBtn");
+    const followerListEl = document.getElementById("repostFollowerList");
+    if (!overlay || !modal) return;
+
+    function closeRepostModal() {
+      overlay.style.display = "none";
+      modal.style.display = "none";
+    }
+
+    document.addEventListener("click", function (e) {
+      const btn = e.target.closest(".js-repost-btn");
+      if (btn) {
+        e.preventDefault();
+        currentRepostPostId = btn.dataset.postId;
+        overlay.style.display = "flex";
+        modal.style.display = "block";
+        renderFollowerList(followerListEl, currentRepostPostId, closeRepostModal);
+        return;
+      }
+      if (e.target.closest(".js-repost-modal-close") || e.target === overlay) {
+        closeRepostModal();
+      }
+    });
+
+    if (quickBtn) {
+      quickBtn.addEventListener("click", function () {
+        if (!currentRepostPostId) return;
+        quickBtn.disabled = true;
+        fetch(`/api/post/${currentRepostPostId}/repost`, { method: "POST" })
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.success) {
+              const countEl = document.querySelector(
+                `.js-repost-btn[data-post-id="${currentRepostPostId}"] .repost-count`
+              );
+              if (countEl) countEl.textContent = data.share_count;
+              quickBtn.innerHTML = '<i class="bx bx-check"></i> Reposted!';
+              setTimeout(closeRepostModal, 600);
+            }
+          })
+          .finally(() => {
+            quickBtn.disabled = false;
+          });
+      });
+    }
+  });
+
+  // ---------- Share sheet: Copy Link / Send to Follower list ----------
+  document.addEventListener("DOMContentLoaded", function () {
+    const overlay = document.getElementById("bottomSheetOverlay");
+    const sheet = document.getElementById("shareActionsSheet");
+    const mainPanel = document.getElementById("shareSheetMain");
+    const followersPanel = document.getElementById("shareSheetFollowers");
+    const followerListEl = document.getElementById("shareFollowerList");
+    const copyBtn = document.getElementById("sheetCopyLinkBtn");
+    const sendBtn = document.getElementById("sheetSendToFollowerBtn");
+    if (!overlay || !sheet) return;
+
+    let currentSharePostId = null;
+    let currentShareUrl = null;
+
+    function closeShareSheet() {
+      sheet.classList.remove("open");
+      overlay.classList.remove("open");
+      mainPanel.style.display = "";
+      followersPanel.style.display = "none";
+    }
+
+    document.addEventListener("click", function (e) {
+      const btn = e.target.closest(".js-share-btn");
+      if (btn) {
+        e.preventDefault();
+        currentSharePostId = btn.dataset.postId;
+        currentShareUrl = btn.dataset.postUrl;
+        mainPanel.style.display = "";
+        followersPanel.style.display = "none";
+        sheet.classList.add("open");
+        overlay.classList.add("open");
+        return;
+      }
+      if (e.target.closest(".js-share-sheet-close")) {
+        closeShareSheet();
+        return;
+      }
+      // Overlay is shared with the post-options sheet; only close this one
+      // if this sheet is the one currently open.
+      if (e.target === overlay && sheet.classList.contains("open")) {
+        closeShareSheet();
+      }
+    });
+
+    if (copyBtn) {
+      copyBtn.addEventListener("click", function () {
+        if (!currentShareUrl) return;
+        navigator.clipboard
+          .writeText(currentShareUrl)
+          .then(() => {
+            copyBtn.innerHTML = '<i class="bx bx-check"></i> Link copied!';
+            setTimeout(() => {
+              copyBtn.innerHTML = '<i class="bx bx-link-alt"></i> Copy Link';
+              closeShareSheet();
+            }, 700);
+          })
+          .catch(() => {});
+      });
+    }
+
+    if (sendBtn) {
+      sendBtn.addEventListener("click", function () {
+        mainPanel.style.display = "none";
+        followersPanel.style.display = "";
+        renderFollowerList(followerListEl, currentSharePostId, closeShareSheet);
+      });
+    }
+  });
+})();
 
 // ---------- Three-dot post menu -> animated bottom sheet ----------
 document.addEventListener("DOMContentLoaded", function () {

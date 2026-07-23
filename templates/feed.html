@@ -33,9 +33,9 @@
 </div>
 
 <div class="feed-filters" id="feedFilters">
-  <button type="button" class="filter-pill active" data-filter="all">All</button>
-  <button type="button" class="filter-pill" data-filter="job">Jobs Only 💼</button>
-  <button type="button" class="filter-pill" data-filter="general,skill">Experiences 💬</button>
+  <button type="button" class="filter-pill {{ 'active' if active_filter == 'all' or not active_filter }}" data-filter="all">All</button>
+  <button type="button" class="filter-pill {{ 'active' if active_filter == 'job' }}" data-filter="job">Jobs Only 💼</button>
+  <button type="button" class="filter-pill {{ 'active' if active_filter == 'experience' }}" data-filter="experience">Experiences 💬</button>
 </div>
 
 <div class="feed-shell space-y-4">
@@ -91,7 +91,7 @@
 </div>
 </div>
 
-<div id="feedLoadMoreWrap" class="feed-pagination" data-page="{{ page }}" data-has-next="{{ '1' if has_next else '0' }}">
+<div id="feedLoadMoreWrap" class="feed-pagination" data-page="{{ page }}" data-has-next="{{ '1' if has_next else '0' }}" data-filter="{{ active_filter or 'all' }}">
   {% if has_next %}
     <button type="button" id="feedLoadMoreBtn" class="btn">Load More</button>
   {% endif %}
@@ -104,10 +104,13 @@
   var container = document.getElementById('feedPostsContainer');
   var btn = document.getElementById('feedLoadMoreBtn');
   var spinner = document.getElementById('feedLoadMoreSpinner');
+  var filterBar = document.getElementById('feedFilters');
+  var emptyMsg = document.getElementById('noFilterResultsMsg');
   if (!wrap || !container) return;
 
   var page = parseInt(wrap.dataset.page || '1', 10);
   var hasNext = wrap.dataset.hasNext === '1';
+  var activeType = wrap.dataset.filter || 'all';
   var loading = false;
 
   function loadNextPage() {
@@ -116,7 +119,7 @@
     if (btn) btn.hidden = true;
     if (spinner) spinner.hidden = false;
 
-    fetch('/feed/page/' + (page + 1), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    fetch('/feed/page/' + (page + 1) + '?type=' + encodeURIComponent(activeType), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
       .then(function (res) { return res.json(); })
       .then(function (data) {
         if (data && data.success) {
@@ -139,6 +142,45 @@
       });
   }
 
+  // Backend-enforced filter pills: re-query the server for page 1 of the
+  // chosen post_type (job / experience / all) instead of just hiding
+  // already-loaded cards client-side, so pagination past page 1 also stays
+  // strictly within the chosen filter.
+  if (filterBar) {
+    filterBar.addEventListener('click', function (e) {
+      var pill = e.target.closest('.filter-pill');
+      if (!pill || loading) return;
+
+      var newType = pill.dataset.filter === 'all' ? 'all' : pill.dataset.filter;
+      filterBar.querySelectorAll('.filter-pill').forEach(function (p) { p.classList.remove('active'); });
+      pill.classList.add('active');
+      if (newType === activeType) return;
+
+      activeType = newType;
+      loading = true;
+      container.style.opacity = '0.5';
+      if (btn) btn.hidden = true;
+      if (spinner) spinner.hidden = false;
+
+      fetch('/feed/page/1?type=' + encodeURIComponent(activeType), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          if (data && data.success) {
+            container.innerHTML = data.html || '';
+            page = 1;
+            hasNext = !!data.has_next;
+            if (emptyMsg) emptyMsg.style.display = data.has_posts ? 'none' : 'block';
+          }
+        })
+        .finally(function () {
+          loading = false;
+          container.style.opacity = '';
+          if (spinner) spinner.hidden = true;
+          if (btn) btn.hidden = !hasNext;
+        });
+    });
+  }
+
   if (btn) {
     btn.addEventListener('click', loadNextPage);
   }
@@ -154,6 +196,23 @@
   }
 })();
 </script>
+
+<!-- Repost modal: "Send to chat/followers" -->
+<div class="modal-overlay" id="repostModalOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:1090;padding:16px;"></div>
+<div class="modal-card" id="repostModal" role="dialog" aria-label="Send to chat/followers"
+     style="display:none;position:fixed;inset:0;margin:auto;max-width:420px;max-height:min(72vh,460px);height:fit-content;background:var(--surface);border-radius:20px;z-index:1091;padding:18px;overflow-y:auto;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <h3 style="margin:0;font-size:1rem;font-weight:800;">Send to chat / followers</h3>
+    <button type="button" class="js-repost-modal-close" style="border:none;background:transparent;color:var(--muted);font-size:1.3rem;cursor:pointer;line-height:1;">&times;</button>
+  </div>
+  <button type="button" class="sheet-action" id="repostQuickBtn">
+    <i class='bx bx-repost'></i> Repost to your feed
+  </button>
+  <div class="sheet-title" style="margin-top:8px;">Or send directly to…</div>
+  <div class="sheet-follower-list" id="repostFollowerList">
+    <div class="sheet-empty-note">Loading your followers…</div>
+  </div>
+</div>
 
 <div class="bottom-sheet-overlay" id="bottomSheetOverlay"></div>
 <div class="bottom-sheet" id="postActionsSheet" role="dialog" aria-label="Post options">
@@ -172,6 +231,28 @@
     </button>
   </form>
   <button type="button" class="sheet-action sheet-cancel" id="sheetCancelBtn">Cancel</button>
+</div>
+
+<!-- Share sheet: Copy Link / Send to Follower list -->
+<div class="bottom-sheet" id="shareActionsSheet" role="dialog" aria-label="Share post">
+  <div class="bottom-sheet-handle"></div>
+  <div id="shareSheetMain">
+    <div class="sheet-title">Share this post</div>
+    <button type="button" class="sheet-action" id="sheetCopyLinkBtn">
+      <i class='bx bx-link-alt'></i> Copy Link
+    </button>
+    <button type="button" class="sheet-action" id="sheetSendToFollowerBtn">
+      <i class='bx bx-paper-plane'></i> Send to Follower list
+    </button>
+    <button type="button" class="sheet-action sheet-cancel js-share-sheet-close">Cancel</button>
+  </div>
+  <div id="shareSheetFollowers" style="display:none">
+    <div class="sheet-title">Send to…</div>
+    <div class="sheet-follower-list" id="shareFollowerList">
+      <div class="sheet-empty-note">Loading your followers…</div>
+    </div>
+    <button type="button" class="sheet-action sheet-cancel js-share-sheet-close">Cancel</button>
+  </div>
 </div>
 
 <a href="#compose" class="fab" title="{{ t.post_a_job }}"

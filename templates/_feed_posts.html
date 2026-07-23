@@ -102,11 +102,13 @@
         <a href="{{ url_for('post_detail', post_id=post.id) }}" class="xpost-action comment">
           <i class='bx bx-comment'></i><span>{{ item.comment_count }}</span>
         </a>
-        <form method="POST" action="{{ url_for('share_post', post_id=post.id) }}" style="margin:0">
-          <button type="submit" class="xpost-action share">
-            <i class='bx bx-repost'></i><span>{{ post.share_count or 0 }}</span>
-          </button>
-        </form>
+        <button type="button" class="xpost-action repost js-repost-btn" data-post-id="{{ post.id }}" title="Repost">
+          <i class='bx bx-repost'></i><span class="repost-count">{{ post.share_count or 0 }}</span>
+        </button>
+        <button type="button" class="xpost-action share js-share-btn" data-post-id="{{ post.id }}"
+                data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}" title="Share">
+          <i class='bx bx-share-alt'></i>
+        </button>
       </div>
     </div>
   </article>

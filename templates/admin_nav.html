@@ -30,26 +30,41 @@
       </button>
     </div>
 
-    <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-      {% set nav_items = [
-        ('admin_panel', 'bx-home-circle', 'Overview', ['/admin', '/admin/overview']),
-        ('admin_dashboard', 'bx-wallet-alt', 'Deposits / Withdrawals', ['/admin/dashboard']),
-        ('admin_users', 'bx-user', 'Users', ['/admin/users']),
-        ('admin_verify', 'bx-shield-quarter', 'Verification', ['/admin/verify', '/admin/verification']),
-        ('admin_revenue', 'bx-line-chart', 'Revenue', ['/admin/revenue']),
-        ('admin_moderation', 'bx-flag', 'Moderation', ['/admin/moderation']),
-        ('admin_products', 'bx-store-alt', 'Product Approval', ['/admin/products']),
-        ('admin_settings', 'bx-cog', 'Settings', ['/admin/settings']),
+    <nav class="flex-1 space-y-4 overflow-y-auto px-3 py-4">
+      {% set nav_sections = [
+        ('General Stats', [
+          ('admin_panel', 'bx-home-circle', 'Overview', ['/admin', '/admin/overview']),
+          ('admin_users', 'bx-user', 'Users', ['/admin/users']),
+        ]),
+        ('Moderation & Approvals', [
+          ('admin_products', 'bx-store-alt', 'Product Approval', ['/admin/products']),
+          ('admin_moderation', 'bx-flag', 'Reports & Moderation', ['/admin/moderation']),
+          ('admin_verify', 'bx-shield-quarter', 'Verification', ['/admin/verify', '/admin/verification']),
+        ]),
+        ('Financials', [
+          ('admin_dashboard', 'bx-wallet-alt', 'Deposits / Withdrawals', ['/admin/dashboard']),
+          ('admin_revenue', 'bx-line-chart', 'Revenue', ['/admin/revenue']),
+        ]),
+        ('System', [
+          ('admin_settings', 'bx-cog', 'Settings', ['/admin/settings']),
+        ]),
       ] %}
-      {% for endpoint, icon, label, paths in nav_items %}
-        {% set is_active = request.path in paths %}
-        <a href="{{ url_for(endpoint) }}"
-           class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
-                  {{ 'bg-emerald-500/10 text-emerald-400' if is_active else 'text-slate-400 hover:bg-white/5 hover:text-slate-100' }}">
-          <i class='bx {{ icon }} text-lg {{ "text-emerald-400" if is_active else "text-slate-500 group-hover:text-slate-300" }}'></i>
-          <span>{{ label }}</span>
-          {% if is_active %}<span class="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-400"></span>{% endif %}
-        </a>
+      {% for section_label, items in nav_sections %}
+        <div>
+          <div class="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">{{ section_label }}</div>
+          <div class="space-y-1">
+            {% for endpoint, icon, label, paths in items %}
+              {% set is_active = request.path in paths %}
+              <a href="{{ url_for(endpoint) }}"
+                 class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition
+                        {{ 'bg-emerald-500/10 text-emerald-400' if is_active else 'text-slate-400 hover:bg-white/5 hover:text-slate-100' }}">
+                <i class='bx {{ icon }} text-lg {{ "text-emerald-400" if is_active else "text-slate-500 group-hover:text-slate-300" }}'></i>
+                <span>{{ label }}</span>
+                {% if is_active %}<span class="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-400"></span>{% endif %}
+              </a>
+            {% endfor %}
+          </div>
+        </div>
       {% endfor %}
     </nav>
 

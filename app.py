@@ -1453,6 +1453,33 @@ def ensure_postgres_wallet_columns():
     except Exception as exc:
         print(f"Warning: could not ensure PostgreSQL product columns: {exc}")
 
+    try:
+        db = get_db()
+        # Refund tracking columns for the 48-hour admin refund feature
+        db.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS refunded_at TEXT DEFAULT NULL")
+        db.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS refunded_by INTEGER DEFAULT NULL")
+        # Admin revenue payout ledger: tracks manual withdrawals of platform
+        # revenue (badge sales, platform fees) out to a recipient wallet/user.
+        # Available balance is always computed as (gross revenue - sum of
+        # prior withdrawals) rather than stored as a mutable counter, so it
+        # can never drift out of sync with the underlying revenue sources.
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS admin_revenue_withdrawals (
+                id SERIAL PRIMARY KEY,
+                amount REAL NOT NULL,
+                recipient_label TEXT NOT NULL,
+                recipient_user_id INTEGER DEFAULT NULL,
+                admin_id INTEGER NOT NULL,
+                note TEXT DEFAULT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(admin_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY(recipient_user_id) REFERENCES users(id) ON DELETE SET NULL
+            )
+        """)
+        db.commit()
+    except Exception as exc:
+        print(f"Warning: could not ensure PostgreSQL revenue/refund tables: {exc}")
+
 
 with app.app_context():
     print(f"Resolved DATABASE_URL={DATABASE_URL}")
@@ -2902,12 +2929,19 @@ def logout():
 # ---------------------------------------------------------------------------
 # Feed / Posts
 # ---------------------------------------------------------------------------
-def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE):
+def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE, post_type_filter=None):
     """Fetch one LIMIT/OFFSET page of the feed and build the template payload.
 
     Shared by the server-rendered feed page, the JSON API, and the
     "load more" partial-HTML endpoint so all three stay in sync and only
     one query needs to be tuned/indexed.
+
+    post_type_filter: None for all posts, "job" for job posts only, or
+    "experience" for general/skill posts only. Filtering happens inside the
+    same LIMIT/OFFSET CTE so pagination is correct *within the filtered set*
+    (the "Jobs Only" / "Experiences" pills are enforced by the database, not
+    just hidden client-side).
+
     Returns (posts_data, has_next).
     """
     offset = (page - 1) * page_size
@@ -2940,7 +2974,15 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE):
         ]
         user_select_fields = ", ".join(user_field_selects)
 
-        latest_posts_where = "WHERE COALESCE(NULLIF(status, ''), 'approved') IN " + post_statuses if has_status else ""
+        status_clause = "COALESCE(NULLIF(status, ''), 'approved') IN " + post_statuses if has_status else ""
+        type_clause = ""
+        if post_type_filter == "job":
+            type_clause = "post_type = 'job'"
+        elif post_type_filter == "experience":
+            type_clause = "post_type IN ('general', 'skill')"
+
+        where_parts = [c for c in (status_clause, type_clause) if c]
+        latest_posts_where = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
         latest_posts_query = f"""WITH latest_posts AS (
                    SELECT * FROM posts
                    {latest_posts_where}
@@ -3116,8 +3158,13 @@ def feed():
     except Exception:
         page = 1
 
+    active_filter = request.args.get("type", "all")
+    if active_filter not in ("job", "experience"):
+        active_filter = "all"
+    post_type_filter = active_filter if active_filter != "all" else None
+
     try:
-        posts_data, has_next = _load_feed_page(db, user, page, FEED_PAGE_SIZE)
+        posts_data, has_next = _load_feed_page(db, user, page, FEED_PAGE_SIZE, post_type_filter=post_type_filter)
     except Exception as exc:
         print(f"Warning: feed page load failed: {exc}")
         flash("There was a problem loading your feed. Please try again in a moment.")
@@ -3153,6 +3200,7 @@ def feed():
         page=page,
         page_size=FEED_PAGE_SIZE,
         has_next=has_next,
+        active_filter=active_filter,
         days_left=trial_days_left(user) if user else 0,
         show_trial_banner=bool(user and not _get_row_value(user, "paid_until")),
         db_warning_message=db_warning_message,
@@ -3172,7 +3220,11 @@ def feed_load_more(page):
         page = 1
     db = get_db()
     user = get_current_user()
-    posts_data, has_next = _load_feed_page(db, user, page, FEED_PAGE_SIZE)
+    active_filter = request.args.get("type", "all")
+    if active_filter not in ("job", "experience"):
+        active_filter = "all"
+    post_type_filter = active_filter if active_filter != "all" else None
+    posts_data, has_next = _load_feed_page(db, user, page, FEED_PAGE_SIZE, post_type_filter=post_type_filter)
     html = render_template("_feed_posts.html", posts_data=posts_data)
     return jsonify({
         "success": True,
@@ -3180,6 +3232,7 @@ def feed_load_more(page):
         "has_next": has_next,
         "has_posts": len(posts_data) > 0,
         "page": page,
+        "type": active_filter,
     })
 
 
@@ -3462,6 +3515,93 @@ def share_post(post_id):
     db.commit()
     award_task_reward(db, session["user_id"], "share_job", post_id=post_id)
     return redirect(request.referrer or url_for("feed"))
+
+
+@app.route("/api/post/<int:post_id>/repost", methods=["POST"])
+@login_required
+def api_repost_post(post_id):
+    """AJAX repost: bumps share_count without a full page reload/scroll jump.
+    Used by the Repost icon in the feed (optimistic UI on the client)."""
+    db = get_db()
+    post = db.execute("SELECT id FROM posts WHERE id = ?", (post_id,)).fetchone()
+    if not post:
+        return jsonify({"error": "not_found"}), 404
+    db.execute(
+        "UPDATE posts SET share_count = share_count + 1 WHERE id = ?", (post_id,)
+    )
+    db.commit()
+    award_task_reward(db, session["user_id"], "share_job", post_id=post_id)
+    new_count = db.execute(
+        "SELECT share_count FROM posts WHERE id = ?", (post_id,)
+    ).fetchone()["share_count"]
+    return jsonify({"success": True, "share_count": new_count})
+
+
+@app.route("/api/followers-list")
+@login_required
+def api_followers_list():
+    """Returns the current user's followers as JSON, for the 'Send to
+    Follower' picker in the Share bottom sheet."""
+    db = get_db()
+    uid = session["user_id"]
+    rows = db.execute(
+        """SELECT users.id, users.username, users.full_name, users.avatar
+           FROM follows
+           JOIN users ON users.id = follows.follower_id
+           WHERE follows.followed_id = ?
+           ORDER BY follows.created_at DESC""",
+        (uid,),
+    ).fetchall()
+    followers = [
+        {
+            "id": r["id"],
+            "username": r["username"],
+            "name": r["full_name"] or r["username"],
+            "avatar": photo_url(r["avatar"]) if r["avatar"] else None,
+        }
+        for r in rows
+    ]
+    return jsonify({"followers": followers})
+
+
+@app.route("/api/post/<int:post_id>/send-to-follower", methods=["POST"])
+@login_required
+def api_send_post_to_follower(post_id):
+    """Shares a post link into a DM with one of the current user's followers,
+    reusing the existing chat/conversations system. Powers 'Send to Follower
+    list' in the Share bottom sheet."""
+    db = get_db()
+    uid = session["user_id"]
+    post = db.execute("SELECT id FROM posts WHERE id = ?", (post_id,)).fetchone()
+    if not post:
+        return jsonify({"error": "not_found"}), 404
+
+    data = request.get_json(silent=True) or request.form
+    try:
+        follower_id = int(data.get("follower_id"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid_follower"}), 400
+
+    is_follower = db.execute(
+        "SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ?",
+        (follower_id, uid),
+    ).fetchone()
+    if not is_follower:
+        return jsonify({"error": "not_a_follower"}), 403
+
+    convo = _get_or_create_conversation(db, uid, follower_id)
+    post_link = url_for("post_detail", post_id=post_id, _external=True)
+    db.execute(
+        """INSERT INTO messages (conversation_id, sender_id, content, created_at)
+           VALUES (?, ?, ?, ?)""",
+        (convo["id"], uid, f"Sent a post: {post_link}", datetime.datetime.utcnow().isoformat()),
+    )
+    db.commit()
+    db.execute(
+        "UPDATE posts SET share_count = share_count + 1 WHERE id = ?", (post_id,)
+    )
+    db.commit()
+    return jsonify({"success": True})
 
 
 @app.route("/post/<int:post_id>/delete", methods=["POST"])
@@ -6033,6 +6173,25 @@ def admin_dashboard():
         ).fetchall()
         refund_cutoff_iso = (datetime.datetime.utcnow() - datetime.timedelta(hours=refund_window_hours)).isoformat()
 
+        total_users = db.execute("SELECT COUNT(*) c FROM users").fetchone()["c"]
+        pending_products_count = db.execute(
+            "SELECT COUNT(*) c FROM products WHERE status = 'pending'"
+        ).fetchone()["c"]
+        try:
+            gift_earnings = db.execute(
+                "SELECT COALESCE(SUM(platform_cut), 0) total FROM gifts"
+            ).fetchone()["total"]
+        except Exception:
+            gift_earnings = 0
+        try:
+            subscription_revenue = db.execute(
+                "SELECT COALESCE(SUM(amount), 0) total FROM payments WHERE status = 'approved'"
+            ).fetchone()["total"]
+        except Exception:
+            subscription_revenue = 0
+        total_revenue = (gift_earnings or 0) + (subscription_revenue or 0)
+        total_pending_actions = pending_deposit_count + pending_withdrawal_count + pending_products_count
+
         return render_template(
             "admin_dashboard.html",
             pending_deposits=pending_deposits,
@@ -6048,6 +6207,10 @@ def admin_dashboard():
             recent_transactions=recent_transactions,
             refund_cutoff_iso=refund_cutoff_iso,
             refund_window_hours=refund_window_hours,
+            total_users=total_users,
+            pending_products_count=pending_products_count,
+            total_revenue=total_revenue,
+            total_pending_actions=total_pending_actions,
         )
     except Exception as exc:
         print(f"Admin dashboard page error: {exc}")
@@ -6067,6 +6230,10 @@ def admin_dashboard():
             recent_transactions=[],
             refund_cutoff_iso=(datetime.datetime.utcnow() - datetime.timedelta(hours=48)).isoformat(),
             refund_window_hours=48,
+            total_users=0,
+            pending_products_count=0,
+            total_revenue=0,
+            total_pending_actions=0,
         )
 
 

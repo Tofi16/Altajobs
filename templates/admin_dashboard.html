@@ -13,6 +13,45 @@
       <a href="{{ url_for('admin_panel') }}" class="hidden lg:inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/5">← {{ t.admin_panel }}</a>
     </section>
 
+    <!-- Action Required: the single most important thing on this page -->
+    {% if total_pending_actions and total_pending_actions > 0 %}
+    <a href="{{ url_for('admin_products') }}" class="admin-action-required mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-400/25 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent px-5 py-4 no-underline transition hover:border-amber-400/40 hover:from-amber-500/20">
+      <div class="flex items-center gap-3">
+        <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-amber-400/20 text-xl text-amber-300"><i class='bx bx-bell-ring'></i></span>
+        <div>
+          <div class="text-sm font-extrabold text-amber-200">Action Required · {{ total_pending_actions }} item{{ '' if total_pending_actions == 1 else 's' }} waiting</div>
+          <div class="text-xs text-amber-200/70">{{ pending_deposit_count }} deposits · {{ pending_withdrawal_count }} withdrawals · {{ pending_products_count }} listings need review</div>
+        </div>
+      </div>
+      <span class="shrink-0 rounded-xl bg-amber-400 px-4 py-2.5 text-xs font-extrabold text-zinc-950">Go to Approvals →</span>
+    </a>
+    {% endif %}
+
+    <!-- Top-level SaaS summary -->
+    <div class="admin-metric-grid">
+      <div class="admin-metric-card">
+        <div class="admin-metric-icon" style="background:rgba(56,189,248,0.16);color:#7dd3fc;"><i class='bx bx-group'></i></div>
+        <div>
+          <h3>Total Users</h3>
+          <p>{{ total_users }}</p>
+        </div>
+      </div>
+      <div class="admin-metric-card">
+        <div class="admin-metric-icon" style="background:rgba(234,179,8,0.16);color:#facc15;"><i class='bx bx-time-five'></i></div>
+        <div>
+          <h3>Pending Approvals</h3>
+          <p>{{ total_pending_actions }}</p>
+        </div>
+      </div>
+      <div class="admin-metric-card">
+        <div class="admin-metric-icon" style="background:rgba(34,197,94,0.16);color:#4ade80;"><i class='bx bx-dollar-circle'></i></div>
+        <div>
+          <h3>Total Revenue</h3>
+          <p>{{ total_revenue }} ETB</p>
+        </div>
+      </div>
+    </div>
+
     <div class="admin-metric-grid">
       <div class="admin-metric-card">
         <div class="admin-metric-icon"><i class='bx bx-transfer-alt'></i></div>

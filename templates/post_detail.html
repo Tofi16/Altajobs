@@ -56,9 +56,13 @@
       <i class='bx {{ "bxs-heart" if liked else "bx-heart" }}'></i>
       <span class="like-count">{{ like_count }}</span>
     </button>
-    <form method="POST" action="{{ url_for('share_post', post_id=post['id']) }}">
-      <button type="submit" class="action-btn"><i class='bx bx-share-alt'></i><span class="action-count">{{ post['share_count'] }}</span></button>
-    </form>
+    <button type="button" class="action-btn js-repost-btn" data-post-id="{{ post['id'] }}" title="Repost">
+      <i class='bx bx-repost'></i><span class="action-count repost-count">{{ post['share_count'] }}</span>
+    </button>
+    <button type="button" class="action-btn js-share-btn" data-post-id="{{ post['id'] }}"
+            data-post-url="{{ url_for('post_detail', post_id=post['id'], _external=True) }}" title="Share">
+      <i class='bx bx-share-alt'></i>
+    </button>
   </div>
 
   {% if current_user and current_user['id'] != post['user_id'] %}
@@ -107,6 +111,46 @@
     <input type="text" name="content" placeholder="{{ t.write_comment }}" required>
     <button type="submit" class="btn btn-small">{{ t.send }}</button>
   </form>
+</div>
+
+
+<!-- Repost modal: "Send to chat/followers" -->
+<div class="modal-overlay" id="repostModalOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:1090;padding:16px;"></div>
+<div class="modal-card" id="repostModal" role="dialog" aria-label="Send to chat/followers"
+     style="display:none;position:fixed;inset:0;margin:auto;max-width:420px;max-height:min(72vh,460px);height:fit-content;background:var(--surface);border-radius:20px;z-index:1091;padding:18px;overflow-y:auto;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <h3 style="margin:0;font-size:1rem;font-weight:800;">Send to chat / followers</h3>
+    <button type="button" class="js-repost-modal-close" style="border:none;background:transparent;color:var(--muted);font-size:1.3rem;cursor:pointer;line-height:1;">&times;</button>
+  </div>
+  <button type="button" class="sheet-action" id="repostQuickBtn">
+    <i class='bx bx-repost'></i> Repost to your feed
+  </button>
+  <div class="sheet-title" style="margin-top:8px;">Or send directly to…</div>
+  <div class="sheet-follower-list" id="repostFollowerList">
+    <div class="sheet-empty-note">Loading your followers…</div>
+  </div>
+</div>
+
+<div class="bottom-sheet-overlay" id="bottomSheetOverlay"></div>
+<div class="bottom-sheet" id="shareActionsSheet" role="dialog" aria-label="Share post">
+  <div class="bottom-sheet-handle"></div>
+  <div id="shareSheetMain">
+    <div class="sheet-title">Share this post</div>
+    <button type="button" class="sheet-action" id="sheetCopyLinkBtn">
+      <i class='bx bx-link-alt'></i> Copy Link
+    </button>
+    <button type="button" class="sheet-action" id="sheetSendToFollowerBtn">
+      <i class='bx bx-paper-plane'></i> Send to Follower list
+    </button>
+    <button type="button" class="sheet-action sheet-cancel js-share-sheet-close">Cancel</button>
+  </div>
+  <div id="shareSheetFollowers" style="display:none">
+    <div class="sheet-title">Send to…</div>
+    <div class="sheet-follower-list" id="shareFollowerList">
+      <div class="sheet-empty-note">Loading your followers…</div>
+    </div>
+    <button type="button" class="sheet-action sheet-cancel js-share-sheet-close">Cancel</button>
+  </div>
 </div>
 
 {% endblock %}
