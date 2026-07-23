@@ -1,48 +1,46 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="pw-wallet">
+<div class="mx-auto max-w-xl px-4 py-5 text-slate-200">
 
   <!-- Balance hero -->
-  <section class="pw-balance-card">
-    <div class="pw-balance-label">Available Balance</div>
-    <div class="pw-balance-amount">
-      {{ "{:,.0f}".format(current_user.get('wallet_balance', current_user.get('balance', 0)) | float) }}<span class="pw-unit">ETB</span>
-    </div>
-    <div class="pw-token-row">
-      <span class="pw-token-chip">🪙</span>
-      <span><strong id="walletTokensCount">{{ current_user.get('alta_tokens', 0) }}</strong> Alta Tokens</span>
+  <section class="wallet-hero mb-4 rounded-2xl border border-white/5 bg-gradient-to-br from-emerald-500/20 via-zinc-900/70 to-zinc-950 p-5 shadow-[0_18px_45px_rgba(16,185,129,0.08)]">
+    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Available Balance</div>
+    <div class="mt-1 text-4xl font-black text-slate-50 tabular-nums">{{ current_user.get('wallet_balance', current_user.get('balance', 0)) }} <span class="text-lg font-bold text-slate-400">ETB</span></div>
+    <div class="mt-1.5 flex items-center gap-1.5 text-xs text-slate-400">
+      <span class="grid h-5 w-5 place-items-center rounded-full bg-amber-400/15 text-amber-300">🪙</span>
+      <strong id="walletTokensCount" class="text-slate-200">{{ current_user.get('alta_tokens', 0) }}</strong> Alta Tokens
     </div>
     {% if pending_balance and pending_balance > 0 %}
-      <div class="pw-pending-pill">⏳ {{ "{:,.0f}".format(pending_balance | float) }} ETB held for a pending withdrawal</div>
+      <div class="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-400">⏳ {{ pending_balance }} ETB held for a pending withdrawal</div>
     {% endif %}
-    <div class="pw-wallet-id-row">
-      <span class="pw-id-label">WALLET ID</span>
-      <span id="walletIdValue" class="pw-id-value">{{ current_user.get('wallet_id', '') }}</span>
-      <button type="button" id="copyWalletId" class="pw-copy-btn">Copy</button>
+    <div class="mt-3 flex items-center gap-2 rounded-xl border border-white/5 bg-zinc-950/50 px-3 py-2.5">
+      <span class="text-[11px] font-semibold text-slate-500">Wallet ID</span>
+      <span id="walletIdValue" class="flex-1 truncate font-mono text-sm text-slate-200">{{ current_user.get('wallet_id', '') }}</span>
+      <button type="button" id="copyWalletId" class="shrink-0 rounded-lg bg-white/5 px-2.5 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-white/10 active:scale-95 transition">Copy</button>
     </div>
   </section>
 
   <!-- Actions -->
-  <section class="pw-actions" aria-label="Wallet actions">
-    <button type="button" data-modal="depositModal" class="pw-action-btn deposit">
-      <span class="pw-action-icon"><i class='bx bx-down-arrow-alt'></i></span>
+  <section class="mb-5 grid grid-cols-3 gap-2.5" aria-label="Wallet actions">
+    <button type="button" data-modal="depositModal" class="flex flex-col items-center gap-1.5 rounded-2xl border border-white/5 bg-zinc-900/60 py-3.5 text-xs font-bold text-slate-200 shadow-sm hover:bg-zinc-900 active:scale-95 transition">
+      <span class="grid h-10 w-10 place-items-center rounded-full bg-emerald-500/15 text-emerald-400 text-lg"><i class='bx bx-down-arrow-alt'></i></span>
       Deposit
     </button>
-    <button type="button" data-modal="withdrawModal" class="pw-action-btn withdraw">
-      <span class="pw-action-icon"><i class='bx bx-up-arrow-alt'></i></span>
+    <button type="button" data-modal="withdrawModal" class="flex flex-col items-center gap-1.5 rounded-2xl border border-white/5 bg-zinc-900/60 py-3.5 text-xs font-bold text-slate-200 shadow-sm hover:bg-zinc-900 active:scale-95 transition">
+      <span class="grid h-10 w-10 place-items-center rounded-full bg-red-500/15 text-red-400 text-lg"><i class='bx bx-up-arrow-alt'></i></span>
       Withdraw
     </button>
-    <button type="button" data-modal="sendModal" class="pw-action-btn send">
-      <span class="pw-action-icon"><i class='bx bx-paper-plane'></i></span>
+    <button type="button" data-modal="sendModal" class="flex flex-col items-center gap-1.5 rounded-2xl border border-dashed border-sky-500/40 bg-transparent py-3.5 text-xs font-bold text-sky-400 hover:bg-sky-500/5 active:scale-95 transition">
+      <span class="grid h-10 w-10 place-items-center rounded-full border border-sky-500/30 text-sky-400 text-lg"><i class='bx bx-paper-plane'></i></span>
       Send
     </button>
   </section>
 
   <!-- Recent Activity, grouped by date -->
   <section>
-    <div class="pw-section-label">Recent Activity</div>
-    <div id="requestsList">
+    <div class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Recent Activity</div>
+    <div id="requestsList" class="space-y-4">
       {% set reqs = requests if requests is defined else history if history is defined else [] %}
       {% if reqs and reqs|length > 0 %}
         {% set ns = namespace(last_date='') %}
@@ -54,114 +52,114 @@
           {% if date_str != ns.last_date %}
             {% if not loop.first %}</div>{% endif %}
             {% set ns.last_date = date_str %}
-            <div class="pw-date-divider">{{ date_str }}</div>
-            <div class="pw-tx-group">
+            <div class="mb-1.5 mt-3 text-[11px] font-bold uppercase tracking-wide text-slate-600">{{ date_str }}</div>
+            <div class="divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/5">
           {% endif %}
-          <div class="pw-tx-row">
-            <div class="pw-tx-left">
-              <span class="pw-tx-icon {{ 'out' if is_withdrawal else 'in' }}">
+          <div class="flex items-center justify-between gap-3 bg-zinc-900/40 px-3.5 py-3 hover:bg-zinc-900/60 transition">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-base {{ 'bg-red-500/15 text-red-400' if is_withdrawal else 'bg-emerald-500/15 text-emerald-400' }}">
                 <i class='bx {{ "bx-up-arrow-alt" if is_withdrawal else "bx-down-arrow-alt" }}'></i>
               </span>
-              <div class="min-w-0">
-                <div class="pw-tx-title">{{ tx_type|capitalize }}</div>
-                <div class="pw-tx-time">{{ (r['created_at'][11:16] if 'created_at' in r.keys() and r['created_at'] else '') }}</div>
+              <div class="min-w-0 text-sm">
+                <div class="truncate font-semibold text-slate-100">{{ tx_type|capitalize }}</div>
+                <div class="text-[11px] text-slate-500">{{ (r['created_at'][11:16] if 'created_at' in r.keys() and r['created_at'] else '') }}</div>
               </div>
             </div>
-            <div class="pw-tx-right">
-              <div class="pw-tx-amount {{ 'out' if is_withdrawal else 'in' }}">{{ '-' if is_withdrawal else '+' }}{{ "{:,.0f}".format((r['amount'] if 'amount' in r.keys() else 0) | float) }} ETB</div>
-              <span class="pw-tx-status {{ 'approved' if status == 'approved' else ('rejected' if status in ('rejected','declined') else 'pending') }}">{{ status|capitalize }}</span>
+            <div class="shrink-0 text-right">
+              <div class="text-sm font-extrabold {{ 'text-red-400' if is_withdrawal else 'text-emerald-400' }}">{{ '-' if is_withdrawal else '+' }}{{ (r['amount'] if 'amount' in r.keys() else '') }} ETB</div>
+              <span class="admin-badge {{ 'admin-badge-success' if status == 'approved' else ('admin-badge-danger' if status in ('rejected','declined') else 'admin-badge-warning') }} mt-1">{{ status|capitalize }}</span>
             </div>
           </div>
         {% endfor %}
         </div>
       {% else %}
-        <div class="pw-empty">No requests yet</div>
+        <div class="rounded-2xl border border-white/5 bg-zinc-900/40 px-3 py-8 text-center text-sm text-slate-500">No requests yet</div>
       {% endif %}
     </div>
   </section>
 
   <!-- Modals -->
-  <div id="depositModal" class="pw-modal-backdrop" aria-hidden="true">
-    <div class="pw-modal-card">
-      <h3 class="pw-modal-title">Deposit Funds</h3>
-      <form id="depositForm" method="POST" action="{{ url_for('wallet_deposit') }}" enctype="multipart/form-data">
-        <div class="pw-field">
-          <label>Amount</label>
-          <input name="amount" type="number" step="0.01" min="1" required>
+  <div id="depositModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm" aria-hidden="true">
+    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
+      <h3 class="mb-4 text-sm font-bold text-slate-100">Deposit Funds</h3>
+      <form id="depositForm" method="POST" action="{{ url_for('wallet_deposit') }}" enctype="multipart/form-data" class="space-y-3">
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Amount</label>
+          <input name="amount" type="number" step="0.01" min="1" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
-        <div class="pw-field">
-          <label>Bank</label>
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Bank</label>
           {% if banks and banks|length > 0 %}
-            <select name="bank_id" required>
+            <select name="bank_id" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
               <option value="">Select bank</option>
               {% for bank in banks %}
                 <option value="{{ bank['id'] }}">{{ bank['bank_name'] }} — {{ bank['account_holder_name'] if bank['account_holder_name'] else bank['account_name'] }} / {{ bank['account_number'] }}</option>
               {% endfor %}
             </select>
           {% else %}
-            <p style="font-size:0.78rem;color:var(--pw-muted);">No active banks configured.</p>
+            <p class="text-xs text-slate-500">No active banks configured.</p>
           {% endif %}
         </div>
-        <div class="pw-field">
-          <label>Transaction Reference ID</label>
-          <input name="transaction_ref" type="text" required>
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Transaction Reference ID</label>
+          <input name="transaction_ref" type="text" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
-        <div class="pw-field">
-          <label>Attach receipt (optional)</label>
-          <input name="receipt_photo" type="file" accept="image/*" style="padding:0.4rem 0;border:none;background:none;">
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Attach receipt (optional)</label>
+          <input name="receipt_photo" type="file" accept="image/*" class="w-full text-xs text-slate-400">
         </div>
-        <div class="pw-modal-actions">
-          <button type="button" class="pw-btn-ghost" data-close>Cancel</button>
-          <button type="submit" class="pw-btn-gold">Submit Deposit</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div id="withdrawModal" class="pw-modal-backdrop" aria-hidden="true">
-    <div class="pw-modal-card">
-      <h3 class="pw-modal-title">Withdraw Funds</h3>
-      <form id="withdrawForm" method="POST" action="{{ url_for('withdraw_request') }}">
-        <div class="pw-field">
-          <label>Amount</label>
-          <input name="amount" type="number" step="0.01" min="10" required>
-        </div>
-        <div class="pw-field">
-          <label>Destination Account Name</label>
-          <input name="account_name" type="text" required>
-        </div>
-        <div class="pw-field">
-          <label>Account Number</label>
-          <input name="account_number" type="text" required>
-        </div>
-        <div class="pw-field">
-          <label>Bank Name</label>
-          <input name="bank_name_manual" type="text" required>
-        </div>
-        <div class="pw-modal-actions">
-          <button type="button" class="pw-btn-ghost" data-close>Cancel</button>
-          <button type="submit" class="pw-btn-gold">Request Withdraw</button>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" class="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
+          <button type="submit" class="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-bold text-zinc-950">Submit Deposit</button>
         </div>
       </form>
     </div>
   </div>
 
-  <div id="sendModal" class="pw-modal-backdrop" aria-hidden="true">
-    <div class="pw-modal-card">
-      <h3 class="pw-modal-title">Send Funds</h3>
-      <form id="sendForm" method="POST" action="{{ url_for('wallet_transfer') }}">
-        <div class="pw-field">
-          <label>Amount</label>
-          <input name="amount" type="number" step="0.01" min="0.01" required>
+  <div id="withdrawModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm" aria-hidden="true">
+    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
+      <h3 class="mb-4 text-sm font-bold text-slate-100">Withdraw Funds</h3>
+      <form id="withdrawForm" method="POST" action="{{ url_for('withdraw_request') }}" class="space-y-3">
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Amount</label>
+          <input name="amount" type="number" step="0.01" min="10" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
-        <div class="pw-field">
-          <label>Recipient Wallet ID</label>
-          <input name="recipient_wallet_id" id="recipientWalletId" type="text" required autocomplete="off">
-          <p id="recipientNameHint" style="margin-top:0.35rem;font-size:0.72rem;"></p>
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Destination Account Name</label>
+          <input name="account_name" type="text" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
-        <div class="pw-modal-actions">
-          <button type="button" class="pw-btn-ghost" data-close>Cancel</button>
-          <button type="submit" id="sendSubmitBtn" class="pw-btn-gold">Send</button>
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Account Number</label>
+          <input name="account_number" type="text" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+        </div>
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Bank Name</label>
+          <input name="bank_name_manual" type="text" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+        </div>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" class="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
+          <button type="submit" class="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-bold text-zinc-950">Request Withdraw</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="sendModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm" aria-hidden="true">
+    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
+      <h3 class="mb-4 text-sm font-bold text-slate-100">Send Funds</h3>
+      <form id="sendForm" method="POST" action="{{ url_for('wallet_transfer') }}" class="space-y-3">
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Amount</label>
+          <input name="amount" type="number" step="0.01" min="0.01" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+        </div>
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Recipient Wallet ID</label>
+          <input name="recipient_wallet_id" id="recipientWalletId" type="text" required autocomplete="off" class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+          <p id="recipientNameHint" class="mt-1 text-xs"></p>
+        </div>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" class="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
+          <button type="submit" id="sendSubmitBtn" class="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-bold text-zinc-950">Send</button>
         </div>
       </form>
     </div>
@@ -173,18 +171,18 @@
 document.querySelectorAll('[data-modal]').forEach(function(btn) {
   btn.addEventListener('click', function() {
     var m = document.getElementById(btn.getAttribute('data-modal'));
-    if (m) { m.classList.add('flex'); m.setAttribute('aria-hidden', 'false'); }
+    if (m) { m.classList.remove('hidden'); m.classList.add('flex'); m.setAttribute('aria-hidden', 'false'); }
   });
 });
 document.querySelectorAll('[data-close]').forEach(function(b) {
   b.addEventListener('click', function(e) {
-    var backdrop = e.target.closest('.pw-modal-backdrop');
-    if (backdrop) { backdrop.classList.remove('flex'); backdrop.setAttribute('aria-hidden', 'true'); }
+    var backdrop = e.target.closest('.fixed.inset-0');
+    if (backdrop) { backdrop.classList.add('hidden'); backdrop.classList.remove('flex'); backdrop.setAttribute('aria-hidden', 'true'); }
   });
 });
-document.querySelectorAll('.pw-modal-backdrop').forEach(function(back) {
+document.querySelectorAll('#depositModal, #withdrawModal, #sendModal').forEach(function(back) {
   back.addEventListener('click', function(e) {
-    if (e.target === back) { back.classList.remove('flex'); back.setAttribute('aria-hidden', 'true'); }
+    if (e.target === back) { back.classList.add('hidden'); back.classList.remove('flex'); back.setAttribute('aria-hidden', 'true'); }
   });
 });
 
@@ -219,11 +217,11 @@ document.querySelectorAll('.pw-modal-backdrop').forEach(function(back) {
         .then(function (data) {
           if (data.found) {
             hint.textContent = '✓ Sending to ' + data.name;
-            hint.style.color = 'var(--pw-copper)';
+            hint.className = 'mt-1 text-xs text-emerald-400';
             if (submitBtn) submitBtn.disabled = false;
           } else {
             hint.textContent = 'No wallet found with that ID';
-            hint.style.color = 'var(--pw-rose)';
+            hint.className = 'mt-1 text-xs text-red-400';
             if (submitBtn) submitBtn.disabled = true;
           }
         }).catch(function () { hint.textContent = ''; });
