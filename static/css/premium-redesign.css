@@ -1,0 +1,528 @@
+/* ==========================================================================
+   ALTAJOBS — PREMIUM REDESIGN SYSTEM
+   "Habesha Fintech": deep charcoal-teal ground, warm coffee-gold accent,
+   copper for money-in, dusted rose for money-out. Replaces the generic
+   Twitter-blue-on-slate scheme with a palette that reads as this product.
+
+   Drop this file in AFTER style.css (it only adds new classes + a few
+   scoped var overrides — nothing here breaks existing components).
+   ========================================================================== */
+
+:root {
+  /* ---- New premium tokens (namespaced so they never collide with the
+     existing --accent / --surface system used elsewhere in the app) ---- */
+  --pw-bg-deep: #0B1210;          /* near-black with a whisper of green-teal */
+  --pw-surface: #121B19;          /* card ground, one step up from bg */
+  --pw-surface-raised: #17221F;   /* modal / raised surface */
+  --pw-hairline: rgba(214, 178, 110, 0.16);   /* gold hairline, used sparingly */
+  --pw-border: rgba(255, 255, 255, 0.07);
+  --pw-text: #F4F1EA;             /* warm off-white, not pure white */
+  --pw-muted: #8FA39C;            /* desaturated sage-gray for secondary text */
+
+  --pw-gold: #D6B26E;             /* coffee-ceremony gold — primary accent */
+  --pw-gold-bright: #F0CE8E;
+  --pw-copper: #E08A4C;           /* money in */
+  --pw-copper-soft: rgba(224, 138, 76, 0.16);
+  --pw-rose: #C97575;             /* money out — dusted, not alarm-red */
+  --pw-rose-soft: rgba(201, 117, 117, 0.16);
+
+  --pw-radius-lg: 1.75rem;
+  --pw-radius-md: 1.25rem;
+  --pw-radius-sm: 0.85rem;
+}
+
+/* ==========================================================================
+   1. WALLET — "Coffee Ledger" fintech dashboard
+   ========================================================================== */
+
+.pw-wallet {
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+  color: var(--pw-text);
+}
+
+/* --- Balance hero: frosted glass over a woven-border top edge instead of
+   a generic mesh-gradient blob. The "weave" is a repeating linear-gradient
+   strip referencing Ethiopian textile trim — the signature element. --- */
+.pw-balance-card {
+  position: relative;
+  border-radius: var(--pw-radius-lg);
+  padding: 1.75rem 1.5rem 1.5rem;
+  background:
+    radial-gradient(120% 140% at 15% -10%, rgba(214, 178, 110, 0.16), transparent 55%),
+    radial-gradient(100% 120% at 100% 120%, rgba(224, 138, 76, 0.10), transparent 60%),
+    var(--pw-surface);
+  border: 1px solid var(--pw-border);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Woven trim: thin repeating diagonal band along the top, 6px tall */
+.pw-balance-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 5px;
+  background: repeating-linear-gradient(
+    115deg,
+    var(--pw-gold) 0 8px,
+    var(--pw-copper) 8px 16px,
+    var(--pw-rose) 16px 20px,
+    transparent 20px 24px
+  );
+  opacity: 0.85;
+}
+
+.pw-balance-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--pw-muted);
+}
+
+.pw-balance-amount {
+  margin-top: 0.35rem;
+  font-size: clamp(2.4rem, 9vw, 3.2rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--pw-text);
+}
+
+.pw-balance-amount .pw-unit {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--pw-gold);
+  margin-left: 0.35rem;
+  letter-spacing: 0;
+}
+
+.pw-token-row {
+  margin-top: 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  color: var(--pw-muted);
+}
+.pw-token-chip {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(214, 178, 110, 0.14);
+  color: var(--pw-gold-bright);
+  font-size: 0.8rem;
+}
+.pw-token-row strong { color: var(--pw-text); font-weight: 700; }
+
+.pw-pending-pill {
+  margin-top: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--pw-gold-bright);
+  background: rgba(214, 178, 110, 0.10);
+  border: 1px solid rgba(214, 178, 110, 0.22);
+}
+
+.pw-wallet-id-row {
+  margin-top: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--pw-radius-sm);
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--pw-border);
+}
+.pw-wallet-id-row .pw-id-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--pw-muted);
+  letter-spacing: 0.04em;
+}
+.pw-wallet-id-row .pw-id-value {
+  flex: 1;
+  min-width: 0;
+  font-family: 'SF Mono', ui-monospace, monospace;
+  font-size: 0.85rem;
+  color: var(--pw-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pw-copy-btn {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--pw-bg-deep);
+  background: var(--pw-gold);
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.pw-copy-btn:hover { background: var(--pw-gold-bright); }
+.pw-copy-btn:active { transform: scale(0.94); }
+
+/* --- Action buttons: floating pill trio, not square icon-tiles --- */
+.pw-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+  margin: 1.5rem 0;
+}
+
+.pw-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 1rem 0.5rem;
+  border-radius: 999px 999px var(--pw-radius-md) var(--pw-radius-md);
+  border: 1px solid var(--pw-border);
+  background: var(--pw-surface);
+  color: var(--pw-text);
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 30px -14px rgba(0, 0, 0, 0.7);
+  transition: transform 0.18s cubic-bezier(.2,.8,.2,1), box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.pw-action-btn:hover {
+  transform: translateY(-3px);
+  border-color: var(--pw-hairline);
+  box-shadow: 0 16px 36px -14px rgba(0, 0, 0, 0.8);
+}
+.pw-action-btn:active { transform: translateY(-1px) scale(0.97); }
+
+.pw-action-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  font-size: 1.15rem;
+}
+.pw-action-btn.deposit .pw-action-icon { background: var(--pw-copper-soft); color: var(--pw-copper); }
+.pw-action-btn.withdraw .pw-action-icon { background: var(--pw-rose-soft); color: var(--pw-rose); }
+.pw-action-btn.send .pw-action-icon { background: rgba(214, 178, 110, 0.14); color: var(--pw-gold-bright); }
+.pw-action-btn.send { border-style: dashed; border-color: rgba(214, 178, 110, 0.35); background: transparent; box-shadow: none; }
+
+/* --- Transaction history --- */
+.pw-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pw-muted);
+  margin: 0 0.2rem 0.6rem;
+}
+
+.pw-date-divider {
+  margin: 1.1rem 0.2rem 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pw-muted);
+  opacity: 0.75;
+}
+
+.pw-tx-group {
+  border-radius: var(--pw-radius-md);
+  border: 1px solid var(--pw-border);
+  overflow: hidden;
+  background: var(--pw-surface);
+}
+
+.pw-tx-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  transition: background 0.15s ease;
+}
+.pw-tx-row + .pw-tx-row { border-top: 1px solid var(--pw-border); }
+.pw-tx-row:hover { background: rgba(255, 255, 255, 0.02); }
+
+.pw-tx-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.pw-tx-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  font-size: 1rem;
+}
+.pw-tx-icon.in { background: var(--pw-copper-soft); color: var(--pw-copper); }
+.pw-tx-icon.out { background: var(--pw-rose-soft); color: var(--pw-rose); }
+
+.pw-tx-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--pw-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pw-tx-time {
+  font-size: 0.72rem;
+  color: var(--pw-muted);
+  margin-top: 0.1rem;
+}
+
+.pw-tx-right { text-align: right; flex-shrink: 0; }
+.pw-tx-amount {
+  font-size: 0.92rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.pw-tx-amount.in { color: var(--pw-copper); }
+.pw-tx-amount.out { color: var(--pw-rose); }
+
+.pw-tx-status {
+  display: inline-block;
+  margin-top: 0.25rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.pw-tx-status.approved { color: #9FD8B8; background: rgba(94, 189, 138, 0.14); }
+.pw-tx-status.pending { color: var(--pw-gold-bright); background: rgba(214, 178, 110, 0.14); }
+.pw-tx-status.rejected { color: var(--pw-rose); background: var(--pw-rose-soft); }
+
+.pw-empty {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--pw-muted);
+  font-size: 0.85rem;
+  border-radius: var(--pw-radius-md);
+  border: 1px dashed var(--pw-border);
+}
+
+/* --- Modals restyled to match --- */
+.pw-modal-backdrop {
+  position: fixed; inset: 0; z-index: 70;
+  display: none;
+  align-items: center; justify-content: center;
+  padding: 1rem;
+  background: rgba(4, 8, 7, 0.72);
+  backdrop-filter: blur(6px);
+}
+.pw-modal-backdrop.flex { display: flex; }
+.pw-modal-card {
+  width: 100%; max-width: 24rem;
+  border-radius: var(--pw-radius-lg);
+  border: 1px solid var(--pw-hairline);
+  background: var(--pw-surface-raised);
+  padding: 1.5rem;
+  box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8);
+}
+.pw-modal-title { font-size: 0.95rem; font-weight: 800; color: var(--pw-text); margin-bottom: 1rem; }
+.pw-field { margin-bottom: 0.85rem; }
+.pw-field label {
+  display: block; margin-bottom: 0.35rem;
+  font-size: 0.7rem; font-weight: 700; color: var(--pw-muted);
+}
+.pw-field input, .pw-field select {
+  width: 100%;
+  border-radius: var(--pw-radius-sm);
+  border: 1px solid var(--pw-border);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--pw-text);
+}
+.pw-field input:focus, .pw-field select:focus {
+  outline: none;
+  border-color: var(--pw-gold);
+}
+.pw-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; padding-top: 0.4rem; }
+.pw-btn-ghost {
+  border-radius: var(--pw-radius-sm);
+  border: 1px solid var(--pw-border);
+  background: transparent;
+  color: var(--pw-muted);
+  padding: 0.55rem 1rem;
+  font-size: 0.75rem; font-weight: 700;
+  cursor: pointer;
+}
+.pw-btn-gold {
+  border-radius: var(--pw-radius-sm);
+  border: none;
+  background: var(--pw-gold);
+  color: var(--pw-bg-deep);
+  padding: 0.55rem 1.1rem;
+  font-size: 0.75rem; font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.pw-btn-gold:hover { background: var(--pw-gold-bright); }
+.pw-btn-gold:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ==========================================================================
+   2. POSTCARD FEED — immersive edge-to-edge cards
+   ========================================================================== */
+
+.pc-card {
+  position: relative;
+  border-radius: var(--pw-radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: var(--pw-surface);
+  overflow: hidden;
+  box-shadow: 0 20px 50px -24px rgba(0, 0, 0, 0.7);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.pc-card:hover {
+  box-shadow: 0 26px 60px -22px rgba(0, 0, 0, 0.8);
+}
+
+/* Header: avatar + name + verified badge + role, flex-aligned in one line */
+.pc-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 1rem 1.1rem 0.75rem;
+}
+.pc-avatar {
+  width: 42px; height: 42px;
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid var(--pw-hairline);
+}
+.pc-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.pc-identity { min-width: 0; flex: 1; }
+.pc-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  line-height: 1.2;
+}
+.pc-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--pw-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pc-name-row .verification-badge--inline {
+  width: 16px; height: 16px; margin-left: 2px;
+  display: inline-flex; align-items: center;
+  transform: translateY(0.5px); /* optical alignment with cap-height text */
+}
+.pc-role-pill {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(214, 178, 110, 0.14);
+  color: var(--pw-gold-bright);
+  margin-left: 0.15rem;
+}
+.pc-meta {
+  font-size: 0.75rem;
+  color: var(--pw-muted);
+  margin-top: 0.1rem;
+}
+
+/* Body copy sits before the image, edge padding, image bleeds full width */
+.pc-body-text {
+  padding: 0 1.1rem 0.85rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--pw-text);
+}
+
+.pc-media {
+  position: relative;
+  width: 100%;
+  line-height: 0;
+}
+.pc-media img {
+  width: 100%;
+  display: block;
+  max-height: 30rem;
+  object-fit: cover;
+}
+/* Bottom scrim so overlaid text/badges stay legible on any photo */
+.pc-media::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 45%;
+  background: linear-gradient(to top, rgba(4, 8, 7, 0.85), transparent);
+  pointer-events: none;
+}
+.pc-media-tag {
+  position: absolute;
+  left: 1rem; bottom: 0.85rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+/* Footer actions: like / comment / share / repost, borderless icon row */
+.pc-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  padding: 0.85rem 1.1rem 1rem;
+  border-top: 1px solid var(--pw-border);
+  margin-top: 0.15rem;
+}
+.pc-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: none;
+  color: var(--pw-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.pc-action-btn:hover { color: var(--pw-gold-bright); }
+.pc-action-btn.liked { color: var(--pw-rose); }
+.pc-action-btn i { font-size: 1.05rem; }
+
+@media (max-width: 480px) {
+  .pc-media img { max-height: 22rem; }
+  .pw-balance-amount { font-size: 2.5rem; }
+}

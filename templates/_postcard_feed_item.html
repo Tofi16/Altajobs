@@ -1,0 +1,76 @@
+{# ==========================================================================
+   POSTCARD FEED ITEM — single post card
+   Drop-in replacement for one post's markup inside _feed_posts.html's loop.
+   Expects the same `post` row object your existing partial uses (adjust
+   field names below if your row keys differ, e.g. post['user_full_name']).
+   Requires premium-redesign.css to be loaded on the page.
+   ========================================================================== #}
+
+<article class="pc-card" data-post-id="{{ post['id'] }}">
+
+  <div class="pc-header">
+    <div class="pc-avatar">
+      {% if post['avatar'] %}
+        <img src="{{ photo_url(post['avatar']) }}" loading="lazy" decoding="async" alt="{{ post['full_name'] or post['username'] }}">
+      {% else %}
+        <div style="width:100%;height:100%;display:grid;place-items:center;background:var(--pw-surface-raised);color:var(--pw-gold-bright);font-weight:700;">
+          {{ (post['full_name'] or post['username'])[0] }}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="pc-identity">
+      <div class="pc-name-row">
+        <span class="pc-name">{{ post['full_name'] or post['username'] }}</span>
+        {% if post['verification_tier'] in ('blue', 'gold') %}
+          {# Self-contained badge — swap for your existing verification badge
+             include/macro if you already have one elsewhere in the app. #}
+          <span class="verification-badge--inline verification-badge--{{ post['verification_tier'] }}" title="{{ 'Gold Verified' if post['verification_tier'] == 'gold' else 'Verified' }}">
+            <svg viewBox="0 0 22 22" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <path d="M11 1.5l2.6 1.3 2.9-.4 1.3 2.6 2.6 1.3-.4 2.9 1.3 2.6-1.9 2.2.4 2.9-2.9.4-1.9 2.2-2.6-1.3-2.9.4-1.3-2.6-2.6-1.3.4-2.9-1.3-2.6 1.9-2.2-.4-2.9 2.9-.4 1.9-2.2z"/>
+              <path d="M8.2 11.2l1.8 1.8 3.8-3.8" stroke="{{ '#3b2a00' if post['verification_tier'] == 'gold' else '#0B1210' }}" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        {% endif %}
+        {% if post['post_type'] == 'job' %}
+          <span class="pc-role-pill">💼 Job</span>
+        {% elif post['post_type'] == 'skill' %}
+          <span class="pc-role-pill">🧩 Seeking</span>
+        {% endif %}
+      </div>
+      <div class="pc-meta">{{ post['created_at'] }}</div>
+    </div>
+  </div>
+
+  {% if post['content'] %}
+    <p class="pc-body-text">{{ post['content'] }}</p>
+  {% endif %}
+
+  {% if post['photo'] %}
+    <div class="pc-media">
+      <img src="{{ photo_url(post['photo']) }}" loading="lazy" decoding="async" alt="Post image">
+      {% if post['post_type'] == 'job' %}
+        <span class="pc-media-tag"><i class='bx bxs-briefcase'></i> Hiring now</span>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="pc-actions">
+    <button type="button" class="pc-action-btn js-like-btn {{ 'liked' if post['liked'] else '' }}" data-post-id="{{ post['id'] }}">
+      <i class='bx {{ "bxs-heart" if post['liked'] else "bx-heart" }}'></i>
+      <span>{{ post['like_count'] if post['like_count'] is defined else 0 }}</span>
+    </button>
+    <button type="button" class="pc-action-btn js-comment-btn" data-post-id="{{ post['id'] }}">
+      <i class='bx bx-comment'></i>
+      <span>{{ post['comment_count'] if post['comment_count'] is defined else 0 }}</span>
+    </button>
+    <button type="button" class="pc-action-btn js-repost-btn" data-post-id="{{ post['id'] }}">
+      <i class='bx bx-repost'></i>
+      <span>Repost</span>
+    </button>
+    <button type="button" class="pc-action-btn js-share-btn" data-post-id="{{ post['id'] }}">
+      <i class='bx bx-share-alt'></i>
+    </button>
+  </div>
+
+</article>
