@@ -149,10 +149,16 @@ class WalletFlowTests(unittest.TestCase):
                 pass
             is_sqlite = True
 
+        original_get_db = app_module.get_db
+        original_get_current_user = app_module.get_current_user
         app_module.get_db = lambda: FailingDb()
         app_module.get_current_user = lambda: {'id': 1, 'is_admin': False, 'is_banned': 0, 'banned_until': None}
 
-        response = self.client.get('/wallet')
+        try:
+            response = self.client.get('/wallet')
+        finally:
+            app_module.get_db = original_get_db
+            app_module.get_current_user = original_get_current_user
 
         self.assertIn(response.status_code, (200, 302))
 

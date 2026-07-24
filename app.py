@@ -298,6 +298,19 @@ class DatabaseConnection:
         self.conn.close()
 
 
+@app.teardown_appcontext
+def close_db(exc):
+    db = getattr(g, "_database", None)
+    if db is None:
+        return
+    try:
+        db.close()
+    except Exception:
+        pass
+    finally:
+        g.pop("_database", None)
+
+
 def _validate_postgres_url():
     if not DATABASE_URL or DATABASE_URL.startswith("sqlite:///"):
         raise RuntimeError("PostgreSQL DATABASE_URL is not configured or resolves to SQLite.")
@@ -353,6 +366,10 @@ def get_db():
                 "trust_score": "INTEGER DEFAULT 0",
                 "is_suspended": "INTEGER DEFAULT 0",
                 "is_trusted_seller": "INTEGER DEFAULT 0",
+                "avatar": "TEXT DEFAULT NULL",
+                "skills": "TEXT DEFAULT NULL",
+                "experience": "TEXT DEFAULT NULL",
+                "bio": "TEXT DEFAULT NULL",
             }.items():
                 if column_name not in user_cols:
                     db.execute(f"ALTER TABLE users ADD COLUMN {column_name} {definition}")
@@ -953,6 +970,10 @@ def migrate_db():
             full_name TEXT,
             user_type TEXT DEFAULT 'worker',
             phone TEXT,
+            avatar TEXT,
+            skills TEXT,
+            experience TEXT,
+            bio TEXT,
             created_at TEXT,
             is_admin INTEGER DEFAULT 0,
             balance REAL DEFAULT 0.0,
@@ -1035,6 +1056,79 @@ def migrate_db():
             created_at TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS likes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(post_id, user_id),
+            FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS ratings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            worker_id INTEGER NOT NULL,
+            employer_id INTEGER NOT NULL,
+            stars INTEGER NOT NULL,
+            comment TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(worker_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(employer_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reporter_id INTEGER NOT NULL,
+            target_type TEXT NOT NULL,
+            target_id INTEGER NOT NULL,
+            reason TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(reporter_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS follows (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            follower_id INTEGER NOT NULL,
+            followed_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(follower_id, followed_id),
+            FOREIGN KEY(follower_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(followed_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS conversations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user1_id INTEGER NOT NULL,
+            user2_id INTEGER NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user1_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(user2_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            conversation_id INTEGER NOT NULL,
+            sender_id INTEGER NOT NULL,
+            content TEXT NOT NULL,
+            seen_at TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+            FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
         CREATE TABLE IF NOT EXISTS notifications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -1098,6 +1192,10 @@ def migrate_db():
         "wallet_balance": "INTEGER DEFAULT 0",
         "balance": "REAL DEFAULT 0.0",
         "wallet_id": "TEXT DEFAULT NULL",
+        "avatar": "TEXT DEFAULT NULL",
+        "skills": "TEXT DEFAULT NULL",
+        "experience": "TEXT DEFAULT NULL",
+        "bio": "TEXT DEFAULT NULL",
         "verified_until": "TEXT DEFAULT NULL",
         "verification_tier": "TEXT DEFAULT 'none'",
         "is_banned": "INTEGER DEFAULT 0",
@@ -1662,9 +1760,19 @@ def get_current_user():
     uid = session.get("user_id")
     if not uid:
         return None
-    db = get_db()
-    row = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
-    return dict(row) if row is not None else None
+    try:
+        db = get_db()
+        row = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+        if row is None:
+            return None
+        user = dict(row) if hasattr(row, "keys") else row
+        if user is None:
+            return None
+        if "is_admin" not in user:
+            user["is_admin"] = bool(user.get("role") == "admin")
+        return user
+    except Exception:
+        return None
 
 
 def backfill_verification_flags(db):
@@ -1836,7 +1944,11 @@ def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         user = get_current_user()
-        if not user or not _get_row_value(user, "is_admin", False):
+        is_admin = _get_row_value(user, "is_admin", False)
+        if not is_admin and user is not None:
+            if _get_row_value(user, "role") == "admin":
+                is_admin = True
+        if not user or not is_admin:
             abort(403)
         return f(*args, **kwargs)
     return wrapper
@@ -4114,41 +4226,58 @@ def profile(user_id):
             (user_id,),
         ).fetchall()
 
-    ratings = db.execute(
-        """SELECT ratings.*, users.username as employer_username
-           FROM ratings JOIN users ON ratings.employer_id = users.id
-           WHERE worker_id = ? ORDER BY ratings.created_at DESC""",
-        (user_id,),
-    ).fetchall()
-    avg_row = db.execute(
-        "SELECT AVG(stars) avg_stars, COUNT(*) cnt FROM ratings WHERE worker_id = ?",
-        (user_id,),
-    ).fetchone()
+    has_ratings = _table_exists(db, "ratings")
+    if has_ratings:
+        ratings = db.execute(
+            """SELECT ratings.*, users.username as employer_username
+               FROM ratings JOIN users ON ratings.employer_id = users.id
+               WHERE worker_id = ? ORDER BY ratings.created_at DESC""",
+            (user_id,),
+        ).fetchall()
+        avg_row = db.execute(
+            "SELECT AVG(stars) avg_stars, COUNT(*) cnt FROM ratings WHERE worker_id = ?",
+            (user_id,),
+        ).fetchone()
+        avg_stars = _get_row_value(avg_row, "avg_stars", 0) or 0
+        rating_count = _get_row_value(avg_row, "cnt", 0) or 0
+    else:
+        ratings = []
+        avg_stars = 0
+        rating_count = 0
 
-    followers_count = db.execute(
-        "SELECT COUNT(*) c FROM follows WHERE followed_id = ?", (user_id,)
-    ).fetchone()["c"]
-    following_count = db.execute(
-        "SELECT COUNT(*) c FROM follows WHERE follower_id = ?", (user_id,)
-    ).fetchone()["c"]
+    has_follows = _table_exists(db, "follows")
+    if has_follows:
+        followers_count = db.execute(
+            "SELECT COUNT(*) c FROM follows WHERE followed_id = ?", (user_id,)
+        ).fetchone()["c"]
+        following_count = db.execute(
+            "SELECT COUNT(*) c FROM follows WHERE follower_id = ?", (user_id,)
+        ).fetchone()["c"]
+    else:
+        followers_count = 0
+        following_count = 0
+
     posts_count = db.execute(
         "SELECT COUNT(*) c FROM posts WHERE user_id = ?", (user_id,)
     ).fetchone()["c"]
     is_following = False
-    if current_uid := session.get("user_id"):
+    if current_uid := session.get("user_id") and has_follows:
         is_following = db.execute(
             "SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ?",
             (current_uid, user_id),
         ).fetchone() is not None
 
-    portfolio_items = db.execute(
-        "SELECT * FROM portfolio_items WHERE user_id = ? ORDER BY created_at DESC",
-        (user_id,),
-    ).fetchall()
+    if _table_exists(db, "portfolio_items"):
+        portfolio_items = db.execute(
+            "SELECT * FROM portfolio_items WHERE user_id = ? ORDER BY created_at DESC",
+            (user_id,),
+        ).fetchall()
+    else:
+        portfolio_items = []
 
     return render_template(
         "profile.html", profile_user=profile_user, posts=posts,
-        ratings=ratings, avg_stars=avg_row["avg_stars"], rating_count=avg_row["cnt"],
+        ratings=ratings, avg_stars=avg_stars, rating_count=rating_count,
         portfolio_items=portfolio_items,
         followers_count=followers_count, following_count=following_count,
         posts_count=posts_count, is_following=is_following,
@@ -4198,14 +4327,17 @@ def profile_followers(user_id):
     profile_user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     if not profile_user:
         abort(404)
-    rows = db.execute(
-        """SELECT users.* FROM follows
-           JOIN users ON users.id = follows.follower_id
-           WHERE follows.followed_id = ?
-           ORDER BY follows.created_at DESC""",
-        (user_id,),
-    ).fetchall()
-    entries = _build_follow_list_entries(db, rows, session.get("user_id"))
+    if not _table_exists(db, "follows"):
+        entries = []
+    else:
+        rows = db.execute(
+            """SELECT users.* FROM follows
+               JOIN users ON users.id = follows.follower_id
+               WHERE follows.followed_id = ?
+               ORDER BY follows.created_at DESC""",
+            (user_id,),
+        ).fetchall()
+        entries = _build_follow_list_entries(db, rows, session.get("user_id"))
     return render_template(
         "follow_list.html", profile_user=profile_user, entries=entries,
         list_kind="followers",
@@ -4219,14 +4351,17 @@ def profile_following(user_id):
     profile_user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     if not profile_user:
         abort(404)
-    rows = db.execute(
-        """SELECT users.* FROM follows
-           JOIN users ON users.id = follows.followed_id
-           WHERE follows.follower_id = ?
-           ORDER BY follows.created_at DESC""",
-        (user_id,),
-    ).fetchall()
-    entries = _build_follow_list_entries(db, rows, session.get("user_id"))
+    if not _table_exists(db, "follows"):
+        entries = []
+    else:
+        rows = db.execute(
+            """SELECT users.* FROM follows
+               JOIN users ON users.id = follows.followed_id
+               WHERE follows.follower_id = ?
+               ORDER BY follows.created_at DESC""",
+            (user_id,),
+        ).fetchall()
+        entries = _build_follow_list_entries(db, rows, session.get("user_id"))
     return render_template(
         "follow_list.html", profile_user=profile_user, entries=entries,
         list_kind="following",
@@ -4287,12 +4422,15 @@ def edit_profile():
         else:
             username = user["username"]
 
+        columns_to_update = ["username", "full_name", "phone", "skills", "experience", "bio"]
+        update_values = [username, full_name, phone, skills, experience, bio]
         if avatar:
-            db.execute(
-                """UPDATE users SET username=?, full_name=?, phone=?, skills=?, experience=?,
-                   bio=?, avatar=? WHERE id=?""",
-                (username, full_name, phone, skills, experience, bio, avatar, user["id"]),
-            )
+            columns_to_update.append("avatar")
+            update_values.append(avatar)
+        if _table_has_column(db, "users", "avatar"):
+            column_names = ", ".join(f"{col}=?" for col in columns_to_update)
+            update_values.append(user["id"])
+            db.execute(f"UPDATE users SET {column_names} WHERE id=?", tuple(update_values))
         else:
             db.execute(
                 """UPDATE users SET username=?, full_name=?, phone=?, skills=?, experience=?,
@@ -4310,7 +4448,10 @@ def edit_profile():
 def update_profile_skills():
     skills = request.form.get("skills", "").strip()
     db = get_db()
-    db.execute("UPDATE users SET skills = ? WHERE id = ?", (skills, session["user_id"]))
+    if _table_has_column(db, "users", "skills"):
+        db.execute("UPDATE users SET skills = ? WHERE id = ?", (skills, session["user_id"]))
+    else:
+        flash("Profile skills are not supported by this database schema.")
     db.commit()
     return redirect(url_for("profile", user_id=session["user_id"]))
 
@@ -4352,6 +4493,9 @@ def rate_worker(worker_id):
     stars = max(1, min(5, stars))
 
     db = get_db()
+    if not _table_exists(db, "ratings"):
+        flash("Ratings are not enabled for this installation yet.")
+        return redirect(url_for("profile", user_id=worker_id))
     db.execute(
         """INSERT INTO ratings (worker_id, employer_id, stars, comment, created_at)
            VALUES (?, ?, ?, ?, ?)""",
@@ -4853,21 +4997,31 @@ def marketplace():
         "rating": "seller_rating DESC, p.created_at DESC",
     }.get(sort, "p.created_at DESC")
 
+    has_ratings = _table_exists(db, "ratings")
+    has_product_favorites = _table_exists(db, "product_favorites")
+    has_product_photos = _table_exists(db, "product_photos")
+
+    select_fields = ["p.*", "u.username", "u.full_name", "u.verification_tier", "u.verified_until"]
+    if has_ratings:
+        select_fields.append("COALESCE((SELECT AVG(stars) FROM ratings WHERE worker_id = u.id), 0) AS seller_rating")
+        select_fields.append("(SELECT COUNT(*) FROM ratings WHERE worker_id = u.id) AS review_count")
+    if has_product_favorites:
+        select_fields.append("EXISTS(SELECT 1 FROM product_favorites f WHERE f.product_id = p.id AND f.user_id = ?) AS is_favorited")
+    else:
+        select_fields.append("0 AS is_favorited")
+
     listings = db.execute(
-        f"""SELECT p.*, u.username, u.full_name, u.verification_tier, u.verified_until,
-                   COALESCE((SELECT AVG(stars) FROM ratings WHERE worker_id = u.id), 0) AS seller_rating,
-                   (SELECT COUNT(*) FROM ratings WHERE worker_id = u.id) AS review_count,
-                   EXISTS(SELECT 1 FROM product_favorites f WHERE f.product_id = p.id AND f.user_id = ?) AS is_favorited
+        f"""SELECT {', '.join(select_fields)}
            FROM products p
            JOIN users u ON p.user_id = u.id
            WHERE p.status = 'approved'
            ORDER BY {order_clause} LIMIT 50""",
-        (user["id"],),
+        (user["id"],) if has_product_favorites else (),
     ).fetchall()
 
     product_ids = [row["id"] for row in listings]
     photos_by_product = {}
-    if product_ids:
+    if has_product_photos and product_ids:
         placeholders = ",".join(["?"] * len(product_ids))
         photo_rows = db.execute(
             f"""SELECT product_id, photo FROM product_photos
@@ -4984,10 +5138,13 @@ def wallet():
     except Exception:
         history = []
 
-    has_pending_withdrawal = bool(db.execute(
-        "SELECT id FROM wallet_transactions WHERE user_id = ? AND tx_type = 'withdrawal' AND status = 'pending' LIMIT 1",
-        (user["id"],),
-    ).fetchone())
+    try:
+        has_pending_withdrawal = bool(db.execute(
+            "SELECT id FROM wallet_transactions WHERE user_id = ? AND tx_type = 'withdrawal' AND status = 'pending' LIMIT 1",
+            (user["id"],),
+        ).fetchone())
+    except Exception:
+        has_pending_withdrawal = False
 
     try:
         gifts_received = db.execute(
@@ -4999,8 +5156,12 @@ def wallet():
 
     challenge_status = _safe_fetch_challenge_status(db, user["id"])
 
+    template_name = "wallet (6).html" if os.path.exists(os.path.join(app.root_path, "templates", "wallet (6).html")) else "wallet.html"
+    if not os.path.exists(os.path.join(app.root_path, "templates", template_name)):
+        template_name = "wallet_welcome.html" if os.path.exists(os.path.join(app.root_path, "templates", "wallet_welcome.html")) else "wallet.html"
+
     return render_template(
-        "wallet.html",
+        template_name,
         history=history,
         gifts_received=gifts_received,
         telebirr_number=get_setting("telebirr_wallet_number", TELEBIRR_WALLET_NUMBER),
@@ -6330,8 +6491,9 @@ def admin_settings():
                 flash("Could not update bank account status.")
                 return redirect(url_for("admin_settings"))
             is_active = request.form.get("is_active") == "1"
+            placeholder = "%s" if not getattr(db, "is_sqlite", False) else "?"
             db.execute(
-                "UPDATE bank_accounts SET is_active = %s WHERE id = %s",
+                f"UPDATE bank_accounts SET is_active = {placeholder} WHERE id = {placeholder}",
                 (True if is_active else False, bank_id),
             )
             db.commit()
