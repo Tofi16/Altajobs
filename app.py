@@ -3098,6 +3098,34 @@ def logout():
     return redirect(url_for("login"))
 
 
+@app.route("/settings/change-password", methods=["GET", "POST"])
+@login_required
+def change_password():
+    if request.method == "POST":
+        current_password = request.form.get("current_password", "")
+        new_password = request.form.get("new_password", "")
+        confirm_password = request.form.get("confirm_password", "")
+        user = get_current_user()
+        if not user or not check_password_hash(user["password_hash"], current_password):
+            flash("Current password is incorrect.")
+            return redirect(url_for("change_password"))
+        if new_password != confirm_password:
+            flash("New passwords do not match.")
+            return redirect(url_for("change_password"))
+        if not new_password:
+            flash("Please enter a new password.")
+            return redirect(url_for("change_password"))
+        db = get_db()
+        db.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (generate_password_hash(new_password), session["user_id"]),
+        )
+        db.commit()
+        flash("Password updated successfully.")
+        return redirect(url_for("settings_page"))
+    return render_template("change_password.html")
+
+
 # ---------------------------------------------------------------------------
 # Feed / Posts
 # ---------------------------------------------------------------------------

@@ -18,31 +18,47 @@ window.openTab = function (tabName) {
   });
 };
 
+function syncFollowButtons(userId, isFollowing, followLabel, followingLabel) {
+  document.querySelectorAll(`.js-follow-btn[data-user-id="${userId}"]`).forEach(function (button) {
+    const labelEl = button.querySelector('.follow-label');
+    button.classList.toggle('following', isFollowing);
+    button.setAttribute('aria-pressed', isFollowing ? 'true' : 'false');
+    button.disabled = false;
+    if (labelEl) {
+      labelEl.textContent = isFollowing ? followingLabel : followLabel;
+    } else {
+      button.textContent = isFollowing ? followingLabel : followLabel;
+    }
+  });
+}
+
 // ---------- AJAX Follow button (instant, no reload) ----------
 document.addEventListener("click", async function (e) {
   const btn = e.target.closest(".js-follow-btn");
   if (!btn) return;
   e.preventDefault();
+  e.stopPropagation();
 
   const userId = btn.dataset.userId;
   const followLabel = btn.dataset.followLabel || "Follow";
   const followingLabel = btn.dataset.followingLabel || "Following";
+  if (!userId) return;
 
-  btn.disabled = true;
+  document.querySelectorAll(`.js-follow-btn[data-user-id="${userId}"]`).forEach(function (button) {
+    button.disabled = true;
+  });
+
   try {
     const res = await fetch(`/api/follow/${userId}`, { method: "POST" });
     const data = await res.json();
-    if (data.following) {
-      btn.classList.add("following");
-      btn.textContent = followingLabel;
-    } else {
-      btn.classList.remove("following");
-      btn.textContent = followLabel;
+    if (data.following !== undefined) {
+      syncFollowButtons(userId, !!data.following, followLabel, followingLabel);
     }
   } catch (err) {
     console.error("Follow toggle failed", err);
-  } finally {
-    btn.disabled = false;
+    document.querySelectorAll(`.js-follow-btn[data-user-id="${userId}"]`).forEach(function (button) {
+      button.disabled = false;
+    });
   }
 });
 
@@ -62,20 +78,25 @@ async function togglePostLike(btn, options) {
   try {
     const res = await fetch(`/api/like/${postId}`, { method: "POST" });
     const data = await res.json();
-    if (countEl) countEl.textContent = data.like_count;
-    if (socialCount && typeof data.like_count === "number") {
-      socialCount.textContent = `${Math.max(data.like_count - 1, 0)} others`;
-    }
-    if (data.liked) {
-      btn.classList.add("liked", "just-liked");
-      if (icon) { icon.classList.remove("bx-heart"); icon.classList.add("bxs-heart"); }
-      if (textEl) textEl.textContent = likedLabel;
-      setTimeout(() => btn.classList.remove("just-liked"), 400);
-    } else {
-      btn.classList.remove("liked");
-      if (icon) { icon.classList.remove("bxs-heart"); icon.classList.add("bx-heart"); }
-      if (textEl) textEl.textContent = likeLabel;
-    }
+    document.querySelectorAll(`.js-like-btn[data-post-id="${postId}"]`).forEach(function (button) {
+      const iconEl = button.querySelector('.bx');
+      const countEl2 = button.querySelector('.like-count');
+      const textEl2 = button.querySelector('.like-text');
+      const card2 = button.closest('.post-card');
+      const socialCount2 = card2 ? card2.querySelector('.social-proof-count') : null;
+      if (countEl2) countEl2.textContent = data.like_count;
+      if (socialCount2 && typeof data.like_count === "number") {
+        socialCount2.textContent = `${Math.max(data.like_count - 1, 0)} others`;
+      }
+      button.classList.toggle('liked', !!data.liked);
+      if (data.liked) {
+        if (iconEl) { iconEl.classList.remove("bx-heart"); iconEl.classList.add("bxs-heart"); }
+        if (textEl2) textEl2.textContent = likedLabel;
+      } else {
+        if (iconEl) { iconEl.classList.remove("bxs-heart"); iconEl.classList.add("bx-heart"); }
+        if (textEl2) textEl2.textContent = likeLabel;
+      }
+    });
     if (options && options.fromDoubleTap) {
       const overlay = card ? card.querySelector(".double-tap-heart") : null;
       if (overlay) {
@@ -96,6 +117,7 @@ document.addEventListener("click", function (e) {
   const btn = e.target.closest(".js-like-btn");
   if (!btn) return;
   e.preventDefault();
+  e.stopPropagation();
   togglePostLike(btn);
 });
 

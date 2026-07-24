@@ -61,6 +61,8 @@
         <button type="button"
           class="flist-follow-btn js-follow-btn {{ 'following' if entry.viewer_follows }} {{ 'follow-back' if show_follow_back }}"
           data-user-id="{{ u['id'] }}"
+          data-follow-label="{{ t.follow }}"
+          data-following-label="{{ t.unfollow }}"
           aria-pressed="{{ 'true' if entry.viewer_follows else 'false' }}">
           <span class="follow-label">{% if entry.viewer_follows %}{{ t.unfollow }}{% elif show_follow_back %}Follow Back{% else %}{{ t.follow }}{% endif %}</span>
         </button>

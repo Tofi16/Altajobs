@@ -63,13 +63,14 @@
     // Desktop popover if wide
     if (window.innerWidth >= 768 && opts.buttonRect) {
       var pop = document.createElement('div');
-      pop.className = 'absolute z-50 bg-zinc-900/95 border border-white/5 rounded-2xl p-2 shadow-lg w-56';
-      pop.style.left = Math.min(opts.buttonRect.left, window.innerWidth - 340) + 'px';
+      pop.className = 'absolute z-50 bg-zinc-900/95 border border-white/5 rounded-2xl p-2 shadow-lg w-64';
+      pop.style.left = Math.min(opts.buttonRect.left, window.innerWidth - 360) + 'px';
       pop.style.top = (opts.buttonRect.bottom + 8) + 'px';
       pop.innerHTML = [
-        '<button class="w-full text-left p-2 rounded hover:bg-white/5 ui-share">Share</button>',
-        '<button class="w-full text-left p-2 rounded hover:bg-white/5 ui-copy">Copy link</button>',
-        '<form id="popoverDeleteForm" method="POST" action="' + (opts.deleteUrl || '#') + '"><button class="w-full text-left p-2 rounded text-red-400">Delete</button></form>'
+        '<button class="w-full text-left p-3 rounded-2xl hover:bg-white/5 ui-share">Share</button>',
+        '<button class="w-full text-left p-3 rounded-2xl hover:bg-white/5 ui-copy">Copy link</button>',
+        '<button class="w-full text-left p-3 rounded-2xl hover:bg-white/5 ui-report">Report</button>',
+        '<form id="popoverDeleteForm" method="POST" action="' + (opts.deleteUrl || '#') + '"><button class="w-full text-left p-3 rounded-2xl text-red-400 hover:bg-white/5">Delete</button></form>'
       ].join('');
       document.body.appendChild(pop);
       overlay.classList.remove('hidden');
@@ -77,15 +78,22 @@
       overlay.addEventListener('click', cleanup, { once: true });
       pop.querySelector('.ui-share').addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); doShare(opts.postUrl); cleanup(); });
       pop.querySelector('.ui-copy').addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); copyToClipboard(opts.postUrl).then(function(){ toast('Link copied'); }); cleanup(); });
+      pop.querySelector('.ui-report').addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); if (opts.reportUrl) { window.location.href = opts.reportUrl; } else { cleanup(); } });
       return;
     }
 
     // Mobile bottom sheet
     overlay.classList.remove('hidden');
     sheet.classList.remove('translate-y-full');
-    // set delete form
+    // set forms
     var delForm = document.getElementById('sheetDeleteForm');
+    var reportForm = document.getElementById('sheetReportForm');
     if (delForm) delForm.action = opts.deleteUrl || '#';
+    if (reportForm) {
+      reportForm.action = opts.reportUrl || '/submit_report';
+      var targetInput = reportForm.querySelector('[name="target_id"]');
+      if (targetInput) targetInput.value = opts.postId || '';
+    }
     var nativeShareBtn = document.getElementById('nativeShareBtn');
     var copyLinkBtn = document.getElementById('copyLinkBtn');
     var cancelBtn = document.getElementById('postSheetCancel');
@@ -93,44 +101,7 @@
     if (nativeShareBtn) { nativeShareBtn.onclick = function (e) { e.preventDefault(); e.stopPropagation(); doShare(opts.postUrl); closeSheet(); }; }
     if (copyLinkBtn) { copyLinkBtn.onclick = function (e) { e.preventDefault(); e.stopPropagation(); copyToClipboard(opts.postUrl).then(function(){ toast('Link copied'); }); closeSheet(); }; }
     if (cancelBtn) { cancelBtn.onclick = function (e) { e.preventDefault(); e.stopPropagation(); closeSheet(); }; }
-    overlay.onclick = function () { closeSheet(); };
-  }
-
-  /* Follow optimistic update */
-  function handleFollowClick(e) {
-    e.preventDefault(); e.stopPropagation();
-    var btn = e.currentTarget;
-    var userId = btn.dataset.userId;
-    if (!userId) return;
-    var label = btn.querySelector('.follow-label');
-    var wasFollowing = btn.classList.contains('following');
-    // optimistic toggle
-    btn.classList.toggle('following');
-    btn.setAttribute('aria-pressed', btn.classList.contains('following') ? 'true' : 'false');
-    if (btn.classList.contains('following')) {
-      btn.classList.remove('bg-sky-500'); btn.classList.add('border','border-white/10','bg-transparent','text-slate-200');
-      if (label) label.textContent = 'Following ✓';
-    } else {
-      btn.classList.remove('border','bg-transparent'); btn.classList.add('bg-sky-500','text-white');
-      if (label) label.textContent = 'Follow';
-    }
-
-    // send request
-    fetch('/api/follow', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ user_id: userId, follow: btn.classList.contains('following') }) })
-      .then(function (r) { if (!r.ok) throw new Error('Network'); return r.json(); })
-      .then(function (data) {
-        // optionally update follower counts
-        if (data && data.followers_count !== undefined) {
-          var el = document.querySelector('.followers-count[data-user-id="' + userId + '"]');
-          if (el) el.textContent = data.followers_count;
-        }
-      }).catch(function () {
-        // rollback
-        if (wasFollowing) { btn.classList.add('following'); } else { btn.classList.remove('following'); }
-        btn.setAttribute('aria-pressed', wasFollowing ? 'true' : 'false');
-        if (label) label.textContent = wasFollowing ? 'Following ✓' : 'Follow';
-        toast('Unable to update follow.');
-      });
+    overlay.onclick = function (e) { if (e.target === overlay) closeSheet(); };
   }
 
   /* Compose modal behavior */
@@ -201,10 +172,6 @@
       openPostOptions({ postId: postId, postUrl: postUrl, deleteUrl: deleteUrl, buttonRect: rect });
       return;
     }
-
-    // follow buttons
-    var f = e.target.closest('.js-follow-btn');
-    if (f) { handleFollowClick.call(f, e); return; }
 
     // admin report openers
     var r = e.target.closest('.js-open-report');

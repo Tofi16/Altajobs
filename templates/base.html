@@ -331,6 +331,14 @@
     <button id="copyLinkBtn" class="w-full flex items-center gap-3 px-3 py-3 rounded-2xl bg-white/3 hover:bg-white/5">
       <i class="bx bx-link text-lg"></i> Copy Link
     </button>
+    <form id="sheetReportForm" method="POST" action="" class="space-y-2">
+      <input type="hidden" name="target_type" value="post">
+      <input type="hidden" name="target_id" value="">
+      <input type="hidden" name="reason" value="inappropriate">
+      <button type="submit" class="w-full flex items-center gap-3 px-3 py-3 rounded-2xl bg-amber-500 text-black hover:bg-amber-400">
+        <i class="bx bx-flag text-lg"></i> Report
+      </button>
+    </form>
     <form id="sheetDeleteForm" method="POST" action=""><button type="submit" class="w-full flex items-center gap-3 px-3 py-3 rounded-2xl bg-red-600 text-white">Delete</button></form>
   </div>
 </div>

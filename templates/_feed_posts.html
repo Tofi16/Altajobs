@@ -70,6 +70,8 @@
           {% if current_user and post.user_id != current_user['id'] %}
             <button type="button" class="xpost-follow-chip js-follow-btn {{ 'following' if item.following }}"
                     data-user-id="{{ post.user_id }}"
+                    data-follow-label="{{ t.follow }}"
+                    data-following-label="{{ t.unfollow }}"
                     aria-pressed="{{ 'true' if item.following else 'false' }}">
               <span class="follow-label">{{ t.unfollow if item.following else t.follow }}</span>
             </button>
@@ -144,43 +146,5 @@
       }
     }
   });
-
-  // Post options menu (⋯) -> reuses the existing bottom sheet in feed.html
-  // (#bottomSheetOverlay / #postActionsSheet / #sheetDeleteForm /
-  // #sheetReportTargetId). Delegated + guarded against double-binding.
-  if (!window.__xpostMenuBound) {
-    window.__xpostMenuBound = true;
-    document.addEventListener('click', function (e) {
-      var btn = e.target.closest('.js-post-menu-btn');
-      if (!btn) return;
-      var overlay = document.getElementById('bottomSheetOverlay');
-      var sheet = document.getElementById('postActionsSheet');
-      var deleteForm = document.getElementById('sheetDeleteForm');
-      var reportTargetId = document.getElementById('sheetReportTargetId');
-      if (!overlay || !sheet) return;
-      if (deleteForm) deleteForm.action = btn.dataset.deleteUrl || '#';
-      if (reportTargetId) reportTargetId.value = btn.dataset.postId || '';
-      overlay.classList.add('open');
-      sheet.classList.add('open');
-      document.body.classList.add('sheet-open');
-    });
-    var cancelBtn = document.getElementById('sheetCancelBtn');
-    var overlayEl = document.getElementById('bottomSheetOverlay');
-    var deleteForm = document.getElementById('sheetDeleteForm');
-    var reportForm = document.getElementById('sheetReportForm');
-    function closeSheet() {
-      var sheet = document.getElementById('postActionsSheet');
-      if (overlayEl) overlayEl.classList.remove('open');
-      if (sheet) sheet.classList.remove('open');
-      document.body.classList.remove('sheet-open');
-    }
-    if (cancelBtn) cancelBtn.addEventListener('click', closeSheet);
-    if (overlayEl) overlayEl.addEventListener('click', closeSheet);
-    if (deleteForm) deleteForm.addEventListener('submit', closeSheet);
-    if (reportForm) reportForm.addEventListener('submit', closeSheet);
-    document.addEventListener('keydown', function (evt) {
-      if (evt.key === 'Escape') closeSheet();
-    });
-  }
 })();
 </script>

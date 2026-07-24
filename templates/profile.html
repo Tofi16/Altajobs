@@ -136,6 +136,8 @@
       {% if current_user and current_user['id'] != profile_user['id'] %}
         <button type="button" class="js-follow-btn flex-1 rounded-xl {{ 'bg-white/10 text-slate-200' if is_following else 'profile-primary-btn' }} py-2 text-sm font-bold"
           data-user-id="{{ profile_user['id'] }}"
+          data-follow-label="{{ t.follow }}"
+          data-following-label="{{ t.unfollow }}"
           aria-pressed="{{ 'true' if is_following else 'false' }}">
           <span class="follow-label">{{ t.unfollow if is_following else t.follow }}</span>
         </button>
