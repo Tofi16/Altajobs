@@ -18,6 +18,15 @@ window.openTab = function (tabName) {
   });
 };
 
+function cancelActionClick(e) {
+  if (!e) return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (typeof e.stopImmediatePropagation === 'function') {
+    e.stopImmediatePropagation();
+  }
+}
+
 function syncFollowButtons(userId, isFollowing, followLabel, followingLabel) {
   document.querySelectorAll(`.js-follow-btn[data-user-id="${userId}"]`).forEach(function (button) {
     const labelEl = button.querySelector('.follow-label');
@@ -36,8 +45,7 @@ function syncFollowButtons(userId, isFollowing, followLabel, followingLabel) {
 document.addEventListener("click", async function (e) {
   const btn = e.target.closest(".js-follow-btn");
   if (!btn) return;
-  e.preventDefault();
-  e.stopPropagation();
+  cancelActionClick(e);
 
   const userId = btn.dataset.userId;
   const followLabel = btn.dataset.followLabel || "Follow";
@@ -116,8 +124,7 @@ async function togglePostLike(btn, options) {
 document.addEventListener("click", function (e) {
   const btn = e.target.closest(".js-like-btn");
   if (!btn) return;
-  e.preventDefault();
-  e.stopPropagation();
+  cancelActionClick(e);
   togglePostLike(btn);
 });
 
@@ -275,31 +282,59 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // ---------- Real notifications (replaces static mock content) ----------
-  function timeAgo(iso) {
+  function escapeHtml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function formatNotificationTime(iso) {
     if (!iso) return "";
-    const then = new Date(iso.replace(" ", "T") + (iso.endsWith("Z") ? "" : "Z"));
+    const raw = String(iso).trim();
+    if (!raw) return "";
+
+    let then = new Date(raw.replace(" ", "T"));
+    if (Number.isNaN(then.getTime())) {
+      then = new Date(raw);
+    }
+    if (Number.isNaN(then.getTime())) {
+      return raw;
+    }
+
     const diffMs = Date.now() - then.getTime();
     const mins = Math.floor(diffMs / 60000);
-    if (mins < 1) return "just now";
+    if (mins < 1) return "Just now";
     if (mins < 60) return mins + "m ago";
+
     const hours = Math.floor(mins / 60);
     if (hours < 24) return hours + "h ago";
+
     const days = Math.floor(hours / 24);
-    return days + "d ago";
+    if (days < 7) {
+      return days + "d ago";
+    }
+
+    return then.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   }
 
   function renderNotifications(list) {
     if (!bellPopover) return;
     let body = bellPopover.querySelector(".notification-list");
     if (!body) {
-      // The popover markup didn't include a dedicated list container
-      // (older static markup) - build one so we have a stable place to
-      // render live data into, without needing to touch base.html.
       body = document.createElement("div");
       body.className = "notification-list";
-      bellPopover.innerHTML = '<div class="notification-header">Notifications</div>';
       bellPopover.appendChild(body);
     }
+
+    body.innerHTML = "";
+
     if (!list || list.length === 0) {
       body.innerHTML =
         '<div class="notification-empty">' +
@@ -308,18 +343,32 @@ document.addEventListener("DOMContentLoaded", function () {
         "</div>";
       return;
     }
-    body.innerHTML = list
-      .map(function (n) {
-        return (
-          '<div class="notification-item' + (n.is_read ? "" : " unread") + '">' +
-          '<span class="notification-icon"><i class="bx ' + n.icon + '"></i></span>' +
-          '<div class="notification-body">' +
-          '<div class="notification-message">' + n.message + "</div>" +
-          '<div class="notification-time">' + timeAgo(n.created_at) + "</div>" +
-          "</div></div>"
-        );
-      })
-      .join("");
+
+    list.forEach(function (n) {
+      const item = document.createElement("div");
+      item.className = "notification-item" + (n.is_read ? "" : " unread");
+
+      const icon = document.createElement("span");
+      icon.className = "notification-icon";
+      icon.innerHTML = '<i class="bx ' + escapeHtml(n.icon || 'bx-bell') + '"></i>';
+
+      const bodyWrap = document.createElement("div");
+      bodyWrap.className = "notification-body";
+
+      const message = document.createElement("div");
+      message.className = "notification-message";
+      message.textContent = n.message || "";
+
+      const time = document.createElement("div");
+      time.className = "notification-time";
+      time.textContent = formatNotificationTime(n.created_at);
+
+      bodyWrap.appendChild(message);
+      bodyWrap.appendChild(time);
+      item.appendChild(icon);
+      item.appendChild(bodyWrap);
+      body.appendChild(item);
+    });
   }
 
   function loadNotifications() {
@@ -681,7 +730,7 @@ document.addEventListener("DOMContentLoaded", function () {
     document.addEventListener("click", function (e) {
       const btn = e.target.closest(".js-repost-btn");
       if (btn) {
-        e.preventDefault();
+        cancelActionClick(e);
         currentRepostPostId = btn.dataset.postId;
         overlay.style.display = "flex";
         modal.style.display = "block";
@@ -689,12 +738,14 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
       if (e.target.closest(".js-repost-modal-close") || e.target === overlay) {
+        cancelActionClick(e);
         closeRepostModal();
       }
     });
 
     if (quickBtn) {
-      quickBtn.addEventListener("click", function () {
+      quickBtn.addEventListener("click", function (e) {
+        cancelActionClick(e);
         if (!currentRepostPostId) return;
         quickBtn.disabled = true;
         fetch(`/api/post/${currentRepostPostId}/repost`, { method: "POST" })
@@ -740,7 +791,7 @@ document.addEventListener("DOMContentLoaded", function () {
     document.addEventListener("click", function (e) {
       const btn = e.target.closest(".js-share-btn");
       if (btn) {
-        e.preventDefault();
+        cancelActionClick(e);
         currentSharePostId = btn.dataset.postId;
         currentShareUrl = btn.dataset.postUrl;
         mainPanel.style.display = "";
@@ -750,18 +801,21 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
       if (e.target.closest(".js-share-sheet-close")) {
+        cancelActionClick(e);
         closeShareSheet();
         return;
       }
       // Overlay is shared with the post-options sheet; only close this one
       // if this sheet is the one currently open.
       if (e.target === overlay && sheet.classList.contains("open")) {
+        cancelActionClick(e);
         closeShareSheet();
       }
     });
 
     if (copyBtn) {
-      copyBtn.addEventListener("click", function () {
+      copyBtn.addEventListener("click", function (e) {
+        cancelActionClick(e);
         if (!currentShareUrl) return;
         navigator.clipboard
           .writeText(currentShareUrl)
@@ -777,7 +831,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     if (sendBtn) {
-      sendBtn.addEventListener("click", function () {
+      sendBtn.addEventListener("click", function (e) {
+        cancelActionClick(e);
         mainPanel.style.display = "none";
         followersPanel.style.display = "";
         renderFollowerList(followerListEl, currentSharePostId, closeShareSheet);

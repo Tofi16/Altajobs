@@ -133,19 +133,19 @@
           {% endif %}
         </button>
         <div class="topbar-popover" id="headerNotifications" role="dialog" aria-label="Recent notifications">
-          <div class="popover-head">Recent activity</div>
-          <a class="popover-item" href="{{ url_for('chat_inbox') }}">
-            <i class='bx bx-message-rounded-dots'></i>
-            <span>New message from Amina</span>
-          </a>
-          <a class="popover-item" href="{{ url_for('wallet') }}">
-            <i class='bx bx-wallet'></i>
-            <span>Wallet balance updated</span>
-          </a>
-          <a class="popover-item" href="{{ url_for('profile', user_id=current_user['id']) }}">
-            <i class='bx bx-user-circle'></i>
-            <span>Your profile now has a stronger signal</span>
-          </a>
+          <div class="notifications-head">
+            <div>
+              <div class="notifications-title">Recent activity</div>
+              <div class="notifications-subtitle">Live updates from your account</div>
+            </div>
+            <span class="notification-pill">Live</span>
+          </div>
+          <div class="notification-list">
+            <div class="notification-empty">
+              <i class='bx bx-bell'></i>
+              <span>Loading notifications…</span>
+            </div>
+          </div>
         </div>
       </div>
 

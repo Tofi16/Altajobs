@@ -1,98 +1,154 @@
 {% extends "base.html" %}
 {% block content %}
 
-<a href="{{ url_for('channels_directory') }}" class="btn btn-outline btn-small">← {{ t.back }}</a>
+<style>
+  .channel-view-shell {
+    max-width: 760px; margin: 0 auto; display: grid; gap: 16px;
+  }
+  .channel-hero {
+    display: flex; align-items: center; gap: 12px; padding: 16px; background: linear-gradient(180deg, rgba(24,27,39,0.96), rgba(10,13,21,0.98));
+    border: 1px solid rgba(255,255,255,0.05); border-radius: 20px;
+  }
+  .channel-hero-main {
+    flex: 1; min-width: 0;
+  }
+  .channel-hero-title {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 1.2rem; font-weight: 900; color: #f8fafc;
+  }
+  .channel-hero-meta {
+    margin-top: 4px; color: #94a3b8; font-size: 0.8rem;
+  }
+  .channel-panel {
+    padding: 16px; background: rgba(15, 23, 42, 0.78); border: 1px solid rgba(255,255,255,0.06); border-radius: 18px;
+  }
+  .channel-panel-title {
+    margin-bottom: 8px; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: #f8fafc; font-weight: 800;
+  }
+  .channel-description {
+    margin: 0; color: #cbd5e1; line-height: 1.65; font-size: 0.92rem;
+  }
+  .channel-badge-row {
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .channel-message-wrap {
+    display: grid; gap: 10px; padding-bottom: 140px;
+  }
+  .channel-message-card {
+    padding: 10px 12px; border-radius: 14px; background: rgba(19,24,35,0.86); border: 1px solid rgba(255,255,255,0.05);
+  }
+  .channel-message-author {
+    font-size: 0.76rem; font-weight: 800; color: #f8fafc; margin-bottom: 4px;
+  }
+  .channel-message-content {
+    color: #e2e8f0; font-size: 0.9rem; line-height: 1.55;
+  }
+  .channel-message-image {
+    max-width: 100%; border-radius: 10px; margin-bottom: 6px;
+  }
+  .channel-message-reactions {
+    display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap;
+  }
+</style>
 
-<div class="card" style="margin-top:14px;display:flex;align-items:center;gap:12px">
-  <div class="avatar">
-    {% if channel['avatar'] %}<img src="{{ photo_url(channel['avatar']) }}">{% else %}{{ channel['name'][0] }}{% endif %}
-  </div>
-  <div style="flex:1;min-width:0">
-    <div style="font-weight:800;font-size:1.1rem;color:var(--text)">
-      {{ channel['name'] }} {% if channel_is_verified(channel) %}{{ verification_badge_svg('blue') }}{% endif %}
+<div class="channel-view-shell">
+  <a href="{{ url_for('channels_directory') }}" class="btn btn-outline btn-small">← {{ t.back }}</a>
+
+  <div class="channel-hero">
+    <div class="avatar">
+      {% if channel['avatar'] %}<img src="{{ photo_url(channel['avatar']) }}">{% else %}{{ channel['name'][0] }}{% endif %}
     </div>
-    <div class="post-meta">{{ member_count }} {{ t.members }} · {{ t.group_type if channel['channel_type']=='group' else t.channel_type }}</div>
+    <div class="channel-hero-main">
+      <div class="channel-hero-title">
+        <span>{{ channel['name'] }}</span>
+        {% if channel_is_verified(channel) %}{{ verification_badge_svg('blue') }}{% endif %}
+        <span class="badge badge-general">{{ t.group_type if channel['channel_type']=='group' else t.channel_type }}</span>
+      </div>
+      <div class="channel-hero-meta">{{ member_count }} {{ t.members }} · {{ t.group_type if channel['channel_type']=='group' else t.channel_type }}</div>
+    </div>
+    {% if is_owner %}
+      <span class="badge badge-general">{{ t.owner_label }}</span>
+    {% elif is_member %}
+      <form method="POST" action="{{ url_for('leave_channel_route', channel_id=channel['id']) }}">
+        <button type="submit" class="btn btn-small btn-outline">{{ t.leave }}</button>
+      </form>
+    {% else %}
+      <form method="POST" action="{{ url_for('join_channel_route', channel_id=channel['id']) }}">
+        <button type="submit" class="btn btn-small btn-gold">{{ t.join }}</button>
+      </form>
+    {% endif %}
   </div>
-  {% if is_owner %}
-    <span class="badge badge-general">{{ t.owner_label }}</span>
-  {% elif is_member %}
-    <form method="POST" action="{{ url_for('leave_channel_route', channel_id=channel['id']) }}">
-      <button type="submit" class="btn btn-small btn-outline">{{ t.leave }}</button>
-    </form>
-  {% else %}
-    <form method="POST" action="{{ url_for('join_channel_route', channel_id=channel['id']) }}">
-      <button type="submit" class="btn btn-small btn-gold">{{ t.join }}</button>
-    </form>
+
+  {% if channel['description'] %}
+    <div class="channel-panel">
+      <div class="channel-panel-title">About</div>
+      <p class="channel-description">{{ channel['description'] }}</p>
+    </div>
   {% endif %}
-</div>
 
-{% if channel['description'] %}
-  <div class="card"><p class="post-content">{{ channel['description'] }}</p></div>
-{% endif %}
-
-{% if is_owner %}
-  {% if channel_is_verified(channel) %}
-    {% if channel_verification_expiring_soon(channel) %}
-      <div class="card" style="border-color:var(--gold)">
-        ⚠️ {{ t.channel_verification_expiring }} ({{ channel_verification_days_left(channel) }} {{ t.days_left|lower }})
-        <form method="POST" action="{{ url_for('buy_channel_verification', channel_id=channel['id']) }}" style="margin-top:8px">
-          <button type="submit" class="btn btn-small btn-gold">{{ t.renew_now }} ({{ channel_verification_price }} ETB)</button>
+  {% if is_owner %}
+    {% if channel_is_verified(channel) %}
+      {% if channel_verification_expiring_soon(channel) %}
+        <div class="channel-panel" style="border-color:var(--gold)">
+          <div class="channel-panel-title">Verification</div>
+          <p class="channel-description">⚠️ {{ t.channel_verification_expiring }} ({{ channel_verification_days_left(channel) }} {{ t.days_left|lower }})</p>
+          <form method="POST" action="{{ url_for('buy_channel_verification', channel_id=channel['id']) }}" style="margin-top:8px">
+            <button type="submit" class="btn btn-small btn-gold">{{ t.renew_now }} ({{ channel_verification_price }} ETB)</button>
+          </form>
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="channel-panel" style="text-align:center">
+        <div class="channel-panel-title">Verification</div>
+        <p class="channel-description">✨ {{ t.get_channel_verified }}</p>
+        <form method="POST" action="{{ url_for('buy_channel_verification', channel_id=channel['id']) }}" style="margin-top:10px">
+          <button type="submit" class="btn btn-gold">{{ t.get_verified }} ({{ channel_verification_price }} ETB/{{ t.monthly_plan|lower }})</button>
         </form>
       </div>
     {% endif %}
-  {% else %}
-    <div class="card" style="text-align:center">
-      <p>✨ {{ t.get_channel_verified }}</p>
-      <form method="POST" action="{{ url_for('buy_channel_verification', channel_id=channel['id']) }}">
-        <button type="submit" class="btn btn-gold">{{ t.get_verified }} ({{ channel_verification_price }} ETB/{{ t.monthly_plan|lower }})</button>
-      </form>
-    </div>
   {% endif %}
-{% endif %}
 
-<div class="message-thread" style="padding-bottom:140px">
-  {% if not messages %}
-    <p class="post-meta" style="text-align:center">{{ t.no_messages_yet }}</p>
-  {% endif %}
-  {% for m in messages %}
-    <div>
-      <div class="msg-bubble {{ 'mine' if m['sender_id'] == current_user['id'] else 'theirs' }}">
+  <div class="channel-message-wrap">
+    {% if not messages %}
+      <div class="channel-panel" style="text-align:center;color:var(--muted)">{{ t.no_messages_yet }}</div>
+    {% endif %}
+    {% for m in messages %}
+      <div class="channel-message-card">
         {% if m['sender_id'] != current_user['id'] %}
-          <div style="font-size:0.75rem;font-weight:700;opacity:0.8;margin-bottom:2px">{{ m['full_name'] or m['username'] }}</div>
+          <div class="channel-message-author">{{ m['full_name'] or m['username'] }}</div>
         {% endif %}
-        {% if m['photo'] %}<img src="{{ photo_url(m['photo']) }}" style="max-width:100%;border-radius:10px;margin-bottom:4px">{% endif %}
-        {% if m['content'] %}{{ m['content'] }}{% endif %}
+        {% if m['photo'] %}<img src="{{ photo_url(m['photo']) }}" class="channel-message-image">{% endif %}
+        {% if m['content'] %}<div class="channel-message-content">{{ m['content'] }}</div>{% endif %}
+        <div class="channel-message-reactions">
+          {% for emoji in quick_reactions %}
+            <form method="POST" action="{{ url_for('channel_message_react', message_id=m['id']) }}">
+              <input type="hidden" name="emoji" value="{{ emoji }}">
+              <button type="submit" class="badge badge-general" style="border:none;cursor:pointer">
+                {{ emoji }}{% if reactions_by_msg[m['id']].get(emoji) %} {{ reactions_by_msg[m['id']][emoji] }}{% endif %}
+              </button>
+            </form>
+          {% endfor %}
+        </div>
       </div>
-      <div style="display:flex;gap:4px;margin:4px 0 10px;{{ 'justify-content:flex-end' if m['sender_id'] == current_user['id'] }}">
-        {% for emoji in quick_reactions %}
-          <form method="POST" action="{{ url_for('channel_message_react', message_id=m['id']) }}">
-            <input type="hidden" name="emoji" value="{{ emoji }}">
-            <button type="submit" class="badge badge-general" style="border:none;cursor:pointer">
-              {{ emoji }}{% if reactions_by_msg[m['id']].get(emoji) %} {{ reactions_by_msg[m['id']][emoji] }}{% endif %}
-            </button>
-          </form>
-        {% endfor %}
-      </div>
-    </div>
-  {% endfor %}
-</div>
-
-{% if is_member %}
-<form method="POST" action="{{ url_for('channel_send', channel_id=channel['id']) }}" enctype="multipart/form-data" class="message-compose" style="flex-wrap:wrap">
-  <div style="display:flex;gap:4px;width:100%;overflow-x:auto;padding-bottom:6px">
-    {% for emoji in ['😀','😂','❤️','👍','🙏','🔥','🎉','😢','😮','👏','💪','🤝'] %}
-      <button type="button" class="emoji-insert-btn" onclick="document.getElementById('chMsgInput').value += '{{ emoji }}'">{{ emoji }}</button>
     {% endfor %}
   </div>
-  <div style="display:flex;gap:8px;width:100%">
-    <label class="file-label" style="min-width:44px;display:flex;align-items:center;justify-content:center;padding:0 12px">
-      <i class='bx bx-image-add'></i>
-      <input type="file" name="photo" accept="image/*" style="display:none" onchange="this.form.querySelector('button[type=submit]').click()">
-    </label>
-    <input type="text" id="chMsgInput" name="content" placeholder="{{ t.message_placeholder }}" autocomplete="off" style="flex:1">
-    <button type="submit" class="btn btn-small">{{ t.send }}</button>
-  </div>
-</form>
-{% endif %}
+
+  {% if is_member %}
+    <form method="POST" action="{{ url_for('channel_send', channel_id=channel['id']) }}" enctype="multipart/form-data" class="message-compose" style="flex-wrap:wrap">
+      <div style="display:flex;gap:4px;width:100%;overflow-x:auto;padding-bottom:6px">
+        {% for emoji in ['😀','😂','❤️','👍','🙏','🔥','🎉','😢','😮','👏','💪','🤝'] %}
+          <button type="button" class="emoji-insert-btn" onclick="document.getElementById('chMsgInput').value += '{{ emoji }}'">{{ emoji }}</button>
+        {% endfor %}
+      </div>
+      <div style="display:flex;gap:8px;width:100%">
+        <label class="file-label" style="min-width:44px;display:flex;align-items:center;justify-content:center;padding:0 12px">
+          <i class='bx bx-image-add'></i>
+          <input type="file" name="photo" accept="image/*" style="display:none" onchange="this.form.querySelector('button[type=submit]').click()">
+        </label>
+        <input type="text" id="chMsgInput" name="content" placeholder="{{ t.message_placeholder }}" autocomplete="off" style="flex:1">
+        <button type="submit" class="btn btn-small">{{ t.send }}</button>
+      </div>
+    </form>
+  {% endif %}
+</div>
 
 {% endblock %}

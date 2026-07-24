@@ -2,6 +2,16 @@
 {% block content %}
 
 <style>
+  .profile-shell {
+    max-width: 760px; margin: 0 auto; padding: 18px 14px 24px; display: grid; gap: 14px;
+    background: radial-gradient(circle at top left, rgba(14,165,233,0.10), transparent 20%),
+                radial-gradient(circle at top right, rgba(16,185,129,0.10), transparent 24%),
+                linear-gradient(180deg, #080b12, #0a0e18 64%, #090b12);
+    min-height: 100%;
+  }
+  .profile-utility-row {
+    display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  }
   .profile-primary-btn {
     background: linear-gradient(135deg, var(--accent, #1D9BF0), var(--accent-dark, #1a7fc9));
     color: #ffffff !important;
@@ -14,13 +24,60 @@
   }
   .profile-icon-btn:hover { background: rgba(255,255,255,0.09); }
   .profile-icon-btn:active { transform: scale(0.94); }
+  .profile-card {
+    border-radius: 22px; border: 1px solid rgba(255,255,255,0.06);
+    background: linear-gradient(180deg, rgba(17,22,31,0.98), rgba(9,12,18,0.98));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 14px 32px rgba(2,6,23,0.25);
+  }
+  .profile-card--hero {
+    padding: 16px; position: relative; overflow: hidden;
+  }
+  .profile-card--hero::after {
+    content: ''; position: absolute; inset: auto -30px -30px auto; width: 110px; height: 110px; border-radius: 999px;
+    background: radial-gradient(circle, rgba(14,165,233,0.15), transparent 65%);
+    pointer-events: none;
+  }
+  .profile-pill-row {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+  .profile-name-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .profile-tier-pill {
+    display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 9px; font-size: 0.72rem; font-weight: 800;
+    border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: #f8fafc;
+  }
+  .profile-tier-pill--blue { border-color: rgba(56,189,248,0.38); color: #7dd3fc; }
+  .profile-tier-pill--gold { border-color: rgba(250,204,21,0.38); color: #fde68a; }
   .profile-social-link {
     display: flex; align-items: center; gap: 6px; border-radius: 999px; padding: 6px 12px;
-    font-size: 12px; font-weight: 600; border: 1px solid rgba(255,255,255,0.08);
+    font-size: 12px; font-weight: 700; border: 1px solid rgba(255,255,255,0.08);
     background: rgba(255,255,255,0.03); color: #cbd5e1; transition: background .12s ease, border-color .12s ease;
   }
   .profile-social-link:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.16); }
-  .profile-stats { box-shadow: 0 10px 28px rgba(2,6,23,0.35); }
+  .profile-stats {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: hidden; border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.08); background: linear-gradient(180deg, rgba(17,22,31,0.98), rgba(9,12,18,0.98));
+    box-shadow: 0 10px 28px rgba(2,6,23,0.35);
+  }
+  .profile-stat-card {
+    padding: 12px 10px; text-align: center; transition: background .14s ease;
+  }
+  .profile-stat-card:hover { background: rgba(255,255,255,0.04); }
+  .profile-tab-btn {
+    border: none; background: transparent; color: #94a3b8; cursor: pointer; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .profile-tab-btn[aria-selected="true"] {
+    background: linear-gradient(135deg, rgba(34,197,94,0.18), rgba(14,165,233,0.16)); color: #f8fafc;
+  }
+  .profile-post-card {
+    padding: 14px; border-radius: 18px; background: linear-gradient(180deg, rgba(16,20,29,0.98), rgba(9,12,18,0.98));
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .profile-portfolio-card,
+  .profile-info-card {
+    padding: 14px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.06); background: linear-gradient(180deg, rgba(16,20,29,0.98), rgba(9,12,18,0.98));
+  }
 </style>
 
 <!-- Shared SVG defs for half-star gradient (used by star-rating component) -->
@@ -33,10 +90,10 @@
   </defs>
 </svg>
 
-<div class="profile-shell mx-auto max-w-2xl px-3 py-4 text-slate-200 sm:px-4">
+<div class="profile-shell text-slate-200">
 
   <!-- ============ TOP UTILITY ROW ============ -->
-  <div class="mb-2 flex items-center justify-end gap-2">
+  <div class="profile-utility-row">
     <button type="button" id="shareProfileBtn" class="profile-icon-btn" aria-label="Share profile" title="Share profile">
       <i class='bx bx-share-alt'></i>
     </button>
@@ -48,7 +105,7 @@
   </div>
 
   <!-- ============ COMPACT HEADER ============ -->
-  <section class="profile-card profile-card--hero rounded-2xl border border-white/5 bg-zinc-900/60 p-4 lg:p-5">
+  <section class="profile-card profile-card--hero">
     <div class="flex items-start gap-3">
 
       <!-- Avatar with initials fallback -->
@@ -149,7 +206,7 @@
   </section>
 
   <!-- ============ HORIZONTAL STATS BAR ============ -->
-  <section class="profile-stats mt-3 grid grid-cols-3 divide-x divide-white/5 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/60 text-center">
+  <section class="profile-stats">
     <a href="{{ url_for('profile_followers', user_id=profile_user['id']) }}" class="profile-stat-card px-2 py-3 block hover:bg-white/5">
       <div class="text-lg font-extrabold text-slate-100">{{ followers_count }}</div>
       <div class="text-[11px] text-slate-500">{{ t.followers }}</div>
@@ -176,7 +233,7 @@
     <div data-tab-panel="feed" class="mt-3 space-y-3">
       {% if posts %}
         {% for p in posts %}
-        <article class="profile-card profile-post-card rounded-2xl border border-white/5 bg-zinc-900/60 p-4">
+        <article class="profile-post-card">
           {% if p['content'] %}
             <p class="text-sm text-slate-200">{{ p['content'] }}</p>
           {% endif %}
@@ -295,7 +352,7 @@
       </div>
 
       {% if current_user and current_user['id'] != profile_user['id'] %}
-        <div class="rounded-2xl border border-white/5 bg-zinc-900/60 p-4">
+        <div class="profile-info-card">
           <h3 class="mb-3 text-sm font-bold text-slate-100">{{ t.send_gift }}</h3>
           <div class="grid grid-cols-4 gap-2">
             {% for key, g in gift_catalog.items() %}
@@ -313,7 +370,7 @@
       {% endif %}
 
       {% if profile_user['user_type'] == 'worker' and current_user and current_user['user_type'] == 'employer' and current_user['id'] != profile_user['id'] %}
-        <div class="rounded-2xl border border-white/5 bg-zinc-900/60 p-4">
+        <div class="profile-info-card">
           <h3 class="mb-2 text-sm font-bold text-slate-100">{{ t.rate_worker }}</h3>
           <form method="POST" action="{{ url_for('rate_worker', worker_id=profile_user['id']) }}" class="space-y-2">
             <select name="stars" class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-base text-slate-100">
@@ -330,7 +387,7 @@
       {% endif %}
 
       {% if current_user and current_user['id'] != profile_user['id'] %}
-        <details class="rounded-2xl border border-white/5 bg-zinc-900/60 p-4">
+        <details class="profile-info-card">
           <summary class="cursor-pointer text-xs font-semibold text-slate-500">🚩 {{ t.report }} {{ t.profile|lower }}</summary>
           <form method="POST" action="{{ url_for('submit_report') }}" class="mt-3 space-y-2">
             <input type="hidden" name="target_type" value="user">

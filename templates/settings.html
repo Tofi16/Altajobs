@@ -1,33 +1,119 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="max-w-2xl mx-auto px-4 py-6">
-  <h2 class="text-xl font-extrabold mb-4">{{ t.tab_settings }}</h2>
+<style>
+  .settings-shell {
+    max-width: 720px; margin: 0 auto; padding: 20px 16px 24px;
+  }
+  .settings-topbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-bottom: 18px;
+  }
+  .settings-title-wrap {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .settings-title {
+    font-size: 1.15rem; font-weight: 900; color: #f8fafc;
+  }
+  .settings-subtitle {
+    font-size: 0.78rem; color: #94a3b8;
+  }
+  .settings-menu-wrap {
+    position: relative;
+  }
+  .settings-menu-btn {
+    width: 42px; height: 42px; border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
+    color: #e2e8f0; display: grid; place-items: center;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+  .settings-menu-panel {
+    position: absolute; top: calc(100% + 8px); right: 0; min-width: 220px;
+    padding: 8px; border-radius: 16px; background: rgba(15, 23, 42, 0.97);
+    border: 1px solid rgba(148, 163, 184, 0.16); backdrop-filter: blur(14px);
+    box-shadow: 0 18px 40px rgba(2, 6, 23, 0.38); display: none;
+    z-index: 30;
+  }
+  .settings-menu-panel.open { display: block; }
+  .settings-menu-link {
+    display: flex; align-items: center; gap: 10px; padding: 10px 10px;
+    border-radius: 12px; color: #e2e8f0; font-size: 0.88rem; font-weight: 700;
+  }
+  .settings-menu-link:hover { background: rgba(255,255,255,0.06); }
+  .settings-menu-link i { font-size: 1rem; }
+  .settings-card {
+    background: linear-gradient(180deg, rgba(24,27,39,0.88), rgba(9,12,20,0.92));
+    border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; padding: 16px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+  }
+  .settings-card-title {
+    font-size: 0.82rem; font-weight: 800; color: #f8fafc; text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 10px; border-radius: 14px; transition: background .14s ease;
+  }
+  .settings-row:hover { background: rgba(255,255,255,0.04); }
+  .settings-row-left {
+    display: flex; align-items: center; gap: 12px; min-width: 0;
+  }
+  .settings-icon {
+    width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06);
+  }
+  .settings-row-title {
+    font-size: 0.9rem; font-weight: 800; color: #f8fafc;
+  }
+  .settings-row-subtitle {
+    margin-top: 2px; font-size: 0.72rem; color: #94a3b8;
+  }
+</style>
+
+<div class="settings-shell">
+  <div class="settings-topbar">
+    <div class="settings-title-wrap">
+      <div class="settings-title">{{ t.tab_settings }}</div>
+      <div class="settings-subtitle">Manage preferences, security, and support</div>
+    </div>
+
+    <div class="settings-menu-wrap">
+      <button type="button" class="settings-menu-btn" id="settingsMenuToggle" aria-label="Open settings quick menu">
+        <i class='bx bx-dots-vertical-rounded'></i>
+      </button>
+      <div class="settings-menu-panel" id="settingsMenuPanel">
+        <a href="#preferences" class="settings-menu-link"><i class='bx bx-slider-alt'></i> Preferences</a>
+        <a href="#security" class="settings-menu-link"><i class='bx bx-shield-quarter'></i> Security</a>
+        <a href="{{ url_for('help_support') }}" class="settings-menu-link"><i class='bx bx-help-circle'></i> Help</a>
+        <a href="{{ url_for('privacy_policy') }}" class="settings-menu-link"><i class='bx bx-lock-open-alt'></i> Privacy</a>
+      </div>
+    </div>
+  </div>
 
   <div class="space-y-6">
     <!-- Preferences -->
-    <section class="bg-zinc-900/60 border border-white/5 rounded-2xl p-4">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-bold text-slate-200">{{ t.preferences if t.preferences is defined else 'Preferences' }}</h3>
+    <section id="preferences" class="settings-card">
+      <div class="mb-3">
+        <div class="settings-card-title">{{ t.preferences if t.preferences is defined else 'Preferences' }}</div>
       </div>
-      <div class="divide-y divide-white/5 -mx-2">
-        <a href="#" class="flex items-center justify-between py-3 px-2 hover:bg-white/2 rounded-lg" onclick="document.getElementById('langModal').classList.add('open');return false;">
-          <div class="flex items-center gap-3">
-            <i class='bx bx-globe text-sky-400 text-lg'></i>
+      <div class="space-y-1">
+        <a href="#" class="settings-row" onclick="document.getElementById('langModal').classList.add('open');return false;">
+          <div class="settings-row-left">
+            <div class="settings-icon"><i class='bx bx-globe text-sky-400 text-lg'></i></div>
             <div>
-              <div class="text-sm font-semibold">{{ t.language }}</div>
-              <div class="text-xs text-slate-400">{{ {'am':'አማርኛ','en':'English','om':'Afaan Oromoo','ti':'ትግርኛ','ar':'العربية'}[current_lang] }}</div>
+              <div class="settings-row-title">{{ t.language }}</div>
+              <div class="settings-row-subtitle">{{ {'am':'አማርኛ','en':'English','om':'Afaan Oromoo','ti':'ትግርኛ','ar':'العربية'}[current_lang] }}</div>
             </div>
           </div>
           <i class='bx bx-chevron-right text-slate-400'></i>
         </a>
 
-        <div class="flex items-center justify-between py-3 px-2">
-          <div class="flex items-center gap-3">
-            <i class='bx bx-moon text-indigo-400 text-lg'></i>
+        <div class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-icon"><i class='bx bx-moon text-indigo-400 text-lg'></i></div>
             <div>
-              <div class="text-sm font-semibold">Dark Mode</div>
-              <div class="text-xs text-slate-400">{{ t.theme_description if t.theme_description is defined else '' }}</div>
+              <div class="settings-row-title">Dark Mode</div>
+              <div class="settings-row-subtitle">{{ t.theme_description if t.theme_description is defined else 'Switch between light and dark appearance' }}</div>
             </div>
           </div>
           <label class="relative inline-flex items-center cursor-pointer">
@@ -40,17 +126,17 @@
     </section>
 
     <!-- Account Security -->
-    <section class="bg-zinc-900/60 border border-white/5 rounded-2xl p-4">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-bold text-slate-200">Account Security</h3>
+    <section id="security" class="settings-card">
+      <div class="mb-3">
+        <div class="settings-card-title">Account Security</div>
       </div>
-      <div class="divide-y divide-white/5 -mx-2">
-        <a href="{{ url_for('change_password') }}" class="flex items-center justify-between py-3 px-2 hover:bg-white/2 rounded-lg">
-          <div class="flex items-center gap-3">
-            <i class='bx bx-lock text-emerald-400 text-lg'></i>
+      <div class="space-y-1">
+        <a href="{{ url_for('change_password') }}" class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-icon"><i class='bx bx-lock text-emerald-400 text-lg'></i></div>
             <div>
-              <div class="text-sm font-semibold">Change Password</div>
-              <div class="text-xs text-slate-400">Update your account password regularly</div>
+              <div class="settings-row-title">Change Password</div>
+              <div class="settings-row-subtitle">Update your account password regularly</div>
             </div>
           </div>
           <i class='bx bx-chevron-right text-slate-400'></i>
@@ -59,22 +145,22 @@
     </section>
 
     <!-- Support -->
-    <section class="bg-zinc-900/60 border border-white/5 rounded-2xl p-4">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-bold text-slate-200">Support</h3>
+    <section class="settings-card">
+      <div class="mb-3">
+        <div class="settings-card-title">Support</div>
       </div>
-      <div class="divide-y divide-white/5 -mx-2">
-        <a href="{{ url_for('help_support') }}" class="flex items-center justify-between py-3 px-2 hover:bg-white/2 rounded-lg">
-          <div class="flex items-center gap-3">
-            <i class='bx bx-help-circle text-sky-400 text-lg'></i>
-            <div class="text-sm font-semibold">Help & Support</div>
+      <div class="space-y-1">
+        <a href="{{ url_for('help_support') }}" class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-icon"><i class='bx bx-help-circle text-sky-400 text-lg'></i></div>
+            <div class="settings-row-title">Help & Support</div>
           </div>
           <i class='bx bx-chevron-right text-slate-400'></i>
         </a>
-        <a href="{{ url_for('privacy_policy') }}" class="flex items-center justify-between py-3 px-2 hover:bg-white/2 rounded-lg">
-          <div class="flex items-center gap-3">
-            <i class='bx bx-shield-quarter text-amber-400 text-lg'></i>
-            <div class="text-sm font-semibold">{{ t.privacy_policy }}</div>
+        <a href="{{ url_for('privacy_policy') }}" class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-icon"><i class='bx bx-shield-quarter text-amber-400 text-lg'></i></div>
+            <div class="settings-row-title">{{ t.privacy_policy }}</div>
           </div>
           <i class='bx bx-chevron-right text-slate-400'></i>
         </a>
@@ -116,15 +202,32 @@
     var thumb = document.getElementById('themeThumb');
     if (thumb) thumb.style.transform = dark ? 'translateX(0)' : 'translateX(20px)';
   }
+
   (function () {
+    var toggle = document.getElementById('settingsMenuToggle');
+    var panel = document.getElementById('settingsMenuPanel');
+    if (toggle && panel) {
+      toggle.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        panel.classList.toggle('open');
+      });
+    }
+
+    document.addEventListener('click', function (e) {
+      if (panel && !panel.contains(e.target) && !e.target.closest('#settingsMenuToggle')) {
+        panel.classList.remove('open');
+      }
+    });
+
     var match = document.cookie.match(/(?:^|; )theme=([^;]+)/);
     var saved = match ? match[1] : 'dark';
-    var toggle = document.getElementById('themeToggle');
-    if (toggle) {
-      toggle.checked = saved !== 'light';
+    var themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+      themeToggle.checked = saved !== 'light';
       document.documentElement.classList.toggle('light-mode', saved === 'light');
       var thumb = document.getElementById('themeThumb');
-      if (thumb) thumb.style.transform = toggle.checked ? 'translateX(0)' : 'translateX(20px)';
+      if (thumb) thumb.style.transform = themeToggle.checked ? 'translateX(0)' : 'translateX(20px)';
     }
   })();
 </script>

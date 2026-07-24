@@ -1,31 +1,82 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="card" style="display:flex;align-items:center;justify-content:space-between">
-  <h2 style="margin:0"><i class='bx bxs-group'></i> {{ t.channels_groups }}</h2>
-  <a href="{{ url_for('new_channel') }}" class="btn btn-small btn-gold"><i class='bx bx-plus'></i> {{ t.create }}</a>
+<style>
+  .channel-directory-shell {
+    max-width: 760px; margin: 0 auto; display: grid; gap: 16px;
+  }
+  .channel-directory-hero {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 18px; background: linear-gradient(180deg, rgba(24,27,39,0.95), rgba(10,13,21,0.96));
+    border: 1px solid rgba(255,255,255,0.05); border-radius: 22px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+  .channel-directory-title {
+    margin: 0; font-size: 1.25rem; font-weight: 900; color: #f8fafc;
+  }
+  .channel-directory-subtitle {
+    margin-top: 4px; color: #94a3b8; font-size: 0.82rem;
+  }
+  .channel-directory-grid {
+    display: grid; gap: 12px;
+  }
+  .channel-card {
+    display: flex; gap: 12px; align-items: center; text-decoration: none;
+    padding: 14px; border-radius: 18px; background: rgba(15, 23, 42, 0.82);
+    border: 1px solid rgba(255,255,255,0.06); transition: transform .15s ease, border-color .15s ease, background .15s ease;
+  }
+  .channel-card:hover {
+    transform: translateY(-1px); border-color: rgba(245, 158, 11, 0.34); background: rgba(26, 31, 46, 0.88);
+  }
+  .channel-card-main {
+    flex: 1; min-width: 0;
+  }
+  .channel-card-head {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-weight: 800; color: #f8fafc;
+  }
+  .channel-card-meta {
+    margin-top: 4px; color: #94a3b8; font-size: 0.78rem;
+  }
+  .channel-card-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.05); color: #cbd5e1; border-radius: 999px; padding: 4px 8px; font-size: 0.7rem; font-weight: 700;
+  }
+</style>
+
+<div class="channel-directory-shell">
+  <div class="channel-directory-hero">
+    <div>
+      <h2 class="channel-directory-title"><i class='bx bxs-group'></i> {{ t.channels_groups }}</h2>
+      <div class="channel-directory-subtitle">Discover communities, groups, and topic channels built for real conversations.</div>
+    </div>
+    <a href="{{ url_for('new_channel') }}" class="btn btn-small btn-gold"><i class='bx bx-plus'></i> {{ t.create }}</a>
+  </div>
+
+  {% if not channels %}
+    <div class="card" style="text-align:center;color:var(--muted)">{{ t.no_channels_yet }}</div>
+  {% endif %}
+
+  <div class="channel-directory-grid">
+    {% for c in channels %}
+      <a href="{{ url_for('channel_view', channel_id=c['id']) }}" class="channel-card">
+        <div class="avatar">
+          {% if c['avatar'] %}<img src="{{ photo_url(c['avatar']) }}">{% else %}{{ c['name'][0] }}{% endif %}
+        </div>
+        <div class="channel-card-main">
+          <div class="channel-card-head">
+            <span>{{ c['name'] }}</span>
+            {% if channel_is_verified(c) %}{{ verification_badge_svg('blue') }}{% endif %}
+            <span class="channel-card-badge">{{ t.group_type if c['channel_type'] == 'group' else t.channel_type }}</span>
+          </div>
+          <div class="channel-card-meta">{{ c['member_count'] }} {{ t.members }} · @{{ c['creator_username'] }}</div>
+        </div>
+        {% if c['id'] in my_channel_ids %}
+          <span class="badge badge-job">{{ t.joined }}</span>
+        {% endif %}
+      </a>
+    {% endfor %}
+  </div>
 </div>
-
-{% if not channels %}
-  <p style="text-align:center;color:var(--muted)">{{ t.no_channels_yet }}</p>
-{% endif %}
-
-{% for c in channels %}
-  <a href="{{ url_for('channel_view', channel_id=c['id']) }}" class="card" style="display:flex;gap:12px;align-items:center;text-decoration:none">
-    <div class="avatar">
-      {% if c['avatar'] %}<img src="{{ photo_url(c['avatar']) }}">{% else %}{{ c['name'][0] }}{% endif %}
-    </div>
-    <div style="flex:1;min-width:0">
-      <div style="font-weight:700;color:var(--text)">
-        {{ c['name'] }} {% if channel_is_verified(c) %}{{ verification_badge_svg('blue') }}{% endif %}
-        <span class="badge badge-general">{{ t.group_type if c['channel_type'] == 'group' else t.channel_type }}</span>
-      </div>
-      <div class="post-meta">{{ c['member_count'] }} {{ t.members }} · @{{ c['creator_username'] }}</div>
-    </div>
-    {% if c['id'] in my_channel_ids %}
-      <span class="badge badge-job">{{ t.joined }}</span>
-    {% endif %}
-  </a>
-{% endfor %}
 
 {% endblock %}

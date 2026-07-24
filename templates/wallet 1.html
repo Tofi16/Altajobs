@@ -5,7 +5,9 @@
 
   <!-- Balance hero -->
   <section class="pw-balance-card">
-    <div class="pw-balance-label">Available Balance</div>
+    <div class="pw-balance-label">Personal Wallet</div>
+    <div class="pw-balance-subtitle">Wallet balance overview</div>
+    <div class="pw-balance-label" style="margin-top:12px">Balance</div>
     <div class="pw-balance-amount">
       {{ "{:,.0f}".format(current_user.get('wallet_balance', current_user.get('balance', 0)) | float) }}<span class="pw-unit">ETB</span>
     </div>
@@ -17,7 +19,7 @@
       <div class="pw-pending-pill">⏳ {{ "{:,.0f}".format(pending_balance | float) }} ETB held for a pending withdrawal</div>
     {% endif %}
     <div class="pw-wallet-id-row">
-      <span class="pw-id-label">WALLET ID</span>
+      <span class="pw-id-label">Wallet identifier</span>
       <span id="walletIdValue" class="pw-id-value">{{ current_user.get('wallet_id', '') }}</span>
       <button type="button" id="copyWalletId" class="pw-copy-btn">Copy</button>
     </div>

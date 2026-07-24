@@ -1,14 +1,92 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="admin-shell lg:flex lg:min-h-screen bg-zinc-950 text-slate-200">
+<style>
+  .admin-dashboard-shell {
+    background: radial-gradient(circle at top left, rgba(59,130,246,0.15), transparent 22%),
+                radial-gradient(circle at top right, rgba(245,158,11,0.12), transparent 18%),
+                linear-gradient(180deg, #090b10, #0b1020 68%, #0a0c14);
+    color: #e2e8f0;
+  }
+  .admin-dashboard-layout {
+    display: grid; gap: 16px; align-content: start;
+  }
+  .admin-dashboard-hero {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    padding: 18px; border-radius: 22px; background: linear-gradient(180deg, rgba(20,24,34,0.96), rgba(10,13,20,0.98));
+    border: 1px solid rgba(255,255,255,0.06); box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+  .admin-page-header {
+    margin-bottom: 18px;
+  }
+  .admin-page-header .admin-overline {
+    display: inline-flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 0.74rem; font-weight: 800;
+    color: #7dd3fc; text-transform: uppercase; letter-spacing: 0.12em;
+  }
+  .admin-page-header h1 {
+    font-size: 1.3rem; font-weight: 900; color: #f8fafc; margin: 0;
+  }
+  .admin-page-header p {
+    color: #94a3b8; font-size: 0.82rem;
+  }
+  .admin-metric-grid {
+    display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 14px;
+  }
+  .admin-metric-card,
+  .admin-card,
+  .deposit-card,
+  .withdrawal-card {
+    border-radius: 20px; border: 1px solid rgba(255,255,255,0.06); background: linear-gradient(180deg, rgba(18,22,32,0.98), rgba(10,13,21,0.98));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+  .admin-metric-card {
+    display: flex; align-items: center; gap: 12px; padding: 14px; min-height: 88px;
+  }
+  .admin-metric-icon {
+    width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 1.15rem; background: rgba(255,255,255,0.05);
+  }
+  .admin-metric-card h3 {
+    margin: 0 0 4px; font-size: 0.78rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .admin-metric-card p {
+    margin: 0; font-size: 1.05rem; font-weight: 900; color: #f8fafc;
+  }
+  .admin-card {
+    padding: 16px;
+  }
+  .admin-card h2,
+  .admin-card h3 {
+    color: #f8fafc;
+  }
+  .admin-pill,
+  .admin-badge {
+    display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 8px; font-size: 0.68rem; font-weight: 800; border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04); color: #cbd5e1;
+  }
+  .admin-action-required {
+    background: linear-gradient(120deg, rgba(245,158,11,0.16), rgba(245,158,11,0.04)); border: 1px solid rgba(245,158,11,0.32);
+    border-radius: 20px; padding: 14px 16px;
+  }
+  .deposit-card-grid,
+  .withdrawal-card-grid {
+    display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+  .deposit-card,
+  .withdrawal-card {
+    padding: 14px;
+  }
+  .admin-empty-state {
+    text-align: center; color: #94a3b8; padding: 12px 0;
+  }
+</style>
+<div class="admin-shell admin-dashboard-shell lg:flex lg:min-h-screen text-slate-200">
   {% include "admin_nav.html" %}
   <main class="admin-main flex-1 min-w-0 px-4 py-5 lg:px-8 lg:py-8">
 
-    <section class="admin-page-header">
+    <section class="admin-page-header admin-dashboard-hero">
       <div>
         <p class="admin-overline"><i class='bx bx-wallet'></i> Wallet Operations</p>
-        <h1 class="text-xl font-extrabold text-slate-100 lg:text-2xl">Approve deposits &amp; withdrawals</h1>
-        <p class="mt-1 text-xs text-slate-500 lg:text-sm">Review incoming wallet transactions and keep the finance pipeline moving.</p>
+        <h1>Approve deposits &amp; withdrawals</h1>
+        <p>Review incoming wallet transactions and keep the finance pipeline moving.</p>
       </div>
       <a href="{{ url_for('admin_panel') }}" class="hidden lg:inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/5">← {{ t.admin_panel }}</a>
     </section>

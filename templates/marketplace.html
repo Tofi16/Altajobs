@@ -114,11 +114,18 @@
 
   /* Cards */
   .marketplace-item-card {
-    background: var(--surface, #15181f);
-    border: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(10, 13, 20, 0.98));
+    border: 1px solid rgba(125, 211, 252, 0.14);
     border-radius: 18px;
     color: var(--text);
     position: relative;
+    box-shadow: 0 12px 26px rgba(2, 6, 23, 0.22);
+    transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+  }
+  .marketplace-item-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(125, 211, 252, 0.35);
+    box-shadow: 0 16px 34px rgba(2, 6, 23, 0.34);
   }
 
   /* Image + carousel — radius matches the card's own corners */
@@ -213,16 +220,50 @@
   }
   .seller-rating .stars { color: #eab308; letter-spacing: 1px; font-size: 0.85rem; }
 
+  .marketplace-item-actions {
+    display: grid;
+    gap: 8px;
+  }
+  .marketplace-item-actions form {
+    width: 100%;
+  }
+  .marketplace-item-actions .btn {
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
   .marketplace-item-actions .btn-primary {
     background: linear-gradient(135deg, var(--accent), var(--accent-dark));
     border: none;
+    box-shadow: 0 10px 20px rgba(29, 155, 240, 0.2);
   }
   .marketplace-item-actions .btn-outline {
-    border: 1px solid var(--border);
+    border: 1px solid rgba(125, 211, 252, 0.23);
     color: var(--text);
-    background: transparent;
+    background: rgba(15, 23, 42, 0.55);
   }
   .marketplace-item-actions .btn-outline:hover { background: var(--surface-2); }
+
+  .marketplace-order-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(29, 155, 240, 0.08);
+    border: 1px solid rgba(125, 211, 252, 0.14);
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .marketplace-order-meta strong {
+    color: var(--text);
+  }
 
   .inbox-empty-title { color: var(--text); }
   .inbox-empty-sub { color: var(--muted); }
@@ -411,13 +452,17 @@
                 <p class="marketplace-item-description text-sm line-clamp-2">{{ item['description'] }}</p>
               {% endif %}
               <div class="marketplace-price text-lg font-bold mt-1">{{ item['price'] }} ETB</div>
-              <div class="marketplace-item-actions mt-2 space-y-2">
+              <div class="marketplace-order-meta">
+                <span>Secure checkout</span>
+                <strong>Wallet pay</strong>
+              </div>
+              <div class="marketplace-item-actions mt-2">
                 <form method="POST" action="{{ url_for('marketplace_buy', product_id=item['id']) }}">
-                  <button type="submit" class="btn btn-primary btn-small w-full font-medium text-sm px-4 py-2 rounded-lg transition">
-                    Buy for {{ item['price'] }} ETB
+                  <button type="submit" class="btn btn-primary btn-small font-medium text-sm px-4 py-2 rounded-lg transition">
+                    <i class='bx bx-cart-download'></i> Submit Order • {{ item['price'] }} ETB
                   </button>
                 </form>
-                <a href="{{ url_for('profile', user_id=item['user_id']) }}" class="btn btn-outline btn-small w-full flex items-center justify-center gap-1.5 font-medium text-sm px-4 py-2 rounded-lg transition">
+                <a href="{{ url_for('profile', user_id=item['user_id']) }}" class="btn btn-outline btn-small flex items-center justify-center gap-1.5 font-medium text-sm px-4 py-2 rounded-lg transition">
                   <i class='bx bx-message-dots'></i> Contact Seller
                 </a>
               </div>
