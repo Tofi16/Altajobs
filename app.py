@@ -5246,6 +5246,8 @@ def wallet_transfer():
     recipient_id = _get_row_value(recipient, "id")
     recipient_wallet_number = _get_row_value(recipient, "wallet_id")
     sender_wallet_number = _get_row_value(sender, "wallet_id")
+    sender_balance = float(_get_row_value(sender, "wallet_balance", 0) or 0)
+    recipient_balance = float(_get_row_value(recipient, "wallet_balance", 0) or 0)
 
     if getattr(db, "is_sqlite", False):
         db.execute("BEGIN IMMEDIATE")
@@ -5263,6 +5265,16 @@ def wallet_transfer():
             "UPDATE users SET alta_tokens = alta_tokens + ? WHERE id = ?",
             (amount, recipient_id),
         )
+
+        if sender_balance >= amount:
+            db.execute(
+                "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ?",
+                (amount, sender_id),
+            )
+            db.execute(
+                "UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
+                (amount, recipient_id),
+            )
 
         wallet_columns = _get_table_columns(db, "wallet_transactions")
         send_note = f"Sent tokens to {recipient_wallet_number or recipient_wallet_id}"
@@ -6333,6 +6345,27 @@ def admin_delete_marketplace_item(item_id):
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return jsonify({"success": True, "product_id": item_id})
     flash(f"Deleted listing '{product['title']}'.")
+    return redirect(request.referrer or url_for("admin_products"))
+
+
+@app.route("/admin/orders/delete/<int:order_id>", methods=["POST"])
+@login_required
+@admin_required
+def admin_delete_marketplace_order(order_id):
+    db = get_db()
+    order = db.execute("SELECT id, product_id FROM offers WHERE id = ?", (order_id,)).fetchone()
+    if not order:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"error": "not_found"}), 404
+        flash("Order not found.", "danger")
+        return redirect(request.referrer or url_for("admin_products"))
+
+    db.execute("DELETE FROM offers WHERE id = ?", (order_id,))
+    db.commit()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"success": True, "order_id": order_id})
+    flash("Marketplace order deleted.")
     return redirect(request.referrer or url_for("admin_products"))
 
 

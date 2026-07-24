@@ -15,8 +15,17 @@
   .xpost-badge .verification-badge svg { width: 18px; height: 18px; display: block; }
   .xpost-meta { color: #71767b; font-size: 0.87rem; font-weight: 400; }
   .xpost-dot::before { content: "·"; margin: 0 4px; color: #71767b; }
-  .xpost-menu-btn { border: none; background: transparent; color: #71767b; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
-  .xpost-menu-btn:hover { background: rgba(29,155,240,0.1); color: #1d9bf0; }
+  .xpost-menu-btn {
+    border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
+    color: #cbd5e1; cursor: pointer; width: 34px; height: 34px; border-radius: 999px;
+    display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+    flex-shrink: 0; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+  }
+  .xpost-menu-btn:hover {
+    background: linear-gradient(135deg, rgba(29,155,240,0.16), rgba(16,185,129,0.14));
+    color: #f8fafc; border-color: rgba(96,165,250,0.35); transform: translateY(-1px);
+  }
   .xpost-content { color: #e7e9ea; font-size: 0.96rem; line-height: 1.45; margin: 2px 0 8px; white-space: pre-wrap; word-break: break-word; }
   .xpost-content.xpost-clamped { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
   .xpost-seemore { background: none; border: none; color: #1d9bf0; font-weight: 700; font-size: 0.9rem; cursor: pointer; padding: 2px 0; margin-bottom: 6px; display: none; }
@@ -153,16 +162,25 @@
       if (reportTargetId) reportTargetId.value = btn.dataset.postId || '';
       overlay.classList.add('open');
       sheet.classList.add('open');
+      document.body.classList.add('sheet-open');
     });
     var cancelBtn = document.getElementById('sheetCancelBtn');
     var overlayEl = document.getElementById('bottomSheetOverlay');
+    var deleteForm = document.getElementById('sheetDeleteForm');
+    var reportForm = document.getElementById('sheetReportForm');
     function closeSheet() {
       var sheet = document.getElementById('postActionsSheet');
       if (overlayEl) overlayEl.classList.remove('open');
       if (sheet) sheet.classList.remove('open');
+      document.body.classList.remove('sheet-open');
     }
     if (cancelBtn) cancelBtn.addEventListener('click', closeSheet);
     if (overlayEl) overlayEl.addEventListener('click', closeSheet);
+    if (deleteForm) deleteForm.addEventListener('submit', closeSheet);
+    if (reportForm) reportForm.addEventListener('submit', closeSheet);
+    document.addEventListener('keydown', function (evt) {
+      if (evt.key === 'Escape') closeSheet();
+    });
   }
 })();
 </script>
