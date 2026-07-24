@@ -59,11 +59,10 @@
       {% if current_user and current_user['id'] != u['id'] %}
         {% set show_follow_back = entry.follows_viewer and not entry.viewer_follows %}
         <button type="button"
-                class="flist-follow-btn js-follow-btn {{ 'following' if entry.viewer_follows }} {{ 'follow-back' if show_follow_back }}"
-                data-user-id="{{ u['id'] }}"
-                data-follow-label="{{ 'Follow Back' if show_follow_back else t.follow }}"
-                data-following-label="{{ t.unfollow }}">
-          {% if entry.viewer_follows %}{{ t.unfollow }}{% elif show_follow_back %}Follow Back{% else %}{{ t.follow }}{% endif %}
+          class="flist-follow-btn js-follow-btn {{ 'following' if entry.viewer_follows }} {{ 'follow-back' if show_follow_back }}"
+          data-user-id="{{ u['id'] }}"
+          aria-pressed="{{ 'true' if entry.viewer_follows else 'false' }}">
+          <span class="follow-label">{% if entry.viewer_follows %}{{ t.unfollow }}{% elif show_follow_back %}Follow Back{% else %}{{ t.follow }}{% endif %}</span>
         </button>
       {% endif %}
     </div>

@@ -255,8 +255,7 @@
   </div>
 </div>
 
-<a href="#compose" class="fab" title="{{ t.post_a_job }}"
-   onclick="document.querySelector('select[name=post_type]').value='job';var ta=document.getElementById('composeTextarea');ta.focus();ta.dispatchEvent(new Event('focus'));">
+<a href="#compose" class="fab" title="{{ t.post_a_job }}" id="fabCompose" onclick="event.preventDefault(); document.getElementById('composePostType').value='job'; document.getElementById('composeModalOverlay').classList.remove('hidden'); document.getElementById('composeModalOverlay').classList.add('flex');">
   <i class='bx bxs-briefcase'></i>
 </a>
 

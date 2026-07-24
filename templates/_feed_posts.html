@@ -70,8 +70,8 @@
           {% if current_user and post.user_id != current_user['id'] %}
             <button type="button" class="xpost-follow-chip js-follow-btn {{ 'following' if item.following }}"
                     data-user-id="{{ post.user_id }}"
-                    data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
-              {{ t.unfollow if item.following else t.follow }}
+                    aria-pressed="{{ 'true' if item.following else 'false' }}">
+              <span class="follow-label">{{ t.unfollow if item.following else t.follow }}</span>
             </button>
           {% endif %}
           <button type="button" class="xpost-menu-btn js-post-menu-btn"

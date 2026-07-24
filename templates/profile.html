@@ -41,7 +41,7 @@
       <i class='bx bx-share-alt'></i>
     </button>
     {% if current_user and current_user['id'] == profile_user['id'] %}
-      <a href="{{ url_for('settings') }}" class="profile-icon-btn" aria-label="Settings" title="Settings">
+      <a href="{{ url_for('settings_page') }}" class="profile-icon-btn" aria-label="Settings" title="Settings">
         <i class='bx bxs-cog'></i>
       </a>
     {% endif %}
@@ -65,12 +65,26 @@
 
       <div class="min-w-0 flex-1">
         <div class="profile-pill-row flex flex-wrap items-center gap-1.5">
-          <h1 class="truncate text-base font-extrabold text-slate-100 lg:text-lg flex items-center gap-1">
+          <h1 class="truncate text-base font-extrabold text-slate-100 lg:text-lg flex items-center gap-2">
             {{ profile_user['full_name'] or profile_user['username'] }}
             {% set v_tier = get_verification_tier(profile_user) %}
-            {% if v_tier in ('blue', 'gold') %}
-              <span class="profile-name-badge">{{ verification_badge_svg(profile_user) }}</span>
-            {% endif %}
+            <span class="inline-flex items-center gap-2">
+              {% if v_tier in ('blue', 'gold') %}
+                <span class="profile-name-badge">{{ verification_badge_svg(profile_user) }}</span>
+              {% else %}
+                <button type="button" class="text-slate-400 hover:text-slate-200 rounded-md p-0.5" aria-label="Verified badge" id="premiumVerifyBtn" data-toggle="premium-modal">
+                  <i class='bx bx-check-shield' style="font-size:1rem;opacity:0.6"></i>
+                </button>
+              {% endif %}
+
+              {% if v_tier == 'gold' %}
+                <span class="profile-tier-pill profile-tier-pill--gold">{{ t.vip if t.vip is defined else 'VIP' }}</span>
+              {% else %}
+                <button type="button" class="text-slate-400 hover:text-slate-200 rounded-md p-0.5" aria-label="VIP crown" id="premiumVipBtn" data-toggle="premium-modal">
+                  <i class='bx bx-crown' style="font-size:1rem;opacity:0.6"></i>
+                </button>
+              {% endif %}
+            </span>
           </h1>
           {% if v_tier == 'gold' %}
             <span class="profile-tier-pill profile-tier-pill--gold">
@@ -121,9 +135,9 @@
     <div class="mt-3 flex gap-2">
       {% if current_user and current_user['id'] != profile_user['id'] %}
         <button type="button" class="js-follow-btn flex-1 rounded-xl {{ 'bg-white/10 text-slate-200' if is_following else 'profile-primary-btn' }} py-2 text-sm font-bold"
-                data-user-id="{{ profile_user['id'] }}"
-                data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
-          {{ t.unfollow if is_following else t.follow }}
+          data-user-id="{{ profile_user['id'] }}"
+          aria-pressed="{{ 'true' if is_following else 'false' }}">
+          <span class="follow-label">{{ t.unfollow if is_following else t.follow }}</span>
         </button>
         <a href="{{ url_for('chat_start', user_id=profile_user['id']) }}" class="flex-1 rounded-xl border border-white/10 py-2 text-center text-sm font-bold text-slate-200">💬 {{ t.messages }}</a>
       {% elif current_user and current_user['id'] == profile_user['id'] %}
@@ -328,6 +342,53 @@
   </div>
 </div>
 
+<!-- Premium / VIP modal -->
+<div id="premiumModalOverlay" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50">
+  <div class="max-w-lg w-full mx-4 bg-zinc-900/95 border border-white/5 rounded-2xl p-5">
+    <div class="flex items-start justify-between gap-2">
+      <div>
+        <h3 class="text-lg font-bold">Unlock Premium perks</h3>
+        <p class="text-sm text-slate-400">Blue Tick, who viewed your profile, zero fees, priority ranking.</p>
+      </div>
+      <button type="button" id="premiumModalClose" class="text-slate-400 hover:text-slate-200">&times;</button>
+    </div>
+    <div class="mt-4 space-y-3">
+      <div class="flex items-start gap-3">
+        <i class='bx bx-check-shield text-sky-400 text-2xl'></i>
+        <div>
+          <div class="font-semibold">Verified Blue Tick</div>
+          <div class="text-sm text-slate-400">Adds trust and a badge visible across AltaJobs.</div>
+        </div>
+      </div>
+      <div class="flex items-start gap-3">
+        <i class='bx bx-user text-2xl text-emerald-400'></i>
+        <div>
+          <div class="font-semibold">Who viewed your profile</div>
+          <div class="text-sm text-slate-400">See recent profile visitors and insights.</div>
+        </div>
+      </div>
+      <div class="flex items-start gap-3">
+        <i class='bx bx-money text-2xl text-amber-400'></i>
+        <div>
+          <div class="font-semibold">Zero fees on transactions</div>
+          <div class="text-sm text-slate-400">Keep more of what you earn.</div>
+        </div>
+      </div>
+      <div class="flex items-start gap-3">
+        <i class='bx bx-trending-up text-2xl text-indigo-400'></i>
+        <div>
+          <div class="font-semibold">Priority ranking</div>
+          <div class="text-sm text-slate-400">Get higher placement in search and listings.</div>
+        </div>
+      </div>
+    </div>
+    <div class="mt-6 flex gap-3">
+      <a href="{{ url_for('checkout', tier='blue', duration='1m') }}" class="flex-1 rounded-xl bg-sky-500 hover:bg-sky-600 text-white py-3 text-center font-bold">Upgrade Now</a>
+      <button type="button" id="premiumModalCancel" class="rounded-xl border border-white/6 px-4 py-3 text-sm text-slate-300">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
   (function () {
     document.addEventListener('DOMContentLoaded', function () {
@@ -386,6 +447,30 @@
       }
     });
   })();
+
+  // Premium modal behavior
+  (function () {
+    function openPremiumModal() {
+      var o = document.getElementById('premiumModalOverlay');
+      if (o) o.classList.remove('hidden'), o.classList.add('flex');
+    }
+    function closePremiumModal() {
+      var o = document.getElementById('premiumModalOverlay');
+      if (o) o.classList.add('hidden'), o.classList.remove('flex');
+    }
+    document.addEventListener('click', function (e) {
+      var t = e.target.closest('[data-toggle="premium-modal"]') || e.target.closest('#premiumVerifyBtn') || e.target.closest('#premiumVipBtn');
+      if (t) { e.preventDefault(); openPremiumModal(); }
+    });
+    var close = document.getElementById('premiumModalClose');
+    var cancel = document.getElementById('premiumModalCancel');
+    var overlay = document.getElementById('premiumModalOverlay');
+    if (close) close.addEventListener('click', closePremiumModal);
+    if (cancel) cancel.addEventListener('click', closePremiumModal);
+    if (overlay) overlay.addEventListener('click', function (e) { if (e.target === overlay) closePremiumModal(); });
+    document.addEventListener('keydown', function (evt) { if (evt.key === 'Escape') closePremiumModal(); });
+  })();
+</script>
 </script>
 
 {% endblock %}

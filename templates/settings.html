@@ -1,368 +1,120 @@
 {% extends "base.html" %}
 {% block content %}
 
-<style>
-/* ---------- Section labels ---------- */
-.settings-section-title {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
-  padding: 14px 16px 6px;
-}
+<div class="max-w-2xl mx-auto px-4 py-6">
+  <h2 class="text-xl font-extrabold mb-4">{{ t.tab_settings }}</h2>
 
-/* ---------- User profile header ---------- */
-.profile-header-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 18px 16px;
-}
-.profile-header-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--border);
-  flex-shrink: 0;
-  background: var(--surface-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 1.2rem;
-  color: var(--accent);
-}
-.profile-header-info { min-width: 0; }
-.profile-header-name {
-  font-weight: 700;
-  font-size: 1.02rem;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.profile-header-handle {
-  color: var(--muted);
-  font-size: 0.85rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.profile-header-chevron {
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 1.2rem;
-}
-
-/* ---------- Upgrade list (existing premium banners) ---------- */
-.upgrade-list {
-  display: grid;
-  gap: 12px;
-  padding: 0 16px 16px;
-}
-.upgrade-row,
-.upgrade-link {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  text-decoration: none;
-  color: var(--text);
-}
-.upgrade-row { width: 100%; }
-.upgrade-row:hover,
-.upgrade-link:hover { background: rgba(255, 255, 255, 0.05); }
-.upgrade-icon {
-  min-width: 44px;
-  min-height: 44px;
-  display: grid;
-  place-items: center;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(29,155,240,0.14), rgba(88,80,248,0.18));
-  color: var(--accent);
-  font-size: 1.2rem;
-}
-
-/* Premium banner variant — distinguishes paid upgrades (Verified, VIP) from
-   plain menu links like "Join Challenge" */
-.upgrade-link.upgrade-premium {
-  position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(29, 155, 240, 0.28);
-  background: linear-gradient(120deg, rgba(29, 155, 240, 0.14), rgba(88, 80, 248, 0.12) 60%, rgba(15, 23, 42, 0.4));
-  box-shadow: 0 10px 26px rgba(2, 6, 23, 0.22);
-}
-.upgrade-link.upgrade-premium::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(120px 80px at 12% 20%, rgba(255,255,255,0.12), transparent 70%);
-  pointer-events: none;
-}
-.upgrade-link.upgrade-premium:hover {
-  border-color: rgba(29, 155, 240, 0.45);
-  transform: translateY(-1px);
-}
-.upgrade-link.upgrade-premium .upgrade-icon {
-  background: linear-gradient(135deg, var(--accent), #5850f8);
-  color: #fff;
-  box-shadow: 0 6px 16px rgba(29, 155, 240, 0.32);
-}
-.upgrade-link.upgrade-premium.upgrade-vip {
-  border-color: rgba(234, 179, 8, 0.32);
-  background: linear-gradient(120deg, rgba(234, 179, 8, 0.16), rgba(217, 119, 6, 0.1) 60%, rgba(15, 23, 42, 0.4));
-}
-.upgrade-link.upgrade-premium.upgrade-vip .upgrade-icon {
-  background: linear-gradient(135deg, #eab308, #d97706);
-  color: #1a1300;
-  box-shadow: 0 6px 16px rgba(234, 179, 8, 0.32);
-}
-.upgrade-link.upgrade-premium.upgrade-vip:hover { border-color: rgba(234, 179, 8, 0.5); }
-.upgrade-link.upgrade-premium .upgrade-action { position: relative; z-index: 1; }
-.upgrade-copy { flex: 1; min-width: 0; }
-.upgrade-title { font-weight: 700; margin-bottom: 4px; }
-.upgrade-desc { color: var(--muted); font-size: 0.92rem; line-height: 1.35; }
-.upgrade-action {
-  white-space: nowrap;
-  border: none;
-  border-radius: 999px;
-  padding: 10px 18px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
-  color: #fff;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
-}
-.upgrade-action:hover,
-.upgrade-action:focus-visible {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 18px rgba(29,155,240,0.18);
-}
-
-/* ---------- Theme toggle switch ---------- */
-.theme-toggle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.theme-switch {
-  position: relative;
-  width: 46px;
-  height: 26px;
-  flex-shrink: 0;
-}
-.theme-switch input { opacity: 0; width: 0; height: 0; }
-.theme-switch-track {
-  position: absolute;
-  inset: 0;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
-.theme-switch-track::before {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-  transition: transform 0.2s ease;
-}
-.theme-switch input:checked + .theme-switch-track {
-  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
-  border-color: transparent;
-}
-.theme-switch input:checked + .theme-switch-track::before {
-  transform: translateX(20px);
-}
-
-/* ---------- Logout row (sleek red SVG icon) ---------- */
-.settings-row.logout-row { color: var(--danger); }
-.logout-svg { width: 20px; height: 20px; vertical-align: -4px; margin-right: 2px; }
-
-/* ---------- Footer legal links ---------- */
-.settings-legal-links {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  font-size: 0.8rem;
-  color: var(--muted);
-  margin-top: 6px;
-}
-.settings-legal-links a { color: var(--muted); text-decoration: none; }
-.settings-legal-links a:hover { color: var(--text); text-decoration: underline; }
-.settings-legal-links span.dot { opacity: 0.5; }
-</style>
-
-<h2 style="margin-bottom:14px"><i class='bx bx-cog'></i> {{ t.tab_settings }}</h2>
-
-<!-- ===== User profile header ===== -->
-<div class="card" style="padding:0">
-  <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="profile-header-card">
-    {% if current_user['avatar'] %}
-      <img src="{{ photo_url(current_user['avatar']) }}" alt="{{ current_user['full_name'] or current_user['username'] }}" class="profile-header-avatar">
-    {% else %}
-      <div class="profile-header-avatar">{{ (current_user['full_name'] or current_user['username'] or '?')[0]|upper }}</div>
-    {% endif %}
-    <div class="profile-header-info">
-      <div class="profile-header-name">{{ current_user['full_name'] or current_user['username'] }}</div>
-      <div class="profile-header-handle">@{{ current_user['username'] }}{% if current_user['email'] %} · {{ current_user['email'] }}{% endif %}</div>
-    </div>
-    <span class="profile-header-chevron">›</span>
-  </a>
-</div>
-
-<div class="settings-section-title">Account</div>
-<div class="card" style="padding:0">
-  <a href="{{ url_for('edit_profile') }}" class="settings-row">
-    <span><i class='bx bx-edit'></i> {{ t.edit_profile }}</span>
-    <span class="chevron">›</span>
-  </a>
-  <a href="{{ url_for('wallet') }}" class="settings-row">
-    <span><i class='bx bx-wallet'></i> {{ t.wallet }}</span>
-    <span class="chevron">›</span>
-  </a>
-</div>
-
-<div class="card" style="padding:0;">
-  <div class="settings-section-title">Premium Upgrades</div>
-  <div class="upgrade-list">
-    <a href="{{ url_for('checkout', tier='blue', duration='1m') }}" class="upgrade-row upgrade-link upgrade-premium">
-      <div class="upgrade-icon"><i class='bx bx-check-shield'></i></div>
-      <div class="upgrade-copy">
-        <div class="upgrade-title">👑 {{ t.get_verified }}</div>
-        <div class="upgrade-desc">Get a verified badge for trust and visibility.</div>
+  <div class="space-y-6">
+    <!-- Preferences -->
+    <section class="bg-zinc-900/60 border border-white/5 rounded-2xl p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-bold text-slate-200">{{ t.preferences if t.preferences is defined else 'Preferences' }}</h3>
       </div>
-      <span class="upgrade-action">Upgrade Now</span>
-    </a>
+      <div class="divide-y divide-white/5 -mx-2">
+        <a href="#" class="flex items-center justify-between py-3 px-2 hover:bg-white/2 rounded-lg" onclick="document.getElementById('langModal').classList.add('open');return false;">
+          <div class="flex items-center gap-3">
+            <i class='bx bx-globe text-sky-400 text-lg'></i>
+            <div>
+              <div class="text-sm font-semibold">{{ t.language }}</div>
+              <div class="text-xs text-slate-400">{{ {'am':'አማርኛ','en':'English','om':'Afaan Oromoo','ti':'ትግርኛ','ar':'العربية'}[current_lang] }}</div>
+            </div>
+          </div>
+          <i class='bx bx-chevron-right text-slate-400'></i>
+        </a>
 
-    <a href="{{ url_for('checkout', tier='gold', duration='1y') }}" class="upgrade-row upgrade-link upgrade-premium upgrade-vip">
-      <div class="upgrade-icon"><i class='bx bx-crown'></i></div>
-      <div class="upgrade-copy">
-        <div class="upgrade-title">👑 {{ t.get_vip }}</div>
-        <div class="upgrade-desc">Unlock VIP benefits, premium support, and exclusive features.</div>
+        <div class="flex items-center justify-between py-3 px-2">
+          <div class="flex items-center gap-3">
+            <i class='bx bx-moon text-indigo-400 text-lg'></i>
+            <div>
+              <div class="text-sm font-semibold">Dark Mode</div>
+              <div class="text-xs text-slate-400">{{ t.theme_description if t.theme_description is defined else '' }}</div>
+            </div>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="themeToggle" class="sr-only" checked onchange="toggleTheme(this)">
+            <div class="w-11 h-6 bg-white/6 rounded-full shadow-inner"></div>
+            <span class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full transition-transform" id="themeThumb"></span>
+          </label>
+        </div>
       </div>
-      <span class="upgrade-action">Become VIP</span>
-    </a>
+    </section>
 
-    <a href="{{ url_for('challenges') }}" class="upgrade-row upgrade-link">
-      <div class="upgrade-icon"><i class='bx bx-trophy'></i></div>
-      <div class="upgrade-copy">
-        <div class="upgrade-title">{{ t.monthly_challenge_title }}</div>
-        <div class="upgrade-desc">Join the challenge to compete for rewards and boost your rank.</div>
+    <!-- Account Security -->
+    <section class="bg-zinc-900/60 border border-white/5 rounded-2xl p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-bold text-slate-200">Account Security</h3>
       </div>
-      <span class="upgrade-action">Join</span>
-    </a>
+      <div class="divide-y divide-white/5 -mx-2">
+        <a href="{{ url_for('change_password') }}" class="flex items-center justify-between py-3 px-2 hover:bg-white/2 rounded-lg">
+          <div class="flex items-center gap-3">
+            <i class='bx bx-lock text-emerald-400 text-lg'></i>
+            <div>
+              <div class="text-sm font-semibold">Change Password</div>
+              <div class="text-xs text-slate-400">Update your account password regularly</div>
+            </div>
+          </div>
+          <i class='bx bx-chevron-right text-slate-400'></i>
+        </a>
+      </div>
+    </section>
+
+    <!-- Support -->
+    <section class="bg-zinc-900/60 border border-white/5 rounded-2xl p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-bold text-slate-200">Support</h3>
+      </div>
+      <div class="divide-y divide-white/5 -mx-2">
+        <a href="{{ url_for('help_support') }}" class="flex items-center justify-between py-3 px-2 hover:bg-white/2 rounded-lg">
+          <div class="flex items-center gap-3">
+            <i class='bx bx-help-circle text-sky-400 text-lg'></i>
+            <div class="text-sm font-semibold">Help & Support</div>
+          </div>
+          <i class='bx bx-chevron-right text-slate-400'></i>
+        </a>
+        <a href="{{ url_for('privacy_policy') }}" class="flex items-center justify-between py-3 px-2 hover:bg-white/2 rounded-lg">
+          <div class="flex items-center gap-3">
+            <i class='bx bx-shield-quarter text-amber-400 text-lg'></i>
+            <div class="text-sm font-semibold">{{ t.privacy_policy }}</div>
+          </div>
+          <i class='bx bx-chevron-right text-slate-400'></i>
+        </a>
+      </div>
+    </section>
+
+    <!-- Logout -->
+    <section>
+      <form method="POST" action="{{ url_for('logout') }}">
+        <button type="submit" class="w-full rounded-2xl bg-red-600 hover:bg-red-700 text-white py-3 font-bold">{{ t.logout }}</button>
+      </form>
+    </section>
   </div>
+
+  <p class="mt-6 text-xs text-slate-500 text-center">{{ t.app_name }} — {{ t.tagline }}</p>
 </div>
 
-<div class="settings-section-title">Wallet & Rewards</div>
-<div class="card" style="padding:0">
-  <a href="{{ url_for('tokens_page') }}" class="settings-row">
-    <span><i class='bx bx-coin-stack'></i> {{ t.alta_tokens if t.alta_tokens is defined else 'Alta Tokens' }}</span>
-    <span class="chevron">{{ current_user['points'] if current_user['points'] is defined else 0 }} ›</span>
-  </a>
-</div>
-
-<div class="settings-section-title">Preferences</div>
-<div class="card" style="padding:0">
-  <a href="#" class="settings-row" onclick="document.getElementById('langModal').classList.add('open');return false;">
-    <span><i class='bx bx-globe'></i> {{ t.language }}</span>
-    <span class="chevron">{{ {'am':'አማርኛ','en':'English','om':'Afaan Oromoo','ti':'ትግርኛ','ar':'العربية'}[current_lang] }} ›</span>
-  </a>
-  <div class="settings-row theme-toggle-row">
-    <span><i class='bx bx-moon'></i> Dark Mode</span>
-    <label class="theme-switch">
-      <input type="checkbox" id="themeToggle" checked onchange="toggleTheme(this)">
-      <span class="theme-switch-track"></span>
-    </label>
-  </div>
-</div>
-
-<div class="settings-section-title">Support</div>
-<div class="card" style="padding:0">
-  <a href="{{ url_for('help_support') }}" class="settings-row">
-    <span><i class='bx bx-help-circle'></i> Help &amp; Support</span>
-    <span class="chevron">›</span>
-  </a>
-  <a href="{{ url_for('privacy_policy') }}" class="settings-row">
-    <span><i class='bx bx-shield-quarter'></i> {{ t.privacy_policy }}</span>
-    <span class="chevron">›</span>
-  </a>
-</div>
-
-{% if current_user['is_admin'] %}
-<div class="settings-section-title">Admin</div>
-<div class="card" style="padding:0">
-  <a href="{{ url_for('admin_dashboard') }}" class="settings-row">
-    <span><i class='bx bx-money'></i> {{ t.admin_panel }} — {{ t.pending_payments }}</span>
-    <span class="chevron">›</span>
-  </a>
-  <a href="{{ url_for('admin_panel') }}" class="settings-row">
-    <span><i class='bx bx-clipboard'></i> {{ t.admin_panel }} — {{ t.reports_list }}</span>
-    <span class="chevron">›</span>
-  </a>
-  <a href="{{ url_for('admin_challenges') }}" class="settings-row">
-    <span><i class='bx bx-trophy'></i> {{ t.monthly_challenge_title }}</span>
-    <span class="chevron">›</span>
-  </a>
-</div>
-{% endif %}
-
-<div class="card" style="padding:0">
-  <a href="{{ url_for('logout') }}" class="settings-row logout-row">
-    <span>
-      <svg class="logout-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-        <polyline points="16 17 21 12 16 7"></polyline>
-        <line x1="21" y1="12" x2="9" y2="12"></line>
-      </svg>
-      {{ t.logout }}
-    </span>
-  </a>
-</div>
-
-<p class="footer">{{ t.app_name }} — {{ t.tagline }}</p>
-<div class="settings-legal-links">
-  <a href="{{ url_for('privacy_policy') }}">Privacy Policy</a>
-  <span class="dot">•</span>
-  <a href="{{ url_for('terms_of_service') }}">Terms of Service</a>
-</div>
-
-<!-- Language selection modal -->
-<div class="modal-overlay" id="langModal">
-  <div class="modal-box">
-    <h3 style="margin:0">🌐 {{ t.language }}</h3>
-    <div class="modal-lang-grid">
-      <a href="{{ url_for('set_language_route', lang='am') }}" class="{{ 'active' if current_lang=='am' }}">አማርኛ</a>
-      <a href="{{ url_for('set_language_route', lang='en') }}" class="{{ 'active' if current_lang=='en' }}">English</a>
-      <a href="{{ url_for('set_language_route', lang='om') }}" class="{{ 'active' if current_lang=='om' }}">Afaan Oromoo</a>
-      <a href="{{ url_for('set_language_route', lang='ti') }}" class="{{ 'active' if current_lang=='ti' }}">ትግርኛ</a>
-      <a href="{{ url_for('set_language_route', lang='ar') }}" class="{{ 'active' if current_lang=='ar' }}" style="grid-column:span 2">العربية</a>
+<!-- Keep language modal (reused) -->
+<div class="modal-overlay" id="langModal" style="display:none;">
+  <div class="modal-card max-w-md mx-auto p-4 rounded-2xl bg-zinc-900/80 border border-white/5">
+    <h3 class="font-bold text-lg">🌐 {{ t.language }}</h3>
+    <div class="grid grid-cols-2 gap-2 mt-3">
+      <a href="{{ url_for('set_language_route', lang='am') }}" class="px-3 py-2 rounded-lg hover:bg-white/5">አማርኛ</a>
+      <a href="{{ url_for('set_language_route', lang='en') }}" class="px-3 py-2 rounded-lg hover:bg-white/5">English</a>
+      <a href="{{ url_for('set_language_route', lang='om') }}" class="px-3 py-2 rounded-lg hover:bg-white/5">Afaan Oromoo</a>
+      <a href="{{ url_for('set_language_route', lang='ar') }}" class="px-3 py-2 rounded-lg hover:bg-white/5">العربية</a>
     </div>
-    <button class="btn btn-outline btn-full" style="margin-top:14px" onclick="document.getElementById('langModal').classList.remove('open')">{{ t.back }}</button>
+    <div class="mt-4 text-right">
+      <button class="px-4 py-2 rounded-lg bg-white/5" onclick="document.getElementById('langModal').style.display='none';return false;">{{ t.back }}</button>
+    </div>
   </div>
 </div>
 
 <script>
-  // Client-side theme toggle. Persists via a cookie so it survives reloads
-  // without needing localStorage. Wire to a real user-preference endpoint
-  // if/when one exists.
   function toggleTheme(checkbox) {
     var dark = checkbox.checked;
     document.documentElement.classList.toggle('light-mode', !dark);
     document.cookie = 'theme=' + (dark ? 'dark' : 'light') + ';path=/;max-age=31536000';
+    var thumb = document.getElementById('themeThumb');
+    if (thumb) thumb.style.transform = dark ? 'translateX(0)' : 'translateX(20px)';
   }
   (function () {
     var match = document.cookie.match(/(?:^|; )theme=([^;]+)/);
@@ -371,6 +123,8 @@
     if (toggle) {
       toggle.checked = saved !== 'light';
       document.documentElement.classList.toggle('light-mode', saved === 'light');
+      var thumb = document.getElementById('themeThumb');
+      if (thumb) thumb.style.transform = toggle.checked ? 'translateX(0)' : 'translateX(20px)';
     }
   })();
 </script>

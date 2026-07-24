@@ -180,11 +180,13 @@
   </a>
 
   <div class="sidebar-card">
-    <a href="{{ url_for('wallet') }}" class="sidebar-link"><i class='bx bx-wallet'></i> {{ t.wallet }}</a>
-    <a href="{{ url_for('marketplace') }}" class="sidebar-link"><i class='bx bx-store'></i> Marketplace</a>
-    <a href="{{ url_for('tokens_page') }}" class="sidebar-link"><i class='bx bx-coin-stack'></i> {{ t.alta_tokens }}</a>
-    <a href="{{ url_for('challenges') }}" class="sidebar-link"><i class='bx bx-trophy'></i> {{ t.monthly_challenge_title }}</a>
+    <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="sidebar-link"><i class='bx bx-user-circle'></i> {{ t.tab_profile }}</a>
     <a href="{{ url_for('settings_page') }}" class="sidebar-link"><i class='bx bx-cog'></i> {{ t.tab_settings }}</a>
+    <a href="{{ url_for('wallet') }}" class="sidebar-link"><i class='bx bx-wallet'></i> {{ t.wallet }}</a>
+    {% if current_user and current_user['is_admin'] %}
+      <a href="{{ url_for('admin_dashboard') }}" class="sidebar-link"><i class='bx bx-cog'></i> Admin Dashboard</a>
+    {% endif %}
+    <a href="{{ url_for('logout') }}" class="sidebar-link"><i class='bx bx-log-out'></i> {{ t.logout if t.logout is defined else 'Logout' }}</a>
   </div>
 
   <div class="sidebar-card">
@@ -231,12 +233,7 @@
     {% endfor %}
   </div>
 
-  {% if not is_verified_now(current_user) and not is_vip_now(current_user) %}
-  <a href="{{ url_for('wallet') }}" class="sidebar-card" style="display:block;text-decoration:none;background:linear-gradient(135deg, var(--accent), var(--accent-dark));color:#ffffff">
-    <div style="font-weight:800"><i class='bx bx-star'></i> {{ t.upgrade_to_premium }}</div>
-    <div style="font-size:0.8rem;margin-top:4px"><i class='bx bx-gift'></i> {{ t.days_left }}: {{ trial_days_left }}</div>
-  </a>
-  {% endif %}
+  {# Removed global upgrade banner per design change #}
 </aside>
 {% endif %}
 
@@ -246,21 +243,17 @@
 <div class="sidebar-overlay" id="headerSidebarOverlay"></div>
 <aside class="header-sidebar-drawer rounded-2xl border border-white/10 bg-zinc-900/90 backdrop-blur-lg shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]" id="headerSidebarDrawer" aria-hidden="true">
   <nav class="drawer-nav">
-    <a href="{{ url_for('edit_profile') }}">
+    <a href="{{ url_for('profile', user_id=current_user['id']) }}">
       <i class='bx bx-user-circle' style="font-size:1.35rem;color:var(--accent)"></i>
-      <div class="drawer-label">{{ t.edit_profile }}</div>
+      <div class="drawer-label">{{ t.tab_profile }}</div>
     </a>
     <a href="{{ url_for('settings_page') }}">
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" stroke="var(--accent)" stroke-width="1.6" fill="none"/><path d="M19.4 15a1.8 1.8 0 0 0 .3 2l.1.1a1 1 0 0 1-1.1 1.6l-.1-.05-.1-.05a1.8 1.8 0 0 0-2 .3l-.1.1a1 1 0 0 1-1.4 0l-.1-.1a1.8 1.8 0 0 0-2-.3l-.1.06a1 1 0 0 1-1.1-.2l-.08-.09" stroke="var(--accent)" stroke-width="1.4" fill="none"/></svg>
       <div class="drawer-label">Settings</div>
     </a>
-    <a href="{{ url_for('tokens_page') }}">
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="6" stroke="var(--accent)" stroke-width="1.6" fill="none"/><path d="M12 8v8" stroke="var(--accent)" stroke-width="1.6"/></svg>
-      <div class="drawer-label">Alta Tokens</div>
-    </a>
     <a href="{{ url_for('wallet') }}">
-      <i class='bx bx-gift' style="font-size:1.35rem;color:var(--accent)"></i>
-      <div class="drawer-label">{{ t.upgrade_to_premium }}</div>
+      <i class='bx bx-wallet' style="font-size:1.35rem;color:var(--accent)"></i>
+      <div class="drawer-label">{{ t.wallet }}</div>
     </a>
     {% if current_user and current_user['is_admin'] %}
       <div class="drawer-divider"></div>
@@ -322,6 +315,68 @@
 </script>
 {% endif %}
 
+<!-- Global UI overlays and modals used by ui-components.js -->
+<div id="uiOverlay" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden z-40"></div>
+
+<!-- Post options sheet -->
+<div id="postOptionsSheet" class="fixed left-0 right-0 bottom-0 max-w-lg mx-auto bg-zinc-900/95 border border-white/5 rounded-t-2xl p-4 transform translate-y-full transition-transform duration-300 z-50">
+  <div class="flex items-center justify-between mb-3">
+    <div class="text-sm font-bold">Post actions</div>
+    <button id="postSheetCancel" class="text-slate-400">Cancel</button>
+  </div>
+  <div class="space-y-2">
+    <button id="nativeShareBtn" class="w-full flex items-center gap-3 px-3 py-3 rounded-2xl bg-white/3 hover:bg-white/5">
+      <i class="bx bx-share-alt text-lg"></i> Share
+    </button>
+    <button id="copyLinkBtn" class="w-full flex items-center gap-3 px-3 py-3 rounded-2xl bg-white/3 hover:bg-white/5">
+      <i class="bx bx-link text-lg"></i> Copy Link
+    </button>
+    <form id="sheetDeleteForm" method="POST" action=""><button type="submit" class="w-full flex items-center gap-3 px-3 py-3 rounded-2xl bg-red-600 text-white">Delete</button></form>
+  </div>
+</div>
+
+<!-- Compose Modal -->
+<div id="composeModalOverlay" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
+  <div class="bg-zinc-900/95 border border-white/5 rounded-2xl p-6 max-w-2xl w-full mx-4">
+    <div class="flex justify-between items-center">
+      <h3 class="text-lg font-bold">Create Post</h3>
+      <button id="composeClose" class="text-slate-400">✕</button>
+    </div>
+    <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <button class="compose-option p-4 rounded-2xl bg-white/3 hover:bg-white/5" data-type="standard">
+        <i class="bx bx-edit text-2xl"></i><div class="font-bold mt-2">Standard Post</div>
+        <div class="text-xs text-slate-400">Share text & images</div>
+      </button>
+      <button class="compose-option p-4 rounded-2xl bg-white/3 hover:bg-white/5" data-type="job">
+        <i class="bx bx-briefcase text-2xl"></i><div class="font-bold mt-2">Post a Job</div>
+        <div class="text-xs text-slate-400">Add job details & apply link</div>
+      </button>
+      <button class="compose-option p-4 rounded-2xl bg-white/3 hover:bg-white/5" data-type="skills">
+        <i class="bx bx-star text-2xl"></i><div class="font-bold mt-2">Post Skills</div>
+        <div class="text-xs text-slate-400">Share experience & portfolio</div>
+      </button>
+    </div>
+    <form id="composeForm" method="POST" action="{{ url_for('create_post') }}" class="mt-4">
+      <input type="hidden" name="post_type" id="composePostType" value="standard">
+      <textarea name="content" id="composeContent" class="w-full p-3 rounded-xl bg-zinc-950/60" rows="4" placeholder="Write your post..."></textarea>
+      <div class="mt-3 flex justify-end gap-2">
+        <button type="button" id="composeCancel" class="px-4 py-2 rounded-xl border">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-sky-500 text-white">Post</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Admin report drawer -->
+<div id="reportDrawer" class="fixed right-0 top-0 h-full max-w-xl w-full bg-zinc-900/95 border-l border-white/5 transform translate-x-full transition-transform z-60">
+  <div class="p-4 flex items-start justify-between">
+    <h3 class="text-lg font-bold">Report Details</h3>
+    <button id="reportDrawerClose">✕</button>
+  </div>
+  <div id="reportDrawerBody" class="p-4 overflow-y-auto h-[calc(100%-72px)]"></div>
+</div>
+
+<script src="{{ url_for('static', filename='js/ui-components.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 
 </body>
