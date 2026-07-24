@@ -31,19 +31,19 @@
       {% else %}
       <div class="divide-y divide-white/5 overflow-hidden rounded-xl border border-white/5">
         {% for u in results %}
-        <div class="flex items-center gap-3 bg-zinc-900/40 px-3 py-3">
+        <div class="flex items-center gap-3 bg-zinc-900/40 px-3 py-3" id="user-row-{{ u['id'] }}">
           <div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/5 text-xs font-bold text-slate-200">{{ (u['full_name'] or u['username'])[0]|upper }}</div>
           <div class="min-w-0 flex-1">
             <div class="truncate text-sm font-semibold text-slate-100">{{ u['full_name'] or u['username'] }}</div>
             <div class="truncate text-[11px] text-slate-500">@{{ u['username'] }}</div>
           </div>
           {% if is_currently_verified(u) %}
-            <span class="admin-badge admin-badge-info shrink-0">Until {{ u['verified_until'][:10] }}</span>
-            <form method="POST" action="{{ url_for('revoke_verified', user_id=u['id']) }}" class="shrink-0">
+            <span class="admin-badge admin-badge-info shrink-0" data-until-badge>Until {{ u['verified_until'][:10] }}</span>
+            <form class="shrink-0 js-status-form" data-action-url="{{ url_for('revoke_verified', user_id=u['id']) }}" data-status-action="revoke" data-row-id="user-row-{{ u['id'] }}">
               <button type="submit" class="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-red-400 hover:bg-white/5">Revoke</button>
             </form>
           {% else %}
-            <form method="POST" action="{{ url_for('grant_verified', user_id=u['id']) }}" class="flex shrink-0 items-center gap-1.5">
+            <form class="flex shrink-0 items-center gap-1.5 js-status-form" data-action-url="{{ url_for('grant_verified', user_id=u['id']) }}" data-status-action="grant" data-row-id="user-row-{{ u['id'] }}">
               <input type="number" name="days" value="30" min="1" class="w-14 rounded-lg border border-white/10 bg-zinc-950/70 px-2 py-1.5 text-xs text-slate-100">
               <button type="submit" class="rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-bold text-zinc-950">Grant</button>
             </form>
@@ -62,13 +62,13 @@
       {% else %}
       <div class="divide-y divide-white/5 overflow-hidden rounded-xl border border-white/5">
         {% for u in verified_users %}
-        <div class="flex items-center gap-3 bg-zinc-900/40 px-3 py-3">
+        <div class="flex items-center gap-3 bg-zinc-900/40 px-3 py-3" id="verified-row-{{ u['id'] }}">
           <div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-sky-500/10 text-xs font-bold text-sky-400">{{ (u['full_name'] or u['username'])[0]|upper }}</div>
           <div class="min-w-0 flex-1">
             <div class="truncate text-sm font-semibold text-slate-100">{{ u['full_name'] or u['username'] }} <span class="admin-badge admin-badge-info">Verified</span></div>
             <div class="truncate text-[11px] text-slate-500">Until {{ (u['verified_until'] or '')[:10] }}</div>
           </div>
-          <form method="POST" action="{{ url_for('revoke_verified', user_id=u['id']) }}" class="shrink-0">
+          <form class="shrink-0 js-status-form" data-action-url="{{ url_for('revoke_verified', user_id=u['id']) }}" data-status-action="revoke" data-row-id="verified-row-{{ u['id'] }}" data-remove-on-success="1">
             <button type="submit" class="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-red-400 hover:bg-white/5">Revoke</button>
           </form>
         </div>
@@ -78,4 +78,87 @@
     </section>
   </main>
 </div>
+
+<!-- Toast stack (shared pattern with admin_products.html) -->
+<div class="toast-stack" id="toastStack"></div>
+
+<script>
+(function () {
+  function showToast(message, type) {
+    var stack = document.getElementById('toastStack');
+    if (!stack) return;
+    var toast = document.createElement('div');
+    toast.className = 'toast toast-' + (type || 'success');
+    var icon = type === 'error' ? 'bx-error-circle' : (type === 'info' ? 'bx-info-circle' : 'bx-check-circle');
+    toast.innerHTML = '<i class="bx ' + icon + '"></i><span>' + message + '</span>';
+    stack.appendChild(toast);
+    requestAnimationFrame(function () { toast.classList.add('show'); });
+    setTimeout(function () {
+      toast.classList.remove('show');
+      setTimeout(function () { toast.remove(); }, 250);
+    }, 3200);
+  }
+  window.showToast = window.showToast || showToast;
+
+  document.addEventListener('submit', function (e) {
+    var form = e.target.closest('.js-status-form');
+    if (!form) return;
+    e.preventDefault();
+
+    var url = form.dataset.actionUrl;
+    var action = form.dataset.statusAction;
+    var rowId = form.dataset.rowId;
+    var removeOnSuccess = form.dataset.removeOnSuccess === '1';
+    var submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
+    var body = new URLSearchParams(new FormData(form));
+
+    fetch(url, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      body: body,
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data || !data.success) {
+          showToast('Could not update this user. Please try again.', 'error');
+          if (submitBtn) submitBtn.disabled = false;
+          return;
+        }
+        var row = document.getElementById(rowId);
+        if (action === 'grant') {
+          showToast('Verified badge granted.', 'success');
+        } else {
+          showToast('Verified badge revoked.', 'success');
+        }
+        if (removeOnSuccess && row) {
+          row.style.transition = 'opacity 0.25s ease';
+          row.style.opacity = '0';
+          setTimeout(function () { row.remove(); }, 250);
+        } else if (row) {
+          // Swap Grant <-> Revoke control in place without a full reload.
+          var untilBadge = row.querySelector('[data-until-badge]');
+          if (action === 'grant' && data.until) {
+            form.outerHTML =
+              '<span class="admin-badge admin-badge-info shrink-0" data-until-badge>Until ' + data.until + '</span>' +
+              '<form class="shrink-0 js-status-form" data-action-url="/admin/user/' + data.user_id + '/revoke-verified" data-status-action="revoke" data-row-id="' + rowId + '">' +
+              '<button type="submit" class="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs font-semibold text-red-400 hover:bg-white/5">Revoke</button></form>';
+          } else if (action === 'revoke') {
+            if (untilBadge) untilBadge.remove();
+            form.outerHTML =
+              '<form class="flex shrink-0 items-center gap-1.5 js-status-form" data-action-url="/admin/user/' + data.user_id + '/grant-verified" data-status-action="grant" data-row-id="' + rowId + '">' +
+              '<input type="number" name="days" value="30" min="1" class="w-14 rounded-lg border border-white/10 bg-zinc-950/70 px-2 py-1.5 text-xs text-slate-100">' +
+              '<button type="submit" class="rounded-lg bg-emerald-500 px-2.5 py-1.5 text-xs font-bold text-zinc-950">Grant</button></form>';
+          }
+        }
+      })
+      .catch(function () {
+        showToast('Network error — please try again.', 'error');
+        if (submitBtn) submitBtn.disabled = false;
+      });
+  });
+})();
+</script>
+
 {% endblock %}

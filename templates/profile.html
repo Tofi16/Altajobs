@@ -1,6 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
 
+<style>
+  .profile-primary-btn {
+    background: linear-gradient(135deg, var(--accent, #1D9BF0), var(--accent-dark, #1a7fc9));
+    color: #ffffff !important;
+    box-shadow: 0 8px 18px rgba(29,155,240,0.20);
+  }
+  .profile-icon-btn {
+    display: grid; place-items: center; height: 38px; width: 38px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: #cbd5e1;
+    transition: background .12s ease, transform .12s ease;
+  }
+  .profile-icon-btn:hover { background: rgba(255,255,255,0.09); }
+  .profile-icon-btn:active { transform: scale(0.94); }
+  .profile-social-link {
+    display: flex; align-items: center; gap: 6px; border-radius: 999px; padding: 6px 12px;
+    font-size: 12px; font-weight: 600; border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03); color: #cbd5e1; transition: background .12s ease, border-color .12s ease;
+  }
+  .profile-social-link:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.16); }
+  .profile-stats { box-shadow: 0 10px 28px rgba(2,6,23,0.35); }
+</style>
+
 <!-- Shared SVG defs for half-star gradient (used by star-rating component) -->
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -13,13 +35,25 @@
 
 <div class="profile-shell mx-auto max-w-2xl px-3 py-4 text-slate-200 sm:px-4">
 
+  <!-- ============ TOP UTILITY ROW ============ -->
+  <div class="mb-2 flex items-center justify-end gap-2">
+    <button type="button" id="shareProfileBtn" class="profile-icon-btn" aria-label="Share profile" title="Share profile">
+      <i class='bx bx-share-alt'></i>
+    </button>
+    {% if current_user and current_user['id'] == profile_user['id'] %}
+      <a href="{{ url_for('settings') }}" class="profile-icon-btn" aria-label="Settings" title="Settings">
+        <i class='bx bxs-cog'></i>
+      </a>
+    {% endif %}
+  </div>
+
   <!-- ============ COMPACT HEADER ============ -->
   <section class="profile-card profile-card--hero rounded-2xl border border-white/5 bg-zinc-900/60 p-4 lg:p-5">
     <div class="flex items-start gap-3">
 
       <!-- Avatar with initials fallback -->
       <div class="relative h-16 w-16 shrink-0 lg:h-20 lg:w-20">
-        <div class="grid h-full w-full place-items-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-xl font-black text-zinc-950 lg:text-2xl">
+        <div class="grid h-full w-full place-items-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-xl font-black text-white lg:text-2xl">
           {{ (profile_user['full_name'] or profile_user['username'])[0]|upper }}
         </div>
         {% if profile_user['avatar'] %}
@@ -62,26 +96,44 @@
         {% if profile_user['phone'] %}
           <p class="mt-1 text-xs text-slate-500">📞 {{ profile_user['phone'] }}</p>
         {% endif %}
+
+        {% if profile_user['linkedin_url'] or profile_user['twitter_url'] or profile_user['telegram_url'] %}
+          <div class="mt-2.5 flex flex-wrap gap-1.5">
+            {% if profile_user['linkedin_url'] %}
+              <a href="{{ profile_user['linkedin_url'] }}" target="_blank" rel="noopener" class="profile-social-link"><i class='bx bxl-linkedin-square'></i> LinkedIn</a>
+            {% endif %}
+            {% if profile_user['twitter_url'] %}
+              <a href="{{ profile_user['twitter_url'] }}" target="_blank" rel="noopener" class="profile-social-link"><i class='bx bxl-twitter'></i> Twitter</a>
+            {% endif %}
+            {% if profile_user['telegram_url'] %}
+              <a href="{{ profile_user['telegram_url'] }}" target="_blank" rel="noopener" class="profile-social-link"><i class='bx bxl-telegram'></i> Telegram</a>
+            {% endif %}
+          </div>
+        {% elif current_user and current_user['id'] == profile_user['id'] %}
+          <a href="{{ url_for('edit_profile') }}" class="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold text-sky-400">
+            <i class='bx bx-link-alt'></i> Add social links
+          </a>
+        {% endif %}
       </div>
     </div>
 
     <!-- Action row -->
     <div class="mt-3 flex gap-2">
       {% if current_user and current_user['id'] != profile_user['id'] %}
-        <button type="button" class="js-follow-btn flex-1 rounded-xl {{ 'bg-white/10 text-slate-200' if is_following else 'bg-emerald-500 text-zinc-950' }} py-2 text-sm font-bold"
+        <button type="button" class="js-follow-btn flex-1 rounded-xl {{ 'bg-white/10 text-slate-200' if is_following else 'profile-primary-btn' }} py-2 text-sm font-bold"
                 data-user-id="{{ profile_user['id'] }}"
                 data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
           {{ t.unfollow if is_following else t.follow }}
         </button>
         <a href="{{ url_for('chat_start', user_id=profile_user['id']) }}" class="flex-1 rounded-xl border border-white/10 py-2 text-center text-sm font-bold text-slate-200">💬 {{ t.messages }}</a>
       {% elif current_user and current_user['id'] == profile_user['id'] %}
-        <a href="{{ url_for('edit_profile') }}" class="flex-1 rounded-xl bg-emerald-500 py-2 text-center text-sm font-bold text-zinc-950"><i class='bx bx-edit'></i> {{ t.edit_profile }}</a>
+        <a href="{{ url_for('edit_profile') }}" class="flex-1 rounded-xl profile-primary-btn py-2 text-center text-sm font-bold"><i class='bx bx-edit'></i> {{ t.edit_profile }}</a>
       {% endif %}
     </div>
   </section>
 
   <!-- ============ HORIZONTAL STATS BAR ============ -->
-  <section class="profile-stats mt-3 grid grid-cols-3 divide-x divide-white/5 overflow-hidden rounded-2xl border border-white/5 bg-zinc-900/60 text-center">
+  <section class="profile-stats mt-3 grid grid-cols-3 divide-x divide-white/5 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/60 text-center">
     <a href="{{ url_for('profile_followers', user_id=profile_user['id']) }}" class="profile-stat-card px-2 py-3 block hover:bg-white/5">
       <div class="text-lg font-extrabold text-slate-100">{{ followers_count }}</div>
       <div class="text-[11px] text-slate-500">{{ t.followers }}</div>
@@ -137,7 +189,7 @@
             <p class="text-xs text-slate-500">{{ t.portfolio_description if t.portfolio_description is defined else 'Highlight your best work with images, links, and descriptions.' }}</p>
           </div>
           {% if current_user and current_user['id'] == profile_user['id'] %}
-            <button type="button" class="shrink-0 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-zinc-950" id="togglePortfolioAdd">+ {{ t.add_project if t.add_project is defined else 'Add Project' }}</button>
+            <button type="button" class="shrink-0 rounded-lg profile-primary-btn px-3 py-1.5 text-xs font-bold" id="togglePortfolioAdd">+ {{ t.add_project if t.add_project is defined else 'Add Project' }}</button>
           {% endif %}
         </div>
 
@@ -159,7 +211,7 @@
               <label class="mb-1 block text-[11px] font-semibold text-slate-500">{{ t.project_image if t.project_image is defined else 'Project Image (optional)' }}</label>
               <input type="file" name="image" accept="image/*" class="w-full text-xs text-slate-400">
             </div>
-            <button type="submit" class="w-full rounded-xl bg-emerald-500 py-2 text-sm font-bold text-zinc-950">{{ t.save if t.save is defined else 'Save Project' }}</button>
+            <button type="submit" class="w-full rounded-xl profile-primary-btn py-2 text-sm font-bold">{{ t.save if t.save is defined else 'Save Project' }}</button>
           </form>
         {% endif %}
 
@@ -200,7 +252,7 @@
             <p class="text-xs text-slate-500">{{ t.profile_skills_description if t.profile_skills_description is defined else 'Showcase your top skills and expertise here.' }}</p>
           </div>
           {% if current_user and current_user['id'] == profile_user['id'] %}
-            <button type="button" class="shrink-0 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-zinc-950" id="toggleSkillsEditor">+ {{ t.edit_skills if t.edit_skills is defined else 'Edit Skills' }}</button>
+            <button type="button" class="shrink-0 rounded-lg profile-primary-btn px-3 py-1.5 text-xs font-bold" id="toggleSkillsEditor">+ {{ t.edit_skills if t.edit_skills is defined else 'Edit Skills' }}</button>
           {% endif %}
         </div>
 
@@ -217,7 +269,7 @@
           <form method="POST" action="{{ url_for('update_profile_skills') }}" class="mt-3 hidden space-y-2" id="skillsEditor">
             <label class="mb-1 block text-[11px] font-semibold text-slate-500">{{ t.skills }} ({{ t.separate_with_commas if t.separate_with_commas is defined else 'separate with commas' }})</label>
             <input type="text" name="skills" value="{{ profile_user['skills'] or '' }}" placeholder="Python, Product Design, Marketing" class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-base text-slate-100 placeholder:text-slate-600">
-            <button type="submit" class="w-full rounded-xl bg-emerald-500 py-2 text-sm font-bold text-zinc-950">{{ t.save if t.save is defined else 'Save Skills' }}</button>
+            <button type="submit" class="w-full rounded-xl profile-primary-btn py-2 text-sm font-bold">{{ t.save if t.save is defined else 'Save Skills' }}</button>
           </form>
         {% endif %}
 
@@ -256,7 +308,7 @@
               <option value="1">★☆☆☆☆</option>
             </select>
             <textarea name="comment" placeholder="{{ t.write_comment }}" class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-base text-slate-100 placeholder:text-slate-600"></textarea>
-            <button type="submit" class="w-full rounded-xl bg-emerald-500 py-2 text-sm font-bold text-zinc-950">{{ t.submit_rating }}</button>
+            <button type="submit" class="w-full rounded-xl profile-primary-btn py-2 text-sm font-bold">{{ t.submit_rating }}</button>
           </form>
         </div>
       {% endif %}
@@ -314,6 +366,24 @@
           });
         });
       });
+
+      // Share profile
+      var shareBtn = document.getElementById('shareProfileBtn');
+      if (shareBtn) {
+        shareBtn.addEventListener('click', function () {
+          var url = window.location.href;
+          var title = {{ ((profile_user['full_name'] or profile_user['username']) + ' on AltaJobs')|tojson }};
+          if (navigator.share) {
+            navigator.share({ title: title, url: url }).catch(function () {});
+          } else if (navigator.clipboard) {
+            navigator.clipboard.writeText(url).then(function () {
+              var original = shareBtn.innerHTML;
+              shareBtn.innerHTML = '<i class="bx bx-check"></i>';
+              setTimeout(function () { shareBtn.innerHTML = original; }, 1500);
+            });
+          }
+        });
+      }
     });
   })();
 </script>

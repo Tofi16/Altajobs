@@ -1,1 +1,140 @@
-IDENTICAL
+{% extends "base.html" %}
+{% block content %}
+<div class="admin-shell lg:flex lg:min-h-screen bg-zinc-950 text-slate-200">
+  {% include "admin_nav.html" %}
+  <main class="admin-main flex-1 min-w-0 px-4 py-5 lg:px-8 lg:py-8">
+
+    <section class="admin-page-header">
+      <div>
+        <p class="admin-overline"><i class='bx bx-home-circle'></i> General Stats</p>
+        <h1 class="text-xl font-extrabold text-slate-100 lg:text-2xl">Admin Overview</h1>
+        <p class="mt-1 text-xs text-slate-500 lg:text-sm">Live snapshot of AltaJobs — users, revenue, and everything waiting on you.</p>
+      </div>
+    </section>
+
+    <!-- Action Required: the single most important thing on this page -->
+    {% if total_pending_actions and total_pending_actions > 0 %}
+    <a href="{{ url_for('admin_products') }}" class="admin-action-required mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-400/25 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent px-5 py-4 no-underline transition hover:border-amber-400/40 hover:from-amber-500/20">
+      <div class="flex items-center gap-3">
+        <span class="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-amber-400/20 text-xl text-amber-300"><i class='bx bx-bell-ring'></i></span>
+        <div>
+          <div class="text-sm font-extrabold text-amber-200">Action Required · {{ total_pending_actions }} item{{ '' if total_pending_actions == 1 else 's' }} waiting</div>
+          <div class="text-xs text-amber-200/70">{{ pending_deposits_count }} deposits · {{ pending_withdrawals_count }} withdrawals · {{ pending_products_count }} listings · {{ reports|length }} reports</div>
+        </div>
+      </div>
+      <span class="shrink-0 rounded-xl bg-amber-400 px-4 py-2.5 text-xs font-extrabold text-zinc-950">Review Now →</span>
+    </a>
+    {% endif %}
+
+    <!-- Top-level SaaS summary -->
+    <div class="admin-metric-grid">
+      <div class="admin-metric-card">
+        <div class="admin-metric-icon" style="background:rgba(56,189,248,0.16);color:#7dd3fc;"><i class='bx bx-group'></i></div>
+        <div>
+          <h3>Total Users</h3>
+          <p>{{ total_users }}</p>
+        </div>
+      </div>
+      <div class="admin-metric-card">
+        <div class="admin-metric-icon" style="background:rgba(234,179,8,0.16);color:#facc15;"><i class='bx bx-time-five'></i></div>
+        <div>
+          <h3>Pending Approvals</h3>
+          <p>{{ total_pending_actions }}</p>
+        </div>
+      </div>
+      <div class="admin-metric-card">
+        <div class="admin-metric-icon" style="background:rgba(34,197,94,0.16);color:#4ade80;"><i class='bx bx-dollar-circle'></i></div>
+        <div>
+          <h3>Total Revenue</h3>
+          <p>{{ total_revenue }} ETB</p>
+        </div>
+      </div>
+      <div class="admin-metric-card">
+        <div class="admin-metric-icon" style="background:rgba(168,85,247,0.16);color:#c084fc;"><i class='bx bx-user-check'></i></div>
+        <div>
+          <h3>Verified Users</h3>
+          <p>{{ verified_users_count }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-metric-grid">
+      <div class="admin-metric-card">
+        <div class="admin-metric-icon"><i class='bx bx-crown'></i></div>
+        <div>
+          <h3>VIP Members</h3>
+          <p>{{ vip_users_count }}</p>
+        </div>
+      </div>
+      <div class="admin-metric-card">
+        <div class="admin-metric-icon"><i class='bx bx-user-x'></i></div>
+        <div>
+          <h3>Unverified Users</h3>
+          <p>{{ pending_unverified_users }}</p>
+        </div>
+      </div>
+      <div class="admin-metric-card">
+        <div class="admin-metric-icon"><i class='bx bx-gift'></i></div>
+        <div>
+          <h3>Gift Earnings</h3>
+          <p>{{ gift_earnings }} ETB</p>
+        </div>
+      </div>
+      <div class="admin-metric-card">
+        <div class="admin-metric-icon"><i class='bx bx-line-chart'></i></div>
+        <div>
+          <h3>Subscription Revenue</h3>
+          <p>{{ subscription_revenue }} ETB</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending Wallet Requests -->
+    <section class="admin-card mb-5">
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-sm font-bold text-slate-100">Pending Wallet Requests</h2>
+        <a href="{{ url_for('admin_dashboard') }}" class="admin-pill no-underline">{{ pending_wallet_tx|length }} total · Manage →</a>
+      </div>
+      {% if not pending_wallet_tx %}
+        <p class="admin-empty-state">No pending wallet requests right now.</p>
+      {% else %}
+      <div class="divide-y divide-white/5 overflow-hidden rounded-xl border border-white/5">
+        {% for tx in pending_wallet_tx[:8] %}
+        <div class="flex items-center gap-3 bg-zinc-900/40 px-3 py-3 hover:bg-zinc-900/60 transition">
+          <div class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/5 text-xs font-bold text-slate-200">{{ tx['username'][0]|upper }}</div>
+          <div class="min-w-0 flex-1">
+            <div class="truncate text-sm font-semibold text-slate-100">{{ tx['username'] }} <span class="admin-badge admin-badge-warning" style="text-transform:capitalize">{{ tx['tx_type'] }}</span></div>
+            <div class="truncate text-[11px] text-slate-500">{{ tx['created_at'][:16].replace('T',' ') if tx['created_at'] else '' }}</div>
+          </div>
+          <div class="shrink-0 text-sm font-extrabold text-slate-100">{{ tx['amount'] }} ETB</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+
+    <!-- Pending Reports -->
+    <section class="admin-card">
+      <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-sm font-bold text-slate-100">Pending Reports</h2>
+        <a href="{{ url_for('admin_moderation') }}" class="admin-pill no-underline">{{ reports|length }} total · Manage →</a>
+      </div>
+      {% if not reports %}
+        <p class="admin-empty-state">No pending reports right now.</p>
+      {% else %}
+      <div class="divide-y divide-white/5 overflow-hidden rounded-xl border border-white/5">
+        {% for r in reports[:8] %}
+        <div class="flex items-center gap-3 bg-zinc-900/40 px-3 py-3 hover:bg-zinc-900/60 transition">
+          <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-red-500/10 text-red-400 text-base"><i class='bx bx-flag'></i></span>
+          <div class="min-w-0 flex-1">
+            <div class="truncate text-sm font-semibold text-slate-100">Reported by {{ r['reporter'] }}</div>
+            <div class="truncate text-[11px] text-slate-500">{{ r['reason'] }} · {{ r['created_at'][:16].replace('T',' ') if r['created_at'] else '' }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+  </main>
+</div>
+{% endblock %}

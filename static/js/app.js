@@ -247,8 +247,103 @@ document.addEventListener("DOMContentLoaded", function () {
       if (isOpen) {
         closeSearch();
         closeSidebar();
+        loadNotifications();
       }
     });
+  }
+
+  // ---------- Real notifications (replaces static mock content) ----------
+  function timeAgo(iso) {
+    if (!iso) return "";
+    const then = new Date(iso.replace(" ", "T") + (iso.endsWith("Z") ? "" : "Z"));
+    const diffMs = Date.now() - then.getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return mins + "m ago";
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return hours + "h ago";
+    const days = Math.floor(hours / 24);
+    return days + "d ago";
+  }
+
+  function renderNotifications(list) {
+    if (!bellPopover) return;
+    let body = bellPopover.querySelector(".notification-list");
+    if (!body) {
+      // The popover markup didn't include a dedicated list container
+      // (older static markup) - build one so we have a stable place to
+      // render live data into, without needing to touch base.html.
+      body = document.createElement("div");
+      body.className = "notification-list";
+      bellPopover.innerHTML = '<div class="notification-header">Notifications</div>';
+      bellPopover.appendChild(body);
+    }
+    if (!list || list.length === 0) {
+      body.innerHTML =
+        '<div class="notification-empty">' +
+        '<i class="bx bx-bell-off"></i>' +
+        '<span>No new notifications</span>' +
+        "</div>";
+      return;
+    }
+    body.innerHTML = list
+      .map(function (n) {
+        return (
+          '<div class="notification-item' + (n.is_read ? "" : " unread") + '">' +
+          '<span class="notification-icon"><i class="bx ' + n.icon + '"></i></span>' +
+          '<div class="notification-body">' +
+          '<div class="notification-message">' + n.message + "</div>" +
+          '<div class="notification-time">' + timeAgo(n.created_at) + "</div>" +
+          "</div></div>"
+        );
+      })
+      .join("");
+  }
+
+  function loadNotifications() {
+    fetch("/api/notifications")
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        renderNotifications(data.notifications || []);
+        updateBellBadge(data.unread_count || 0);
+        // Mark as read shortly after opening, so the badge clears without
+        // the messages visually disappearing out from under the user.
+        if (data.unread_count > 0) {
+          setTimeout(function () {
+            fetch("/api/notifications/mark-read", { method: "POST" }).then(function () {
+              updateBellBadge(0);
+            });
+          }, 1500);
+        }
+      })
+      .catch(function () {
+        renderNotifications([]);
+      });
+  }
+
+  function updateBellBadge(count) {
+    if (!bellToggle) return;
+    let badge = bellToggle.querySelector(".notification-badge");
+    if (count > 0) {
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "notification-badge";
+        bellToggle.appendChild(badge);
+      }
+      badge.textContent = count > 9 ? "9+" : String(count);
+      badge.style.display = "";
+    } else if (badge) {
+      badge.style.display = "none";
+    }
+  }
+
+  // Load once on page load too, so the badge count is correct before the
+  // user ever opens the bell.
+  if (bellToggle && bellPopover) {
+    fetch("/api/notifications")
+      .then(function (r) { return r.json(); })
+      .then(function (data) { updateBellBadge(data.unread_count || 0); })
+      .catch(function () {});
   }
 
   if (avatarToggle && sidebarDrawer && sidebarOverlay) {
@@ -669,48 +764,15 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 })();
 
-// ---------- Three-dot post menu -> animated bottom sheet ----------
-document.addEventListener("DOMContentLoaded", function () {
-  const overlay = document.getElementById("bottomSheetOverlay");
-  const sheet = document.getElementById("postActionsSheet");
-  const deleteForm = document.getElementById("sheetDeleteForm");
-  const reportForm = document.getElementById("sheetReportForm");
-  const reportTargetId = document.getElementById("sheetReportTargetId");
-  const cancelBtn = document.getElementById("sheetCancelBtn");
-  if (!overlay || !sheet) return;
-
-  const closeSheet = function () {
-    sheet.classList.remove("open");
-    overlay.classList.remove("open");
-  };
-
-  const openSheet = function (btn) {
-    const postId = btn.dataset.postId;
-    const canDelete = btn.dataset.canDelete === "1";
-    const canReport = btn.dataset.canReport === "1";
-
-    deleteForm.style.display = canDelete ? "block" : "none";
-    deleteForm.action = `/post/${postId}/delete`;
-
-    reportForm.style.display = canReport ? "block" : "none";
-    if (reportTargetId) reportTargetId.value = postId;
-
-    sheet.classList.add("open");
-    overlay.classList.add("open");
-  };
-
-  document.addEventListener("click", function (e) {
-    const trigger = e.target.closest(".js-post-menu-btn");
-    if (trigger) {
-      e.preventDefault();
-      openSheet(trigger);
-      return;
-    }
-    if (e.target === overlay || e.target === cancelBtn) {
-      closeSheet();
-    }
-  });
-});
+// NOTE: the "three-dot" post options bottom sheet (#postActionsSheet) is
+// wired up once in _feed_posts.html (guarded by window.__xpostMenuBound),
+// which is the single source of truth for open/close + populating the
+// Delete/Report forms. A second, now-removed handler used to live here and
+// conflicted with it: both listened on the same document 'click' event for
+// .js-post-menu-btn, and this one ran second and force-hid the Delete/Report
+// buttons (checking data-can-delete / data-can-report attributes the button
+// never actually set), which is exactly why the sheet appeared to "cut off
+// at Cancel". Do not re-add a second handler here.
 
 // ---------- Reels: view-once tracking + tap-to-unmute audio ----------
 function disableMediaSessionNotifications() {

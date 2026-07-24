@@ -851,6 +851,25 @@ def init_postgres_db():
             word TEXT NOT NULL UNIQUE,
             created_at TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS product_photos (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER NOT NULL,
+            photo TEXT NOT NULL,
+            position INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS product_favorites (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(user_id, product_id),
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
+        );
         """
     )
     conn.commit()
@@ -1302,6 +1321,25 @@ def migrate_db():
             image_path TEXT DEFAULT NULL,
             created_at TEXT NOT NULL,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS product_photos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            photo TEXT NOT NULL,
+            position INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS product_favorites (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(user_id, product_id),
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
         );
     """)
     db.commit()
@@ -2105,6 +2143,28 @@ def inject_gift_catalog():
         "channel_verification_days_left": channel_verification_days_left,
         "channel_verification_expiring_soon": channel_verification_expiring_soon,
     }
+
+
+@app.context_processor
+def inject_admin_nav_counts():
+    """Live badge counts for the admin sidebar (Product Approval, Deposits/
+    Withdrawals, Reports). Computed here (not per-route) so every admin page
+    shows current numbers regardless of which view rendered it."""
+    user = get_current_user()
+    if not user or not _get_row_value(user, "is_admin", False):
+        return {}
+    try:
+        db = get_db()
+        counts = {
+            "products": db.execute("SELECT COUNT(*) c FROM products WHERE status = 'pending'").fetchone()["c"],
+            "wallet": db.execute("SELECT COUNT(*) c FROM wallet_transactions WHERE status = 'pending'").fetchone()["c"],
+            "reports": db.execute("SELECT COUNT(*) c FROM reports WHERE status = 'pending'").fetchone()["c"],
+        }
+        counts["total"] = counts["products"] + counts["wallet"] + counts["reports"]
+        return {"admin_nav_counts": counts}
+    except Exception as exc:
+        print(f"Warning: could not load admin nav counts: {exc}")
+        return {"admin_nav_counts": {"products": 0, "wallet": 0, "reports": 0, "total": 0}}
 
 
 @app.context_processor
@@ -3456,8 +3516,18 @@ def like_post(post_id):
             "INSERT INTO likes (post_id, user_id) VALUES (?, ?)",
             (post_id, session["user_id"]),
         )
+        _notify_post_owner_on_like(db, post_id, session["user_id"])
     db.commit()
     return redirect(request.referrer or url_for("feed"))
+
+
+def _notify_post_owner_on_like(db, post_id, liker_id):
+    post = db.execute("SELECT user_id FROM posts WHERE id = ?", (post_id,)).fetchone()
+    if not post or post["user_id"] == liker_id:
+        return
+    liker = db.execute("SELECT username, full_name FROM users WHERE id = ?", (liker_id,)).fetchone()
+    liker_name = (liker["full_name"] or liker["username"]) if liker else "Someone"
+    add_notification(db, post["user_id"], f"{liker_name} liked your post.", ntype="like")
 
 
 @app.route("/api/like/<int:post_id>", methods=["POST"])
@@ -3483,6 +3553,8 @@ def api_toggle_like(post_id):
         )
         db.commit()
         liked = True
+        _notify_post_owner_on_like(db, post_id, session["user_id"])
+        db.commit()
     like_count = db.execute(
         "SELECT COUNT(*) c FROM likes WHERE post_id = ?", (post_id,)
     ).fetchone()["c"]
@@ -3502,6 +3574,14 @@ def comment_post(post_id):
              datetime.datetime.utcnow().isoformat()),
         )
         db.commit()
+        post = db.execute("SELECT user_id FROM posts WHERE id = ?", (post_id,)).fetchone()
+        if post and post["user_id"] != session["user_id"]:
+            commenter = db.execute(
+                "SELECT username, full_name FROM users WHERE id = ?", (session["user_id"],)
+            ).fetchone()
+            commenter_name = (commenter["full_name"] or commenter["username"]) if commenter else "Someone"
+            add_notification(db, post["user_id"], f"{commenter_name} commented on your post.", ntype="comment")
+            db.commit()
     return redirect(url_for("post_detail", post_id=post_id))
 
 
@@ -3535,6 +3615,66 @@ def api_repost_post(post_id):
         "SELECT share_count FROM posts WHERE id = ?", (post_id,)
     ).fetchone()["share_count"]
     return jsonify({"success": True, "share_count": new_count})
+
+
+@app.route("/api/notifications")
+@login_required
+def api_notifications():
+    """Real notifications for the logged-in user, replacing the old static
+    mock notification text in the header bell popover."""
+    db = get_db()
+    uid = session["user_id"]
+    try:
+        rows = db.execute(
+            """SELECT id, ntype, message, is_read, created_at
+               FROM notifications
+               WHERE user_id = ?
+               ORDER BY created_at DESC
+               LIMIT 20""",
+            (uid,),
+        ).fetchall()
+    except Exception as exc:
+        print(f"Warning: could not load notifications: {exc}")
+        rows = []
+
+    icon_by_type = {
+        "like": "bx-heart",
+        "comment": "bx-comment",
+        "follow": "bx-user-plus",
+        "gift": "bx-gift",
+        "warning": "bx-error-circle",
+        "info": "bx-bell",
+    }
+    notifications = [
+        {
+            "id": r["id"],
+            "ntype": r["ntype"] or "info",
+            "icon": icon_by_type.get(r["ntype"] or "info", "bx-bell"),
+            "message": r["message"],
+            "is_read": bool(r["is_read"]),
+            "created_at": r["created_at"],
+        }
+        for r in rows
+    ]
+    unread_count = sum(1 for n in notifications if not n["is_read"])
+    return jsonify({"notifications": notifications, "unread_count": unread_count})
+
+
+@app.route("/api/notifications/mark-read", methods=["POST"])
+@login_required
+def api_notifications_mark_read():
+    """Marks all of the current user's notifications as read (called when
+    the bell popover is opened)."""
+    db = get_db()
+    try:
+        db.execute(
+            "UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0",
+            (session["user_id"],),
+        )
+        db.commit()
+    except Exception as exc:
+        print(f"Warning: could not mark notifications read: {exc}")
+    return jsonify({"success": True})
 
 
 @app.route("/api/followers-list")
@@ -4111,6 +4251,18 @@ def privacy_policy():
     return render_template("privacy.html")
 
 
+@app.route("/settings/terms")
+@login_required
+def terms_of_service():
+    return render_template("terms.html")
+
+
+@app.route("/settings/help")
+@login_required
+def help_support():
+    return render_template("help.html")
+
+
 @app.route("/profile/edit", methods=["GET", "POST"])
 @login_required
 def edit_profile():
@@ -4650,11 +4802,14 @@ def marketplace():
         description = (request.form.get("description") or "").strip()
         price = request.form.get("price", "0").strip()
         location = (request.form.get("location") or "Addis Ababa").strip()
-        photo_file = request.files.get("photo")
-        if photo_file and photo_file.filename and not allowed_file(photo_file.filename):
-            flash("Unsupported image format. Please upload PNG, JPG, JPEG, GIF, or WEBP.")
-            return redirect(url_for("marketplace"))
-        photo = save_photo(photo_file)
+        photo_files = [f for f in request.files.getlist("photo") if f and f.filename]
+        for f in photo_files:
+            if not allowed_file(f.filename):
+                flash("Unsupported image format. Please upload PNG, JPG, JPEG, GIF, or WEBP.")
+                return redirect(url_for("marketplace"))
+        saved_photos = [save_photo(f) for f in photo_files]
+        saved_photos = [p for p in saved_photos if p]
+        primary_photo = saved_photos[0] if saved_photos else None
         if title and price:
             try:
                 price_value = float(price)
@@ -4662,11 +4817,21 @@ def marketplace():
                 price_value = 0.0
             try:
                 status = review_listing(db, user["id"], title, description)
-                db.execute(
+                cursor = db.execute(
                     """INSERT INTO products (user_id, title, description, price, location, status, photo, created_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (user["id"], title, description, price_value, location, status, photo, datetime.datetime.utcnow().isoformat()),
+                    (user["id"], title, description, price_value, location, status, primary_photo, datetime.datetime.utcnow().isoformat()),
                 )
+                product_id = getattr(cursor, "lastrowid", None)
+                if not product_id:
+                    row = db.execute("SELECT id FROM products WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user["id"],)).fetchone()
+                    product_id = row["id"] if row else None
+                if product_id:
+                    for idx, photo_name in enumerate(saved_photos):
+                        db.execute(
+                            "INSERT INTO product_photos (product_id, photo, position, created_at) VALUES (?, ?, ?, ?)",
+                            (product_id, photo_name, idx, datetime.datetime.utcnow().isoformat()),
+                        )
                 # Award points for creating a marketplace listing
                 try:
                     db.execute("UPDATE users SET points = COALESCE(points,0) + ? WHERE id = ?", (15, user["id"]))
@@ -4681,14 +4846,69 @@ def marketplace():
                 flash("Could not publish your marketplace listing right now. Please try again.")
                 return redirect(url_for("marketplace"))
 
+    sort = request.args.get("sort", "newest")
+    order_clause = {
+        "price_asc": "p.price ASC",
+        "price_desc": "p.price DESC",
+        "rating": "seller_rating DESC, p.created_at DESC",
+    }.get(sort, "p.created_at DESC")
+
     listings = db.execute(
-        """SELECT p.*, u.username, u.full_name, u.verification_tier, u.verified_until
+        f"""SELECT p.*, u.username, u.full_name, u.verification_tier, u.verified_until,
+                   COALESCE((SELECT AVG(stars) FROM ratings WHERE worker_id = u.id), 0) AS seller_rating,
+                   (SELECT COUNT(*) FROM ratings WHERE worker_id = u.id) AS review_count,
+                   EXISTS(SELECT 1 FROM product_favorites f WHERE f.product_id = p.id AND f.user_id = ?) AS is_favorited
            FROM products p
            JOIN users u ON p.user_id = u.id
            WHERE p.status = 'approved'
-           ORDER BY p.created_at DESC LIMIT 50"""
+           ORDER BY {order_clause} LIMIT 50""",
+        (user["id"],),
     ).fetchall()
-    return render_template("marketplace.html", listings=listings, user=user)
+
+    product_ids = [row["id"] for row in listings]
+    photos_by_product = {}
+    if product_ids:
+        placeholders = ",".join(["?"] * len(product_ids))
+        photo_rows = db.execute(
+            f"""SELECT product_id, photo FROM product_photos
+                WHERE product_id IN ({placeholders}) ORDER BY product_id, position ASC""",
+            tuple(product_ids),
+        ).fetchall()
+        for row in photo_rows:
+            photos_by_product.setdefault(row["product_id"], []).append(row["photo"])
+
+    return render_template(
+        "marketplace.html",
+        listings=listings,
+        user=user,
+        photos_by_product=photos_by_product,
+        current_sort=sort,
+    )
+
+
+@app.route("/marketplace/<int:product_id>/favorite", methods=["POST"])
+@login_required
+def marketplace_toggle_favorite(product_id):
+    db = get_db()
+    user = get_current_user()
+    existing = db.execute(
+        "SELECT id FROM product_favorites WHERE user_id = ? AND product_id = ?",
+        (user["id"], product_id),
+    ).fetchone()
+    if existing:
+        db.execute("DELETE FROM product_favorites WHERE id = ?", (existing["id"],))
+        db.commit()
+        favorited = False
+    else:
+        db.execute(
+            "INSERT INTO product_favorites (user_id, product_id, created_at) VALUES (?, ?, ?)",
+            (user["id"], product_id, datetime.datetime.utcnow().isoformat()),
+        )
+        db.commit()
+        favorited = True
+    if request.headers.get("X-Requested-With") == "fetch" or request.accept_mimetypes.best == "application/json":
+        return jsonify({"favorited": favorited})
+    return redirect(request.referrer or url_for("marketplace"))
 
 
 @app.route("/marketplace/buy/<int:product_id>", methods=["POST"])
@@ -5395,6 +5615,12 @@ def send_gift():
              post_id if post_id else None, datetime.datetime.utcnow().isoformat()),
         )
         db.commit()
+        add_notification(
+            db, receiver_id,
+            f"{sender['full_name'] or sender['username']} sent you a {gift.get('emoji','🎁')} gift ({price} ETB).",
+            ntype="gift",
+        )
+        db.commit()
         flash("gift_sent")
     except Exception:
         db.rollback()
@@ -5441,8 +5667,15 @@ def toggle_follow(user_id):
             "INSERT INTO follows (follower_id, followed_id, created_at) VALUES (?, ?, ?)",
             (session["user_id"], user_id, datetime.datetime.utcnow().isoformat()),
         )
+        _notify_user_on_new_follower(db, user_id, session["user_id"])
     db.commit()
     return redirect(request.referrer or url_for("feed"))
+
+
+def _notify_user_on_new_follower(db, followed_id, follower_id):
+    follower = db.execute("SELECT username, full_name FROM users WHERE id = ?", (follower_id,)).fetchone()
+    follower_name = (follower["full_name"] or follower["username"]) if follower else "Someone"
+    add_notification(db, followed_id, f"{follower_name} started following you.", ntype="follow")
 
 
 @app.route("/api/follow/<int:user_id>", methods=["POST"])
@@ -5467,6 +5700,8 @@ def api_toggle_follow(user_id):
         )
         db.commit()
         following = True
+        _notify_user_on_new_follower(db, user_id, session["user_id"])
+        db.commit()
     return {"following": following}
 
 
@@ -5864,10 +6099,25 @@ def forfeit_winner(entry_id):
 @admin_required
 def admin_products():
     db = get_db()
-    listings = db.execute(
-        "SELECT p.*, u.username FROM products p JOIN users u ON p.user_id = u.id WHERE p.status = 'pending' ORDER BY p.created_at DESC"
-    ).fetchall()
-    return render_template("admin_products.html", listings=listings)
+    status_filter = request.args.get("status", "pending")
+    if status_filter not in ("pending", "approved", "rejected", "all"):
+        status_filter = "pending"
+
+    if status_filter == "all":
+        listings = db.execute(
+            "SELECT p.*, u.username FROM products p JOIN users u ON p.user_id = u.id ORDER BY p.created_at DESC LIMIT 200"
+        ).fetchall()
+    else:
+        listings = db.execute(
+            "SELECT p.*, u.username FROM products p JOIN users u ON p.user_id = u.id WHERE p.status = ? ORDER BY p.created_at DESC LIMIT 200",
+            (status_filter,),
+        ).fetchall()
+
+    counts = {}
+    for s in ("pending", "approved", "rejected"):
+        counts[s] = db.execute("SELECT COUNT(*) c FROM products WHERE status = ?", (s,)).fetchone()["c"]
+
+    return render_template("admin_products.html", listings=listings, status_filter=status_filter, counts=counts)
 
 
 @app.route("/admin/products/<int:product_id>/approve", methods=["POST"])
@@ -5881,6 +6131,8 @@ def admin_approve_product(product_id):
     if seller:
         refresh_trust_status(db, seller["user_id"]) if 'refresh_trust_status' in globals() else None
     db.commit()
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"success": True, "product_id": product_id, "action": "approved"})
     return redirect(request.referrer or url_for("admin_products"))
 
 
@@ -5895,6 +6147,31 @@ def admin_reject_product(product_id):
     if row:
         add_strike(db, row["user_id"], reason="product_rejected_by_admin")
     db.commit()
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"success": True, "product_id": product_id, "action": "rejected"})
+    return redirect(request.referrer or url_for("admin_products"))
+
+
+@app.route("/admin/marketplace/delete/<int:item_id>", methods=["POST"])
+@login_required
+@admin_required
+def admin_delete_marketplace_item(item_id):
+    """Permanently removes a marketplace listing. Used for spam/unauthorized
+    items that need to disappear entirely (not just be marked rejected)."""
+    db = get_db()
+    product = db.execute("SELECT id, user_id, title FROM products WHERE id = ?", (item_id,)).fetchone()
+    if not product:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"error": "not_found"}), 404
+        flash("Listing not found.", "danger")
+        return redirect(request.referrer or url_for("admin_products"))
+
+    db.execute("DELETE FROM products WHERE id = ?", (item_id,))
+    db.commit()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"success": True, "product_id": item_id})
+    flash(f"Deleted listing '{product['title']}'.")
     return redirect(request.referrer or url_for("admin_products"))
 
 
@@ -5950,9 +6227,17 @@ def admin_panel():
             "SELECT COALESCE(SUM(amount), 0) total FROM payments WHERE status = 'approved'"
         ).fetchone()["total"]
         total_revenue = subscription_revenue + gift_earnings
+        pending_products_count = db.execute(
+            "SELECT COUNT(*) c FROM products WHERE status = 'pending'"
+        ).fetchone()["c"]
+        total_pending_actions = pending_deposits_count + pending_withdrawals_count + pending_products_count + len(reports)
 
         verification_price = float(get_setting("verification_price", VERIFICATION_MONTHLY_PRICE) or VERIFICATION_MONTHLY_PRICE)
         vip_price = float(get_setting("vip_price", VIP_MONTHLY_PRICE) or VIP_MONTHLY_PRICE)
+        # NOTE: this route previously computed total_users, pending_unverified_users,
+        # pending_deposits_count and pending_withdrawals_count but never actually
+        # passed them into the template - fixed below so the Overview page shows
+        # real, live numbers instead of a blank/placeholder screen.
         return render_template(
             "admin.html", pending_payments=pending_payments, reports=reports,
             pending_wallet_tx=pending_wallet_tx, gift_earnings=gift_earnings,
@@ -5962,6 +6247,12 @@ def admin_panel():
             total_revenue=total_revenue,
             verification_price=verification_price,
             vip_price=vip_price,
+            total_users=total_users,
+            pending_unverified_users=pending_unverified_users,
+            pending_deposits_count=pending_deposits_count,
+            pending_withdrawals_count=pending_withdrawals_count,
+            pending_products_count=pending_products_count,
+            total_pending_actions=total_pending_actions,
         )
     except Exception as exc:
         print(f"Admin overview page error: {exc}")
@@ -5972,6 +6263,12 @@ def admin_panel():
             subscription_revenue=0, total_revenue=0,
             verification_price=float(get_setting("verification_price", VERIFICATION_MONTHLY_PRICE) or VERIFICATION_MONTHLY_PRICE),
             vip_price=float(get_setting("vip_price", VIP_MONTHLY_PRICE) or VIP_MONTHLY_PRICE),
+            total_users=0,
+            pending_unverified_users=0,
+            pending_deposits_count=0,
+            pending_withdrawals_count=0,
+            pending_products_count=0,
+            total_pending_actions=0,
         )
 
 
@@ -6801,6 +7098,13 @@ def grant_verified(user_id):
             ntype="info",
         )
         db.commit()
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({
+            "success": bool(target),
+            "user_id": user_id,
+            "action": "granted",
+            "until": until.isoformat()[:10] if target else None,
+        })
     return redirect(request.referrer or url_for("admin_verify"))
 
 
@@ -6811,6 +7115,8 @@ def revoke_verified(user_id):
     db = get_db()
     set_verification_tier(db, user_id, "none", datetime.datetime.utcnow())
     db.commit()
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"success": True, "user_id": user_id, "action": "revoked"})
     return redirect(request.referrer or url_for("admin_verify"))
 
 

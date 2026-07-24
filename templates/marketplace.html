@@ -1,78 +1,423 @@
 {% extends "base.html" %}
 {% block content %}
 
+<style>
+  /* ---------------------------------------------------------------
+     Marketplace — dark theme pass
+     Reuses the same CSS custom properties defined globally
+     (--surface, --surface-2, --border, --text, --muted, --accent,
+     --accent-dark, --danger) so this page matches the rest of the app.
+  --------------------------------------------------------------- */
+
+  .marketplace-page { color: var(--text); }
+
+  .marketplace-panel {
+    background: var(--surface, #15181f);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+  }
+
+  .marketplace-panel-head h3 { color: var(--text); }
+  .marketplace-panel-head p { color: var(--muted); }
+
+  /* Search + sort row */
+  .marketplace-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .marketplace-search-input {
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 999px !important;
+    flex: 1;
+    min-width: 200px;
+  }
+  .marketplace-search-input input {
+    color: var(--text) !important;
+  }
+  .marketplace-search-input input::placeholder { color: var(--muted); }
+
+  .marketplace-sort select {
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 9px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%2394a3b8'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 32px;
+    cursor: pointer;
+  }
+
+  /* Compact "add listing" button next to the search bar (desktop) */
+  .add-listing-compact {
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 16px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: transform .16s ease, box-shadow .16s ease;
+  }
+  .add-listing-compact:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 18px rgba(29,155,240,0.22);
+  }
+
+  /* Floating Action Button (mobile) */
+  .add-listing-fab {
+    position: fixed;
+    right: 20px;
+    bottom: calc(84px + env(safe-area-inset-bottom));
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: #fff;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    border: none;
+    box-shadow: 0 10px 24px rgba(2,6,23,0.4);
+    z-index: 40;
+    cursor: pointer;
+  }
+  @media (max-width: 720px) {
+    .add-listing-compact { display: none; }
+    .add-listing-fab { display: flex; }
+  }
+
+  .category-pill {
+    background: var(--surface-2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .category-pill.active {
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: #fff;
+    border-color: transparent;
+  }
+
+  /* Cards */
+  .marketplace-item-card {
+    background: var(--surface, #15181f);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    color: var(--text);
+    position: relative;
+  }
+
+  /* Image + carousel — radius matches the card's own corners */
+  .marketplace-card-image {
+    position: relative;
+    border-radius: 18px 18px 0 0;
+    overflow: hidden;
+  }
+  .carousel-track {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .carousel-track::-webkit-scrollbar { display: none; }
+  .carousel-track img {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+    width: 100%;
+    height: 176px;
+    object-fit: cover;
+    display: block;
+  }
+  .carousel-dots {
+    position: absolute;
+    bottom: 8px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    pointer-events: none;
+  }
+  .carousel-dots span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.45);
+  }
+  .carousel-dots span.active { background: #fff; }
+
+  .card-image-empty {
+    width: 100%;
+    height: 176px;
+    background: var(--surface-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 2.2rem;
+  }
+
+  /* Favorite + report overlay icons */
+  .card-icon-btn {
+    position: absolute;
+    top: 10px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(15,23,42,0.55);
+    backdrop-filter: blur(4px);
+    border: none;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    cursor: pointer;
+    z-index: 2;
+    transition: transform .12s ease;
+  }
+  .card-icon-btn:hover { transform: scale(1.08); }
+  .favorite-btn { right: 10px; }
+  .favorite-btn.active { color: #f43f5e; }
+  .report-btn { left: 10px; font-size: 0.95rem; }
+
+  .marketplace-card-body { color: var(--text); }
+  .marketplace-item-title { color: var(--text); }
+  .marketplace-item-seller { color: var(--muted); }
+  .marketplace-item-status { color: var(--muted); }
+  .marketplace-item-description { color: var(--muted); }
+  .marketplace-price { color: var(--text); }
+
+  /* Seller rating stars */
+  .seller-rating {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .seller-rating .stars { color: #eab308; letter-spacing: 1px; font-size: 0.85rem; }
+
+  .marketplace-item-actions .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    border: none;
+  }
+  .marketplace-item-actions .btn-outline {
+    border: 1px solid var(--border);
+    color: var(--text);
+    background: transparent;
+  }
+  .marketplace-item-actions .btn-outline:hover { background: var(--surface-2); }
+
+  .inbox-empty-title { color: var(--text); }
+  .inbox-empty-sub { color: var(--muted); }
+
+  /* Modal — dark */
+  #addListingModal .modal-card {
+    background: var(--surface, #15181f);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  #addListingModal .modal-card input,
+  #addListingModal .modal-card textarea {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  #addListingModal .modal-card input::placeholder,
+  #addListingModal .modal-card textarea::placeholder { color: var(--muted); }
+  #addListingModal .modal-card label span { color: var(--muted); }
+
+  /* Report reason popover */
+  .report-popover {
+    position: absolute;
+    z-index: 30;
+    top: 46px;
+    left: 10px;
+    background: var(--surface, #15181f);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 12px 26px rgba(2,6,23,0.4);
+    display: none;
+    min-width: 160px;
+  }
+  .report-popover.open { display: block; }
+  .report-popover button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 0.82rem;
+    padding: 7px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .report-popover button:hover { background: var(--surface-2); }
+</style>
+
 <div class="marketplace-page space-y-6">
 
   <div class="flex items-center justify-between gap-4 flex-wrap">
     <div>
-      <h2 class="text-2xl font-bold text-gray-900">Marketplace</h2>
-      <p class="text-sm text-gray-500 mt-1">Discover trusted products and sellers inside AltaJobs.</p>
+      <h2 class="text-2xl font-bold" style="color:var(--text)">Marketplace</h2>
+      <p class="text-sm mt-1" style="color:var(--muted)">Discover trusted products and sellers inside AltaJobs.</p>
     </div>
-    <button type="button" id="openListingModalBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition flex items-center gap-2">
+    <button type="button" id="openListingModalBtn" class="add-listing-compact">
       <i class='bx bx-plus text-lg'></i> Add Listing
     </button>
   </div>
 
-  <section class="marketplace-panel card bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-    <div class="marketplace-panel-head marketplace-panel-head-border mb-4">
+  <section class="marketplace-panel p-5">
+    <div class="marketplace-panel-head mb-4">
       <div>
-        <h3 class="text-lg font-semibold text-gray-900">Search Alta Market</h3>
-        <p class="text-sm text-gray-500">Filter by keywords, categories, and location to find the best offers.</p>
+        <h3 class="text-lg font-semibold">Search Alta Market</h3>
+        <p class="text-sm">Filter by keywords, categories, and location to find the best offers.</p>
       </div>
     </div>
 
-    <form method="GET" action="{{ url_for('marketplace') }}" class="marketplace-search-form mb-4">
-      <label class="marketplace-search-input flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus-within:ring-1 focus-within:ring-indigo-500 transition">
-        <i class='bx bx-search text-gray-400'></i>
-        <input type="search" name="q" placeholder="Search listings" value="{{ request.args.get('q', '') }}" class="bg-transparent border-none focus:ring-0 focus:outline-none w-full text-sm text-gray-700 placeholder-gray-400">
+    <form method="GET" action="{{ url_for('marketplace') }}" class="marketplace-toolbar mb-4">
+      <label class="marketplace-search-input flex items-center gap-2 px-3 py-2 transition">
+        <i class='bx bx-search' style="color:var(--muted)"></i>
+        <input type="search" name="q" placeholder="Search listings" value="{{ request.args.get('q', '') }}" class="bg-transparent border-none focus:ring-0 focus:outline-none w-full text-sm">
       </label>
+
+      <div class="marketplace-sort">
+        <select name="sort" onchange="this.form.submit()">
+          {% set sort_value = current_sort if current_sort is defined else 'newest' %}
+          <option value="newest" {{ 'selected' if sort_value == 'newest' }}>Newest First</option>
+          <option value="price_asc" {{ 'selected' if sort_value == 'price_asc' }}>Price: Low to High</option>
+          <option value="price_desc" {{ 'selected' if sort_value == 'price_desc' }}>Price: High to Low</option>
+          <option value="rating" {{ 'selected' if sort_value == 'rating' }}>Top Rated Sellers</option>
+        </select>
+      </div>
     </form>
 
     <div class="marketplace-filters flex flex-wrap gap-2 mb-6">
-      <button type="button" class="category-pill active px-4 py-1.5 rounded-full text-sm font-medium bg-indigo-600 text-white transition">All</button>
-      <button type="button" class="category-pill px-4 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Equipment</button>
-      <button type="button" class="category-pill px-4 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Services</button>
-      <button type="button" class="category-pill px-4 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Learning</button>
-      <button type="button" class="category-pill px-4 py-1.5 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Remote</button>
+      <button type="button" class="category-pill active px-4 py-1.5 rounded-full text-sm font-medium transition">All</button>
+      <button type="button" class="category-pill px-4 py-1.5 rounded-full text-sm font-medium transition">Equipment</button>
+      <button type="button" class="category-pill px-4 py-1.5 rounded-full text-sm font-medium transition">Services</button>
+      <button type="button" class="category-pill px-4 py-1.5 rounded-full text-sm font-medium transition">Learning</button>
+      <button type="button" class="category-pill px-4 py-1.5 rounded-full text-sm font-medium transition">Remote</button>
     </div>
 
     <div class="marketplace-grid-list grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
       {% if not listings %}
         <div class="inbox-empty-state col-span-full text-center py-12">
           <div class="marketplace-empty-icon text-4xl mb-2">🛒</div>
-          <div class="inbox-empty-title font-semibold text-gray-900">No listings yet</div>
-          <div class="inbox-empty-sub text-sm text-gray-500 mt-1">Publish your first listing and let the AltaJobs community discover it.</div>
+          <div class="inbox-empty-title font-semibold">No listings yet</div>
+          <div class="inbox-empty-sub text-sm mt-1">Publish your first listing and let the AltaJobs community discover it.</div>
         </div>
       {% else %}
         {% for item in listings %}
-          <article class="marketplace-item-card bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col hover:shadow-md transition-shadow">
-            {% if item['photo'] %}
+          {% set photos = photos_by_product.get(item['id'], []) if photos_by_product is defined else [] %}
+          {% if not photos and item['photo'] %}{% set photos = [item['photo']] %}{% endif %}
+          {% set rating = item['seller_rating'] if item['seller_rating'] is defined else 0 %}
+          {% set review_count = item['review_count'] if item['review_count'] is defined else 0 %}
+          {% set is_favorited = item['is_favorited'] if item['is_favorited'] is defined else false %}
+          <article class="marketplace-item-card overflow-hidden flex flex-col hover:shadow-md transition-shadow" data-product-id="{{ item['id'] }}">
+
+            <button type="button" class="card-icon-btn favorite-btn {{ 'active' if is_favorited }}" aria-label="Save listing" data-product-id="{{ item['id'] }}" onclick="toggleFavorite(this)">
+              <i class='bx {{ "bxs-heart" if is_favorited else "bx-heart" }}'></i>
+            </button>
+
+            {% if photos|length > 0 %}
               <div class="marketplace-card-image">
-                <img src="{{ photo_url(item['photo']) }}" alt="{{ item['title'] }}" class="w-full h-44 object-cover">
+                <div style="position:absolute; top:10px; left:10px; z-index:2;">
+                  <button type="button" class="card-icon-btn report-btn" style="position:static;" aria-label="Report listing" onclick="toggleReport(event, this)">
+                    <i class='bx bx-flag'></i>
+                  </button>
+                  <div class="report-popover">
+                    <form method="POST" action="{{ url_for('submit_report') }}">
+                      <input type="hidden" name="target_type" value="product">
+                      <input type="hidden" name="target_id" value="{{ item['id'] }}">
+                      <input type="hidden" name="reason" value="Fake or scam listing">
+                      <button type="submit">Fake or scam</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('submit_report') }}">
+                      <input type="hidden" name="target_type" value="product">
+                      <input type="hidden" name="target_id" value="{{ item['id'] }}">
+                      <input type="hidden" name="reason" value="Prohibited item">
+                      <button type="submit">Prohibited item</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('submit_report') }}">
+                      <input type="hidden" name="target_type" value="product">
+                      <input type="hidden" name="target_id" value="{{ item['id'] }}">
+                      <input type="hidden" name="reason" value="Misleading price">
+                      <button type="submit">Misleading price</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('submit_report') }}">
+                      <input type="hidden" name="target_type" value="product">
+                      <input type="hidden" name="target_id" value="{{ item['id'] }}">
+                      <input type="hidden" name="reason" value="Other">
+                      <button type="submit">Other</button>
+                    </form>
+                  </div>
+                </div>
+                <div class="carousel-track" onscroll="updateDots(this)">
+                  {% for photo in photos %}
+                    <img src="{{ photo_url(photo) }}" alt="{{ item['title'] }}" loading="lazy">
+                  {% endfor %}
+                </div>
+                {% if photos|length > 1 %}
+                  <div class="carousel-dots">
+                    {% for photo in photos %}
+                      <span class="{{ 'active' if loop.first }}"></span>
+                    {% endfor %}
+                  </div>
+                {% endif %}
               </div>
             {% else %}
-              <div class="marketplace-card-image w-full h-44 bg-gray-100 flex items-center justify-center text-gray-300 text-4xl">
-                <i class='bx bx-image'></i>
+              <div class="marketplace-card-image">
+                <div class="card-image-empty"><i class='bx bx-image'></i></div>
               </div>
             {% endif %}
 
             <div class="marketplace-card-body p-4 flex flex-col gap-1.5 flex-1">
-              <h4 class="marketplace-item-title font-semibold text-gray-900 text-[15px] leading-snug line-clamp-1">{{ item['title'] }}</h4>
-              <p class="marketplace-item-seller text-xs text-gray-500">
+              <h4 class="marketplace-item-title text-[15px] leading-snug line-clamp-1">{{ item['title'] }}</h4>
+
+              <p class="marketplace-item-seller text-xs">
                 {{ item['full_name'] or item['username'] }} · {{ item['location'] or 'Addis Ababa' }}
               </p>
-              <div class="marketplace-item-status text-xs text-gray-400">Status: {{ item['status'] }}</div>
-              {% if item['description'] %}
-                <p class="marketplace-item-description text-sm text-gray-600 line-clamp-2">{{ item['description'] }}</p>
+
+              {% if review_count %}
+                <div class="seller-rating">
+                  <span class="stars">{{ '★' * (rating|round(0,'floor')|int) }}{{ '☆' * (5 - (rating|round(0,'floor')|int)) }}</span>
+                  <span>{{ '%.1f'|format(rating) }} ({{ review_count }})</span>
+                </div>
+              {% else %}
+                <div class="seller-rating"><span>No reviews yet</span></div>
               {% endif %}
-              <div class="marketplace-price text-lg font-bold text-gray-900 mt-1">{{ item['price'] }} ETB</div>
+
+              <div class="marketplace-item-status text-xs">Status: {{ item['status'] }}</div>
+              {% if item['description'] %}
+                <p class="marketplace-item-description text-sm line-clamp-2">{{ item['description'] }}</p>
+              {% endif %}
+              <div class="marketplace-price text-lg font-bold mt-1">{{ item['price'] }} ETB</div>
               <div class="marketplace-item-actions mt-2 space-y-2">
                 <form method="POST" action="{{ url_for('marketplace_buy', product_id=item['id']) }}">
-                  <button type="submit" class="btn btn-primary btn-small w-full bg-indigo-600 text-white hover:bg-indigo-700 font-medium text-sm px-4 py-2 rounded-lg transition">
+                  <button type="submit" class="btn btn-primary btn-small w-full font-medium text-sm px-4 py-2 rounded-lg transition">
                     Buy for {{ item['price'] }} ETB
                   </button>
                 </form>
-                <a href="{{ url_for('profile', user_id=item['user_id']) }}" class="btn btn-outline btn-small w-full flex items-center justify-center gap-1.5 border border-indigo-600 text-indigo-600 hover:bg-indigo-50 font-medium text-sm px-4 py-2 rounded-lg transition">
+                <a href="{{ url_for('profile', user_id=item['user_id']) }}" class="btn btn-outline btn-small w-full flex items-center justify-center gap-1.5 font-medium text-sm px-4 py-2 rounded-lg transition">
                   <i class='bx bx-message-dots'></i> Contact Seller
                 </a>
               </div>
@@ -83,19 +428,24 @@
     </div>
   </section>
 
-  <div id="addListingModal" class="fixed inset-0 bg-gray-950/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+  <!-- Floating Action Button — shown on small screens -->
+  <button type="button" id="openListingFab" class="add-listing-fab" aria-label="Add listing">
+    <i class='bx bx-plus'></i>
+  </button>
+
+  <div id="addListingModal" class="fixed inset-0 bg-gray-950/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
     <!-- Header / scrollable body / sticky footer layout so the Publish
          button is ALWAYS visible and reachable, no matter how tall the
          form gets or how small the viewport (mobile keyboards, short
          screens, etc). The card itself is capped to 90vh and is a flex
          column; only the middle section scrolls. -->
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+    <div class="modal-card rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-4 shrink-0" style="border-bottom:1px solid var(--border)">
         <div>
-          <h3 class="text-lg font-semibold text-gray-900">List a product</h3>
-          <p class="text-sm text-gray-500">Create a premium listing and share it with buyers across AltaJobs.</p>
+          <h3 class="text-lg font-semibold">List a product</h3>
+          <p class="text-sm" style="color:var(--muted)">Create a premium listing and share it with buyers across AltaJobs.</p>
         </div>
-        <button type="button" id="closeListingModalBtn" class="text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full p-1.5 transition" aria-label="Close">
+        <button type="button" id="closeListingModalBtn" class="rounded-full p-1.5 transition" style="color:var(--muted)" aria-label="Close">
           <i class='bx bx-x text-xl'></i>
         </button>
       </div>
@@ -104,34 +454,34 @@
         <div class="flex-1 min-h-0 overflow-y-auto px-6 py-5 space-y-4">
           <div class="form-row grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label class="form-group flex flex-col gap-1">
-              <span class="text-xs font-medium text-gray-600">{{ t.product_title if t.product_title is defined else 'Title' }}</span>
-              <input type="text" name="title" placeholder="Product title" required class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
+              <span class="text-xs font-medium">{{ t.product_title if t.product_title is defined else 'Title' }}</span>
+              <input type="text" name="title" placeholder="Product title" required class="rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
             </label>
             <label class="form-group flex flex-col gap-1">
-              <span class="text-xs font-medium text-gray-600">{{ t.price if t.price is defined else 'Price' }}</span>
-              <input type="number" step="0.01" name="price" placeholder="Price (ETB)" required class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
+              <span class="text-xs font-medium">{{ t.price if t.price is defined else 'Price' }}</span>
+              <input type="number" step="0.01" name="price" placeholder="Price (ETB)" required class="rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
             </label>
           </div>
           <label class="form-group flex flex-col gap-1">
-            <span class="text-xs font-medium text-gray-600">{{ t.product_description if t.product_description is defined else 'Description' }}</span>
-            <textarea name="description" rows="4" placeholder="Describe your product" class="border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500"></textarea>
+            <span class="text-xs font-medium">{{ t.product_description if t.product_description is defined else 'Description' }}</span>
+            <textarea name="description" rows="4" placeholder="Describe your product" class="rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-indigo-500"></textarea>
           </label>
           <div class="form-row grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label class="form-group flex flex-col gap-1">
-              <span class="text-xs font-medium text-gray-600">{{ t.location if t.location is defined else 'Location' }}</span>
-              <input type="text" name="location" placeholder="Location" value="Addis Ababa" class="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
+              <span class="text-xs font-medium">{{ t.location if t.location is defined else 'Location' }}</span>
+              <input type="text" name="location" placeholder="Location" value="Addis Ababa" class="rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500">
             </label>
             <label class="form-group flex flex-col gap-1">
-              <span class="text-xs font-medium text-gray-600">{{ t.photo if t.photo is defined else 'Photo' }}</span>
-              <input type="file" name="photo" accept="image/*" class="text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-600 file:text-sm file:font-medium hover:file:bg-indigo-100">
+              <span class="text-xs font-medium">{{ t.photo if t.photo is defined else 'Photo' }}</span>
+              <input type="file" name="photo" accept="image/*" multiple class="text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-600 file:text-sm file:font-medium hover:file:bg-indigo-100">
             </label>
           </div>
         </div>
 
         <!-- Sticky footer: stays pinned to the bottom of the modal card,
              independent of scroll position in the body above. -->
-        <div class="shrink-0 border-t border-gray-100 bg-white px-6 py-4" style="padding-bottom: calc(1rem + env(safe-area-inset-bottom));">
-          <button type="submit" class="btn btn-primary btn-full w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg transition">{{ t.publish_listing if t.publish_listing is defined else 'Publish listing' }}</button>
+        <div class="shrink-0 px-6 py-4" style="border-top:1px solid var(--border); padding-bottom: calc(1rem + env(safe-area-inset-bottom));">
+          <button type="submit" class="btn btn-primary btn-full w-full font-medium py-2.5 rounded-lg transition">{{ t.publish_listing if t.publish_listing is defined else 'Publish listing' }}</button>
         </div>
       </form>
     </div>
@@ -143,6 +493,7 @@
 (function () {
   var modal = document.getElementById('addListingModal');
   var openBtn = document.getElementById('openListingModalBtn');
+  var fabBtn = document.getElementById('openListingFab');
   var closeBtn = document.getElementById('closeListingModalBtn');
 
   function openModal() {
@@ -156,6 +507,7 @@
   }
 
   if (openBtn) openBtn.addEventListener('click', openModal);
+  if (fabBtn) fabBtn.addEventListener('click', openModal);
   if (closeBtn) closeBtn.addEventListener('click', closeModal);
 
   if (modal) {
@@ -169,7 +521,62 @@
       closeModal();
     }
   });
+
+  // Close any open report popover when clicking elsewhere
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('.report-popover.open').forEach(function (pop) {
+      if (!pop.parentElement.contains(e.target)) pop.classList.remove('open');
+    });
+  });
 })();
+
+// Carousel dot sync
+function updateDots(track) {
+  var wrap = track.closest('.marketplace-card-image');
+  var dots = wrap.querySelectorAll('.carousel-dots span');
+  if (!dots.length) return;
+  var index = Math.round(track.scrollLeft / track.clientWidth);
+  dots.forEach(function (d, i) { d.classList.toggle('active', i === index); });
+}
+
+// Favorite toggle — calls the real endpoint and updates the icon optimistically
+function toggleFavorite(btn) {
+  var productId = btn.dataset.productId;
+  var icon = btn.querySelector('i');
+  var wasActive = btn.classList.contains('active');
+
+  btn.classList.toggle('active');
+  icon.classList.toggle('bx-heart');
+  icon.classList.toggle('bxs-heart');
+
+  fetch('/marketplace/' + productId + '/favorite', {
+    method: 'POST',
+    headers: { 'X-Requested-With': 'fetch', 'Accept': 'application/json' }
+  })
+    .then(function (res) { if (!res.ok) throw new Error('Request failed'); return res.json(); })
+    .then(function (data) {
+      // Reconcile with the server's actual state in case of a race condition
+      btn.classList.toggle('active', data.favorited);
+      icon.classList.toggle('bx-heart', !data.favorited);
+      icon.classList.toggle('bxs-heart', data.favorited);
+    })
+    .catch(function () {
+      // Roll back the optimistic update on failure
+      btn.classList.toggle('active', wasActive);
+      icon.classList.toggle('bx-heart', wasActive);
+      icon.classList.toggle('bxs-heart', !wasActive);
+    });
+}
+
+// Report popover
+function toggleReport(e, btn) {
+  e.stopPropagation();
+  var pop = btn.parentElement.querySelector('.report-popover');
+  document.querySelectorAll('.report-popover.open').forEach(function (p) {
+    if (p !== pop) p.classList.remove('open');
+  });
+  pop.classList.toggle('open');
+}
 </script>
 
 {% endblock %}

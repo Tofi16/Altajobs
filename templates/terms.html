@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 style="margin-bottom:14px">
+  <a href="{{ url_for('settings_page') }}" style="color:var(--text); text-decoration:none; margin-right:6px;">
+    <i class='bx bx-arrow-back'></i>
+  </a>
+  <i class='bx bx-file'></i> Terms of Service
+</h2>
+
+<div class="card" style="padding:18px; color:var(--muted); font-size:0.92rem; line-height:1.7;">
+  <p>By using AltaJobs, you agree to these Terms of Service. Please read them carefully.</p>
+  <p><strong style="color:var(--text)">1. Your account.</strong> You're responsible for keeping your login credentials secure and for all activity under your account.</p>
+  <p><strong style="color:var(--text)">2. Marketplace listings.</strong> Sellers are responsible for the accuracy of their listings. Prohibited, counterfeit, or misleading items may be removed and repeat violations may result in suspension.</p>
+  <p><strong style="color:var(--text)">3. Payments and wallet.</strong> Funds held in your AltaJobs wallet are used to buy, sell, and pay for platform features such as verification and challenges, subject to our review and fraud-prevention processes.</p>
+  <p><strong style="color:var(--text)">4. Conduct.</strong> Harassment, fraud, and abuse of other members are not tolerated and may result in a ban.</p>
+  <p><strong style="color:var(--text)">5. Changes.</strong> We may update these terms from time to time; continued use of AltaJobs means you accept the current version.</p>
+  <p style="margin-top:16px;">For questions about these terms, reach out via <a href="{{ url_for('help_support') }}" style="color:var(--accent)">Help &amp; Support</a>.</p>
+</div>
+
+<p class="footer">{{ t.app_name }} — {{ t.tagline }}</p>
+
+{% endblock %}

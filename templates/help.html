@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 style="margin-bottom:14px">
+  <a href="{{ url_for('settings_page') }}" style="color:var(--text); text-decoration:none; margin-right:6px;">
+    <i class='bx bx-arrow-back'></i>
+  </a>
+  <i class='bx bx-help-circle'></i> Help &amp; Support
+</h2>
+
+<div class="card" style="padding:0">
+  <div class="settings-section-title" style="padding:16px 16px 6px; font-size:0.72rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted);">Get in touch</div>
+  <a href="mailto:support@altajobs.com" class="settings-row">
+    <span><i class='bx bx-envelope'></i> Email Support</span>
+    <span class="chevron">support@altajobs.com</span>
+  </a>
+  <a href="#" class="settings-row" onclick="return false;">
+    <span><i class='bx bx-message-detail'></i> Live Chat</span>
+    <span class="chevron">›</span>
+  </a>
+</div>
+
+<div class="card" style="padding:0; margin-top:14px;">
+  <div class="settings-section-title" style="padding:16px 16px 6px; font-size:0.72rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted);">Frequently asked questions</div>
+  <div style="padding: 4px 16px 18px; color:var(--muted); font-size:0.92rem; line-height:1.6;">
+    <p style="margin:10px 0;"><strong style="color:var(--text)">How do I withdraw funds?</strong><br>Go to Wallet → Withdraw and follow the on-screen steps. Withdrawals are typically reviewed within 24 hours.</p>
+    <p style="margin:10px 0;"><strong style="color:var(--text)">How do I report a listing or user?</strong><br>Use the flag icon on any marketplace listing, or the report option on a profile, to send it to our moderation team.</p>
+    <p style="margin:10px 0;"><strong style="color:var(--text)">How do I become verified?</strong><br>Visit Settings → Get Verified to purchase a verification badge and boost trust with buyers and clients.</p>
+  </div>
+</div>
+
+<p class="footer">{{ t.app_name }} — {{ t.tagline }}</p>
+
+{% endblock %}
