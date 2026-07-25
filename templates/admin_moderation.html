@@ -1,55 +1,158 @@
-{% extends "base.html" %}
-{% block content %}
-<div class="admin-shell lg:flex lg:min-h-screen bg-zinc-950 text-slate-200">
-  {% include "admin_nav.html" %}
-  <main class="admin-main flex-1 min-w-0 px-4 py-5 lg:px-8 lg:py-8">
+{# =============================================================================
+   SNIPPET 4 — admin_moderation.html
+   -----------------------------------------------------------------------------
+   Your app.py's admin_moderation() route renders "admin_moderation.html"
+   (not "admin_dashboard.html" — rename this snippet's target file if yours
+   differs). Each row of `reported` has: report_id, reason, target_type,
+   target_id, reported_at, reporter, post_id, post_content, post_photo,
+   post_author, author_id.
 
-    <section class="admin-page-header">
-      <div>
-        <p class="admin-overline">🚩 Content Moderation</p>
-        <h1 class="text-xl font-extrabold text-slate-100 lg:text-2xl">Reported Content</h1>
-        <p class="mt-1 text-xs text-slate-500">Items awaiting review.</p>
+   IMPORTANT — /admin/report/<id>/dismiss, /delete-post, and
+   /admin/user/<id>/ban all `return redirect(...)` in app.py, not JSON.
+   So the drawer's action buttons are real <form> submits (full page
+   reload back to this page), not fetch calls — that's simpler and matches
+   the server's actual contract instead of fighting it.
+   ========================================================================= #}
+
+<div class="admin-card">
+  <div class="admin-page-header">
+    <div>
+      <div class="admin-overline">Moderation</div>
+      <h2 class="text-lg font-extrabold text-slate-100">Reported Content</h2>
+    </div>
+    <span class="admin-pill">{{ reported|length }} pending</span>
+  </div>
+
+  {% if not reported %}
+    <div class="admin-empty-state">Nothing pending review. 🎉</div>
+  {% endif %}
+
+  <div class="space-y-2">
+    {% for r in reported %}
+      <button type="button" class="report-row js-report-row" data-report-id="{{ r.report_id }}">
+        <div class="report-row-main">
+          <span class="admin-badge admin-badge-danger"><i class='bx bx-flag'></i> {{ r.target_type }}</span>
+          <span class="report-row-reason">{{ r.reason or 'No reason given' }}</span>
+        </div>
+        <span class="report-row-meta">@{{ r.reporter }} → @{{ r.post_author or 'unknown' }}</span>
+      </button>
+
+      <!-- Hidden payload for this report — the drawer JS reads this instead
+           of making a second request, since the row already has everything. -->
+      <template class="js-report-data" data-report-id="{{ r.report_id }}">
+        <div data-field="reporter">{{ r.reporter }}</div>
+        <div data-field="reported_at">{{ r.reported_at }}</div>
+        <div data-field="reason">{{ r.reason or 'No reason provided' }}</div>
+        <div data-field="post_author">{{ r.post_author or '' }}</div>
+        <div data-field="author_id">{{ r.author_id or '' }}</div>
+        <div data-field="post_content">{{ r.post_content or '' }}</div>
+        <div data-field="post_photo">{{ photo_url(r.post_photo) if r.post_photo else '' }}</div>
+        <div data-field="has_post">{{ '1' if r.post_id else '0' }}</div>
+      </template>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Side drawer — one instance, reused for whichever report was clicked -->
+<div class="drawer-overlay" id="reportDrawerOverlay"></div>
+<aside class="report-drawer" id="reportDrawer" role="dialog" aria-label="Report details">
+  <header class="report-drawer-head">
+    <span class="report-drawer-title"><i class='bx bx-flag'></i> Report #<span id="reportDrawerId"></span></span>
+    <button type="button" id="reportDrawerClose" aria-label="Close">&times;</button>
+  </header>
+
+  <div class="report-drawer-body">
+    <section class="admin-card">
+      <div class="admin-overline" style="margin-bottom:6px">Reported by</div>
+      <p class="font-bold text-slate-100" id="reportDrawerReporter"></p>
+      <p class="text-xs text-slate-500" id="reportDrawerDate"></p>
+      <div class="report-drawer-reason">
+        <i class='bx bx-error-circle'></i>
+        <span id="reportDrawerReason"></span>
       </div>
     </section>
 
-    {% if not reported %}
-      <div class="admin-card"><p class="admin-empty-state">No pending reports right now.</p></div>
-    {% else %}
-      <div class="space-y-3">
-      {% for r in reported %}
-      <div class="admin-card">
-        <div class="mb-2 flex items-center justify-between text-[11px] text-slate-500">
-          <span>Reported by <b class="text-slate-300">{{ r['reporter'] }}</b></span>
-          <span>{{ r['reported_at'][:16].replace('T',' ') }}</span>
-        </div>
-        <p class="mb-3 text-sm"><span class="admin-badge admin-badge-warning">Reason</span> <span class="text-slate-300">{{ r['reason'] }}</span></p>
+    <section class="admin-card">
+      <div class="admin-overline" style="margin-bottom:6px">
+        Original post <span class="text-slate-500 normal-case font-medium">by @<span id="reportDrawerAuthor"></span></span>
+      </div>
+      <p class="text-sm leading-relaxed text-slate-200 whitespace-pre-wrap" id="reportDrawerContent"></p>
+      <img id="reportDrawerPhoto" class="report-drawer-photo" alt="" style="display:none">
+      <p class="admin-empty-state" id="reportDrawerNoPost" style="display:none">This post has already been removed.</p>
+    </section>
 
-        {% if r['target_type'] == 'post' and r['post_id'] %}
-          <div class="mb-3 rounded-xl border border-white/5 bg-zinc-950/50 p-3">
-            <p class="mb-1 text-[11px] text-slate-500">Post by <b class="text-slate-300">{{ r['post_author'] }}</b></p>
-            {% if r['post_photo'] %}
-              <img src="{{ url_for('uploaded_file', filename=r['post_photo']) }}" class="mb-2 max-w-[180px] rounded-lg">
-            {% endif %}
-            <p class="text-sm text-slate-300">{{ r['post_content'] }}</p>
+    <section class="space-y-2">
+      <form method="POST" id="reportDismissForm" action="">
+        <button type="submit" class="report-action report-action-success">
+          <i class='bx bx-check-circle'></i> Dismiss report
+        </button>
+      </form>
+
+      <form method="POST" id="reportDeleteForm" action="">
+        <button type="submit" class="report-action report-action-warning" id="reportDeleteBtn">
+          <i class='bx bx-trash'></i> Delete post
+        </button>
+      </form>
+
+      <div id="reportBanWrap">
+        <button type="button" class="report-action report-action-danger" id="reportBanTrigger">
+          <i class='bx bx-block'></i> Ban <span id="reportBanUsername"></span>
+        </button>
+        <div class="report-ban-confirm" id="reportBanConfirm" style="display:none">
+          <p>Ban this user? This permanently blocks their account.</p>
+          <div style="display:flex;gap:8px">
+            <form method="POST" id="reportBanForm" action="" style="flex:1">
+              <button type="submit" class="report-action report-action-danger" style="width:100%">Confirm ban</button>
+            </form>
+            <button type="button" class="report-action" id="reportBanCancel" style="flex:1">Cancel</button>
           </div>
-        {% else %}
-          <a href="{{ url_for('profile', user_id=r['target_id']) }}" class="mb-3 block text-xs text-sky-400">Reported profile #{{ r['target_id'] }}</a>
-        {% endif %}
-
-        <div class="flex flex-wrap gap-2">
-          <form method="POST" action="{{ url_for('dismiss_report', report_id=r['report_id']) }}">
-            <button type="submit" class="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-white/5">Dismiss</button>
-          </form>
-          {% if r['target_type'] == 'post' and r['post_id'] %}
-          <form method="POST" action="{{ url_for('delete_reported_post', report_id=r['report_id']) }}" onsubmit="return confirm('Delete this post permanently? This cannot be undone.');">
-            <button type="submit" class="rounded-lg bg-red-500/15 px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/25">🗑️ Delete Post</button>
-          </form>
-          {% endif %}
         </div>
       </div>
-      {% endfor %}
-      </div>
-    {% endif %}
-  </main>
-</div>
-{% endblock %}
+    </section>
+  </div>
+</aside>
+
+<!-- Add to style.css -->
+<style>
+  .report-row {
+    display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left;
+    border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);
+    border-radius: 14px; padding: 12px 14px; cursor: pointer; transition: border-color 0.15s ease;
+  }
+  .report-row:hover { border-color: rgba(255,255,255,0.15); }
+  .report-row-main { display: flex; align-items: center; gap: 8px; }
+  .report-row-reason { font-size: 0.85rem; color: #e2e8f0; font-weight: 600; }
+  .report-row-meta { font-size: 0.75rem; color: #64748b; }
+
+  .drawer-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    display: none; z-index: 1200;
+  }
+  .report-drawer {
+    display: none; position: fixed; top: 0; right: 0; height: 100%; width: 100%;
+    max-width: 420px; background: #09090b; border-left: 1px solid rgba(255,255,255,0.08);
+    z-index: 1201; overflow-y: auto;
+  }
+  .report-drawer-head {
+    position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 18px; background: rgba(9,9,11,0.95); border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .report-drawer-title { display: flex; align-items: center; gap: 8px; font-weight: 800; color: #f1f5f9; font-size: 0.9rem; }
+  .report-drawer-head button { background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; }
+  .report-drawer-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+  .report-drawer-reason {
+    margin-top: 10px; display: flex; gap: 8px; align-items: flex-start;
+    border: 1px solid rgba(239,68,68,0.25); background: rgba(239,68,68,0.08);
+    border-radius: 12px; padding: 10px 12px; font-size: 0.85rem; color: #fca5a5;
+  }
+  .report-drawer-photo { margin-top: 10px; max-height: 260px; width: 100%; object-fit: cover; border-radius: 12px; }
+
+  .report-action {
+    display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+    border-radius: 14px; padding: 12px; font-weight: 800; font-size: 0.85rem; cursor: pointer; border: 1px solid transparent;
+  }
+  .report-action-success { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3); color: #34d399; }
+  .report-action-warning { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); color: #fbbf24; }
+  .report-action-danger { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.3); color: #f87171; }
+  .report-ban-confirm { margin-top: 8px; padding: 10px; border-radius: 12px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); font-size: 0.78rem; color: #fca5a5; }
+</style>
