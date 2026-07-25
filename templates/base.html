@@ -120,12 +120,12 @@
     </a>
 
     <div class="topbar-actions">
-      <button type="button" class="topbar-icon-btn" id="headerSearchToggle" aria-label="Search">
+      <button type="button" class="topbar-icon-btn" id="headerSearchToggle" aria-label="Search" aria-controls="headerSearchPanel">
         <i class='bx bx-search'></i>
       </button>
 
       <div class="topbar-icon-wrap">
-        <button type="button" class="topbar-icon-btn" id="headerBellToggle" aria-label="Notifications">
+        <button type="button" class="topbar-icon-btn" id="headerBellToggle" aria-label="Notifications" aria-controls="headerNotifications" aria-expanded="false">
           <i class='bx bx-bell'></i>
           {% set alert_count = unread_message_count or 0 %}
           {% if alert_count > 0 %}
@@ -149,7 +149,7 @@
         </div>
       </div>
 
-      <button type="button" class="topbar-avatar-btn" id="headerSidebarToggle" aria-label="Open menu">
+      <button type="button" class="topbar-avatar-btn" id="headerSidebarToggle" aria-label="Open menu" aria-controls="headerSidebarDrawer" aria-expanded="false">
         <i class='bx bx-menu'></i>
       </button>
     </div>
@@ -181,10 +181,10 @@
 
   <div class="sidebar-card">
     <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="sidebar-link"><i class='bx bx-user-circle'></i> {{ t.tab_profile }}</a>
-    <a href="{{ url_for('settings_page') }}" class="sidebar-link"><i class='bx bx-cog'></i> {{ t.tab_settings }}</a>
     <a href="{{ url_for('wallet') }}" class="sidebar-link"><i class='bx bx-wallet'></i> {{ t.wallet }}</a>
+    <a href="{{ url_for('settings_page') }}" class="sidebar-link"><i class='bx bx-cog'></i> {{ t.tab_settings }}</a>
     {% if current_user and current_user['is_admin'] %}
-      <a href="{{ url_for('admin_dashboard') }}" class="sidebar-link"><i class='bx bx-cog'></i> Admin Dashboard</a>
+      <a href="{{ url_for('admin_dashboard') }}" class="sidebar-link"><i class='bx bx-shield-quarter'></i> Admin Dashboard</a>
     {% endif %}
     <a href="{{ url_for('logout') }}" class="sidebar-link"><i class='bx bx-log-out'></i> {{ t.logout if t.logout is defined else 'Logout' }}</a>
   </div>
@@ -248,7 +248,7 @@
       <div class="drawer-label">{{ t.tab_profile }}</div>
     </a>
     <a href="{{ url_for('settings_page') }}">
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" stroke="var(--accent)" stroke-width="1.6" fill="none"/><path d="M19.4 15a1.8 1.8 0 0 0 .3 2l.1.1a1 1 0 0 1-1.1 1.6l-.1-.05-.1-.05a1.8 1.8 0 0 0-2 .3l-.1.1a1 1 0 0 1-1.4 0l-.1-.1a1.8 1.8 0 0 0-2-.3l-.1.06a1 1 0 0 1-1.1-.2l-.08-.09" stroke="var(--accent)" stroke-width="1.4" fill="none"/></svg>
+      <i class='bx bx-cog' style="font-size:1.35rem;color:var(--accent)"></i>
       <div class="drawer-label">Settings</div>
     </a>
     <a href="{{ url_for('wallet') }}">
@@ -258,7 +258,10 @@
     {% if current_user and current_user['is_admin'] %}
       <div class="drawer-divider"></div>
       <h4>Admin</h4>
-      <a href="{{ url_for('admin_dashboard') }}" class="drawer-item">🛠️ Admin Dashboard</a>
+      <a href="{{ url_for('admin_dashboard') }}">
+        <i class='bx bx-shield-quarter' style="font-size:1.35rem;color:var(--accent)"></i>
+        <div class="drawer-label">Admin Dashboard</div>
+      </a>
     {% endif %}
     <div class="drawer-divider"></div>
     <a href="{{ url_for('logout') }}" class="drawer-item danger">🚪 {{ t.logout if t.logout is defined else 'Logout' }}</a>
@@ -344,32 +347,44 @@
 </div>
 
 <!-- Compose Modal -->
-<div id="composeModalOverlay" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
-  <div class="bg-zinc-900/95 border border-white/5 rounded-2xl p-6 max-w-2xl w-full mx-4">
-    <div class="flex justify-between items-center">
-      <h3 class="text-lg font-bold">Create Post</h3>
+<div id="composeModalOverlay" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 p-4">
+  <div class="bg-zinc-900/95 border border-white/5 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+    <div class="flex justify-between items-center shrink-0 p-6 border-b border-white/10">
+      <div>
+        <h3 class="text-lg font-bold">Create Post</h3>
+        <p class="text-sm text-slate-400">Share your latest job, skill, or experience with AltaJobs.</p>
+      </div>
       <button id="composeClose" class="text-slate-400">✕</button>
     </div>
-    <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-      <button class="compose-option p-4 rounded-2xl bg-white/3 hover:bg-white/5" data-type="standard">
-        <i class="bx bx-edit text-2xl"></i><div class="font-bold mt-2">Standard Post</div>
-        <div class="text-xs text-slate-400">Share text & images</div>
-      </button>
-      <button class="compose-option p-4 rounded-2xl bg-white/3 hover:bg-white/5" data-type="job">
-        <i class="bx bx-briefcase text-2xl"></i><div class="font-bold mt-2">Post a Job</div>
-        <div class="text-xs text-slate-400">Add job details & apply link</div>
-      </button>
-      <button class="compose-option p-4 rounded-2xl bg-white/3 hover:bg-white/5" data-type="skills">
-        <i class="bx bx-star text-2xl"></i><div class="font-bold mt-2">Post Skills</div>
-        <div class="text-xs text-slate-400">Share experience & portfolio</div>
-      </button>
-    </div>
-    <form id="composeForm" method="POST" action="{{ url_for('new_post') }}" class="mt-4">
-      <input type="hidden" name="post_type" id="composePostType" value="standard">
-      <textarea name="content" id="composeContent" class="w-full p-3 rounded-xl bg-zinc-950/60" rows="4" placeholder="Write your post..."></textarea>
-      <div class="mt-3 flex justify-end gap-2">
-        <button type="button" id="composeCancel" class="px-4 py-2 rounded-xl border">Cancel</button>
-        <button type="submit" class="px-4 py-2 rounded-xl bg-sky-500 text-white">Post</button>
+    <form id="composeForm" method="POST" action="{{ url_for('new_post') }}" class="flex flex-col flex-1 min-h-0">
+      <div class="overflow-y-auto px-6 py-4 space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <button type="button" class="compose-option p-4 rounded-2xl bg-white/3 hover:bg-white/5" data-type="standard">
+            <i class="bx bx-edit text-2xl"></i>
+            <div class="font-bold mt-2">Standard Post</div>
+            <div class="text-xs text-slate-400">Share text & images</div>
+          </button>
+          <button type="button" class="compose-option p-4 rounded-2xl bg-white/3 hover:bg-white/5" data-type="job">
+            <i class="bx bx-briefcase text-2xl"></i>
+            <div class="font-bold mt-2">Post a Job</div>
+            <div class="text-xs text-slate-400">Add job details & apply link</div>
+          </button>
+          <button type="button" class="compose-option p-4 rounded-2xl bg-white/3 hover:bg-white/5" data-type="skills">
+            <i class="bx bx-star text-2xl"></i>
+            <div class="font-bold mt-2">Post Skills</div>
+            <div class="text-xs text-slate-400">Share experience & portfolio</div>
+          </button>
+        </div>
+        <div class="space-y-3">
+          <input type="hidden" name="post_type" id="composePostType" value="standard">
+          <textarea name="content" id="composeContent" class="w-full min-h-[180px] rounded-2xl bg-zinc-950/60 p-4 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Write your post..."></textarea>
+        </div>
+      </div>
+      <div class="shrink-0 px-6 py-4 border-t border-white/10 bg-zinc-950/80" style="padding-bottom: calc(1rem + env(safe-area-inset-bottom));">
+        <div class="flex flex-col gap-3 sm:flex-row sm:justify-end sm:items-center">
+          <button type="button" id="composeCancel" class="rounded-xl border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/5">Cancel</button>
+          <button type="submit" class="rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-400">Post</button>
+        </div>
       </div>
     </form>
   </div>

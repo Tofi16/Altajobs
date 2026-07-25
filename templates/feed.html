@@ -1,42 +1,46 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
-  .feed-professional-composer {
-    position: relative; overflow: hidden; border-radius: 24px; border: 1px solid rgba(255,255,255,0.06);
+  .feed-create-post-card {
+    display: flex; flex-direction: column; gap: 14px;
     background: linear-gradient(180deg, rgba(18,22,32,0.98), rgba(10,13,21,0.98));
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 12px 30px rgba(2,6,23,0.24);
-    padding: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 24px;
+    padding: 16px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 18px 35px rgba(4,11,25,0.16);
+  }
+  .feed-create-post-card:hover {
+    border-color: rgba(34,197,94,0.24);
   }
   .compose-row {
-    display: flex; align-items: flex-start; gap: 12px;
+    display: flex; align-items: center; gap: 12px;
   }
   .compose-avatar {
-    width: 46px; height: 46px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+    width: 52px; height: 52px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
     display: grid; place-items: center; background: linear-gradient(135deg, #22c55e, #0ea5e9);
-    color: #04110a; font-weight: 900;
+    color: #ffffff; font-weight: 900; font-size: 1rem;
   }
-  .compose-input-wrap {
-    position: relative; flex: 1; min-width: 0; display: flex; align-items: flex-start; gap: 8px;
+  .compose-placeholder {
+    flex: 1; min-width: 0;
+    border-radius: 999px; padding: 16px 18px;
+    background: rgba(255,255,255,0.05); color: #cbd5e1;
+    font-size: 0.95rem; font-weight: 600; cursor: pointer;
   }
-  .compose-textarea {
-    width: 100%; border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; background: rgba(2,6,23,0.58);
-    color: #e2e8f0; padding: 12px 14px; min-height: 62px; resize: vertical; font-size: 0.94rem;
+  .compose-placeholder:hover {
+    background: rgba(255,255,255,0.08);
   }
-  .compose-textarea:focus {
-    outline: none; border-color: rgba(34,197,94,0.48); box-shadow: 0 0 0 3px rgba(34,197,94,0.10);
+  .compose-shortcuts {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;
   }
-  .compose-media-icon {
-    position: absolute; right: 10px; top: 10px; width: 34px; height: 34px; display: grid; place-items: center;
-    border-radius: 10px; background: rgba(34,197,94,0.12); color: #86efac; cursor: pointer;
+  .compose-shortcut {
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 999px;
+    background: rgba(255,255,255,0.04); color: #e2e8f0;
+    padding: 8px 12px; font-size: 0.8rem; font-weight: 700;
+    transition: background .15s ease, border-color .15s ease;
+    cursor: pointer;
   }
-  .compose-photo-name {
-    display: block; margin-top: 8px; margin-left: 58px; color: #94a3b8; font-size: 0.72rem;
-  }
-  .new-post-actions {
-    margin-top: 10px; display: flex; gap: 10px; justify-content: space-between; align-items: center; flex-wrap: wrap;
-  }
-  .post-type-select {
-    border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(2,6,23,0.65); color: #e2e8f0; padding: 8px 10px;
+  .compose-shortcut:hover {
+    background: rgba(255,255,255,0.08); border-color: rgba(34,197,94,0.24);
   }
   .feed-filters {
     display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 18px;
@@ -50,35 +54,22 @@
   }
 </style>
 
-<div class="feed-professional-composer" id="compose">
-  <form method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data" id="composeForm">
-    <div class="compose-row">
-      <div class="avatar compose-avatar" style="width:44px;height:44px;">
-        {% if current_user['avatar'] %}
-          <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}">
-        {% else %}
-          {{ (current_user['full_name'] or current_user['username'])[0] }}
-        {% endif %}
-      </div>
-      <div class="compose-input-wrap">
-        <textarea name="content" id="composeTextarea" class="compose-textarea" rows="1"
-                  placeholder="Share a job or experience..."></textarea>
-        <label class="compose-media-icon" title="{{ t.add_photo }}">
-          <i class='bx bx-image-add'></i>
-          <input type="file" name="photo" accept="image/*" style="display:none" id="composePhotoInput">
-        </label>
-      </div>
+<div class="feed-create-post-card" id="composeLauncher" role="button" aria-label="Create a post" tabindex="0">
+  <div class="compose-row">
+    <div class="avatar compose-avatar" style="width:52px;height:52px;">
+      {% if current_user['avatar'] %}
+        <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}">
+      {% else %}
+        {{ (current_user['full_name'] or current_user['username'])[0] }}
+      {% endif %}
     </div>
-    <span class="compose-photo-name" id="composePhotoName"></span>
-    <div class="new-post-actions compose-actions-collapsed" id="composeActions">
-      <select name="post_type" class="post-type-select">
-        <option value="general">{{ t.feed }}</option>
-        <option value="job">{{ t.post_job }}</option>
-        <option value="skill">{{ t.job_seeker_post }}</option>
-      </select>
-      <button type="submit" id="composeSubmitButton" class="btn btn-primary btn-disabled" disabled>{{ t.post_button }}</button>
-    </div>
-  </form>
+    <div class="compose-placeholder">Share a job, skill, or experience...</div>
+  </div>
+  <div class="compose-shortcuts">
+    <button type="button" class="compose-shortcut compose-launch-action" data-type="standard">Post</button>
+    <button type="button" class="compose-shortcut compose-launch-action" data-type="job">Job</button>
+    <button type="button" class="compose-shortcut compose-launch-action" data-type="skills">Skill</button>
+  </div>
 </div>
 
 <div class="feed-filters" id="feedFilters">
@@ -304,8 +295,5 @@
   </div>
 </div>
 
-<a href="#compose" class="fab" title="{{ t.post_a_job }}" id="fabCompose" onclick="event.preventDefault(); document.getElementById('composePostType').value='job'; document.getElementById('composeModalOverlay').classList.remove('hidden'); document.getElementById('composeModalOverlay').classList.add('flex');">
-  <i class='bx bxs-briefcase'></i>
-</a>
 
 {% endblock %}

@@ -58,7 +58,13 @@ document.addEventListener("click", async function (e) {
 
   try {
     const res = await fetch(`/api/follow/${userId}`, { method: "POST" });
+    if (!res.ok) {
+      throw new Error(`Follow request failed with status ${res.status}`);
+    }
     const data = await res.json();
+    if (data.error) {
+      throw new Error(data.error);
+    }
     if (data.following !== undefined) {
       syncFollowButtons(userId, !!data.following, followLabel, followingLabel);
     }
@@ -82,10 +88,20 @@ async function togglePostLike(btn, options) {
   const card = btn.closest(".post-card");
   const socialCount = card ? card.querySelector(".social-proof-count") : null;
 
+  if (!postId) {
+    btn.disabled = false;
+    return;
+  }
   btn.disabled = true;
   try {
     const res = await fetch(`/api/like/${postId}`, { method: "POST" });
+    if (!res.ok) {
+      throw new Error(`Like request failed with status ${res.status}`);
+    }
     const data = await res.json();
+    if (data.error) {
+      throw new Error(data.error);
+    }
     document.querySelectorAll(`.js-like-btn[data-post-id="${postId}"]`).forEach(function (button) {
       const iconEl = button.querySelector('.bx');
       const countEl2 = button.querySelector('.like-count');
@@ -623,7 +639,7 @@ document.addEventListener("DOMContentLoaded", function () {
     let debounceTimer = null;
     const filterFeedCards = function () {
       const query = (searchInput.value || "").trim().toLowerCase();
-      const cards = document.querySelectorAll(".post-card[data-post-type]");
+      const cards = document.querySelectorAll(".post-card[data-post-type], .xpost[data-post-type]");
       let visibleCount = 0;
       cards.forEach(function (card) {
         const text = (card.textContent || "").toLowerCase();
@@ -643,16 +659,25 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     };
 
+    const updateSearchClear = function () {
+      if (!searchClear) return;
+      searchClear.style.display = searchInput.value.trim().length > 0 ? "inline-flex" : "none";
+    };
+
     searchInput.addEventListener("input", function () {
       clearTimeout(debounceTimer);
       debounceTimer = window.setTimeout(filterFeedCards, 180);
+      updateSearchClear();
     });
 
     searchClear.addEventListener("click", function () {
       searchInput.value = "";
       filterFeedCards();
+      updateSearchClear();
       searchInput.focus();
     });
+
+    updateSearchClear();
   }
 });
 

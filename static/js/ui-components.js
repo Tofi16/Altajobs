@@ -109,10 +109,64 @@
     var launcher = document.getElementById('composeLauncher');
     var overlay = document.getElementById('composeModalOverlay');
     if (!launcher || !overlay) return;
-    launcher.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); overlay.classList.remove('hidden'); overlay.classList.add('flex'); });
-    var close = document.getElementById('composeClose'); if (close) close.addEventListener('click', function () { overlay.classList.add('hidden'); overlay.classList.remove('flex'); });
-    document.querySelectorAll('.compose-option').forEach(function (opt) { opt.addEventListener('click', function () { document.getElementById('composePostType').value = opt.dataset.type || 'standard'; document.querySelectorAll('.compose-option').forEach(function(x){ x.classList.remove('ring','ring-sky-400'); }); opt.classList.add('ring','ring-sky-400'); }); });
-    var cancel = document.getElementById('composeCancel'); if (cancel) cancel.addEventListener('click', function () { overlay.classList.add('hidden'); overlay.classList.remove('flex'); });
+    launcher.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+    });
+
+    var close = document.getElementById('composeClose');
+    if (close) close.addEventListener('click', function () {
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+    });
+
+    document.querySelectorAll('.compose-option').forEach(function (opt) {
+      opt.addEventListener('click', function () {
+        document.getElementById('composePostType').value = opt.dataset.type || 'standard';
+        document.querySelectorAll('.compose-option').forEach(function (x) {
+          x.classList.remove('ring', 'ring-sky-400');
+        });
+        opt.classList.add('ring', 'ring-sky-400');
+      });
+    });
+
+    document.querySelectorAll('.compose-launch-action').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        var overlay = document.getElementById('composeModalOverlay');
+        if (!overlay) return;
+        document.getElementById('composePostType').value = btn.dataset.type || 'standard';
+        document.querySelectorAll('.compose-option').forEach(function (x) {
+          x.classList.remove('ring', 'ring-sky-400');
+        });
+        var selected = document.querySelector('.compose-option[data-type="' + btn.dataset.type + '"]');
+        if (selected) selected.classList.add('ring', 'ring-sky-400');
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+      });
+    });
+
+    launcher.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        launcher.click();
+      }
+    });
+
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) {
+        overlay.classList.add('hidden');
+        overlay.classList.remove('flex');
+      }
+    });
+
+    var cancel = document.getElementById('composeCancel');
+    if (cancel) cancel.addEventListener('click', function () {
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+    });
   }
 
   /* Admin report drawer */

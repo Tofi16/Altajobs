@@ -55,6 +55,37 @@ class FeedActionSecurityTests(unittest.TestCase):
         self.assertTrue(data['liked'])
         self.assertEqual(data['like_count'], 1)
 
+    def test_api_like_route_returns_json_and_persists_state(self):
+        with self.client.session_transaction() as session:
+            session['user_id'] = 1002
+
+        response = self.client.post('/api/like/10001')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertTrue(data['liked'])
+        self.assertEqual(data['like_count'], 1)
+
+        with app_module.app.app_context():
+            db = app_module.get_db()
+            likes_count = db.execute('SELECT COUNT(*) c FROM likes WHERE post_id = ?', (10001,)).fetchone()['c']
+            self.assertEqual(likes_count, 1)
+
+    def test_api_follow_route_returns_json_and_persists_state(self):
+        with self.client.session_transaction() as session:
+            session['user_id'] = 1002
+
+        response = self.client.post('/api/follow/1001')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.get_json()
+        self.assertTrue(data['following'])
+
+        with app_module.app.app_context():
+            db = app_module.get_db()
+            follows_count = db.execute('SELECT COUNT(*) c FROM follows WHERE followed_id = ? AND follower_id = ?', (1001, 1002)).fetchone()['c']
+            self.assertEqual(follows_count, 1)
+
 
 if __name__ == '__main__':
     unittest.main()

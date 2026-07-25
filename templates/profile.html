@@ -24,6 +24,22 @@
   }
   .profile-icon-btn:hover { background: rgba(255,255,255,0.09); }
   .profile-icon-btn:active { transform: scale(0.94); }
+  .profile-settings-link {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 0.9rem 1rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #e2e8f0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background .14s ease, transform .14s ease, border-color .14s ease;
+  }
+  .profile-settings-link:hover {
+    background: rgba(255,255,255,0.14);
+    transform: translateY(-1px);
+  }
   .profile-card {
     border-radius: 22px; border: 1px solid rgba(255,255,255,0.06);
     background: linear-gradient(180deg, rgba(17,22,31,0.98), rgba(9,12,18,0.98));
@@ -98,8 +114,9 @@
       <i class='bx bx-share-alt'></i>
     </button>
     {% if current_user and current_user['id'] == profile_user['id'] %}
-      <a href="{{ url_for('settings_page') }}" class="profile-icon-btn" aria-label="Settings" title="Settings">
-        <i class='bx bxs-cog'></i>
+      <a href="{{ url_for('settings_page') }}" class="profile-settings-link" aria-label="Open settings" title="Open settings">
+        <i class='bx bx-cog'></i>
+        {{ t.tab_settings if t.tab_settings is defined else 'Settings' }}
       </a>
     {% endif %}
   </div>

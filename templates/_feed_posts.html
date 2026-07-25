@@ -58,7 +58,7 @@
 
 {% for item in posts_data %}
   {% set post = item.post %}
-  <article class="xpost" data-post-type="{{ post.post_type }}">
+  <article class="xpost" data-post-id="{{ post.id }}" data-post-type="{{ post.post_type }}">
     <a href="{{ url_for('profile', user_id=post.user_id) }}" class="xpost-avatar">
       {% if post.avatar %}
         <img src="{{ photo_url(post.avatar) }}" loading="lazy" alt="">
@@ -154,7 +154,10 @@
     if (reportTarget) reportTarget.value = '';
   }
 
+  var currentActionPostId = null;
+
   function openSheet(postId, deleteUrl, canDelete) {
+    currentActionPostId = postId || null;
     if (deleteForm) {
       deleteForm.action = deleteUrl || '';
       deleteForm.style.display = canDelete ? '' : 'none';
@@ -164,6 +167,37 @@
     }
     sheet.classList.add('open');
     overlay.classList.add('open');
+  }
+
+  if (deleteForm) {
+    deleteForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var action = deleteForm.action;
+      if (!action) return;
+      fetch(action, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data && data.success) {
+          if (currentActionPostId) {
+            var removed = document.querySelector('.xpost[data-post-id="' + currentActionPostId + '"]');
+            if (!removed) {
+              var btn = document.querySelector('.js-post-menu-btn[data-post-id="' + currentActionPostId + '"]');
+              if (btn) removed = btn.closest('.xpost');
+            }
+            if (removed) removed.remove();
+          }
+          closeSheet();
+        } else {
+          closeSheet();
+        }
+      })
+      .catch(function () {
+        closeSheet();
+      });
+    });
   }
 
   document.addEventListener('click', function (e) {

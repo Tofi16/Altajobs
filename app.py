@@ -3690,7 +3690,7 @@ def api_toggle_like(post_id):
     db = get_db()
     post = db.execute("SELECT id FROM posts WHERE id = ?", (post_id,)).fetchone()
     if not post:
-        return {"error": "not found"}, 404
+        return jsonify({"error": "not found"}), 404
     existing = db.execute(
         "SELECT id FROM likes WHERE post_id = ? AND user_id = ?",
         (post_id, session["user_id"]),
@@ -3711,7 +3711,7 @@ def api_toggle_like(post_id):
     like_count = db.execute(
         "SELECT COUNT(*) c FROM likes WHERE post_id = ?", (post_id,)
     ).fetchone()["c"]
-    return {"liked": liked, "like_count": like_count}
+    return jsonify({"liked": liked, "like_count": like_count})
 
 
 @app.route("/post/<int:post_id>/comment", methods=["POST"])
@@ -5920,7 +5920,7 @@ def _notify_user_on_new_follower(db, followed_id, follower_id):
 def api_toggle_follow(user_id):
     """JSON version of toggle_follow for the JS-powered instant Follow button."""
     if user_id == session["user_id"]:
-        return {"error": "cannot follow yourself"}, 400
+        return jsonify({"error": "cannot follow yourself"}), 400
     db = get_db()
     existing = db.execute(
         "SELECT id FROM follows WHERE follower_id = ? AND followed_id = ?",
@@ -5939,7 +5939,7 @@ def api_toggle_follow(user_id):
         following = True
         _notify_user_on_new_follower(db, user_id, session["user_id"])
         db.commit()
-    return {"following": following}
+    return jsonify({"following": following})
 
 
 # ---------------------------------------------------------------------------

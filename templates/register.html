@@ -2,13 +2,24 @@
 {% block content %}
 <div class="page-shell auth-page-shell">
   <div class="auth-card bg-white/5 backdrop-blur-lg border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded-2xl">
-    <div class="auth-brand flex flex-col items-center text-center gap-1 mb-2">
-      <span class="text-3xl font-extrabold tracking-wider bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500 bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]">AltaJobs</span>
-      <p class="auth-subtitle text-sm text-slate-400">Join the premium talent marketplace and launch your account in seconds.</p>
+    <div class="auth-banner">
+      <div class="auth-brand">
+        <span class="brand-mark">A</span>
+        <div>
+          <p class="auth-brand-label">AltaJobs Registration</p>
+          <p class="auth-subtitle">Join the premium talent marketplace and launch your account in seconds.</p>
+        </div>
+      </div>
+      <div>
+        <h1 class="auth-title">Create your account</h1>
+        <p class="auth-copy">Get hiring, apply faster, and access trusted opportunities.</p>
+      </div>
+      <div class="auth-feature-list">
+        <div class="auth-feature"><span class="auth-feature-icon">✔</span><div><strong>Employer or worker</strong> accounts tailored to your hiring workflow.</div></div>
+        <div class="auth-feature"><span class="auth-feature-icon">✔</span><div><strong>Verified network</strong> and trusted jobs for every application.</div></div>
+        <div class="auth-feature"><span class="auth-feature-icon">✔</span><div><strong>Fast onboarding</strong> with clear steps and simple account setup.</div></div>
+      </div>
     </div>
-
-    <h1 class="auth-title">Create your account</h1>
-    <p class="auth-copy">Get hiring, apply faster, and access trusted opportunities.</p>
 
     <form class="auth-form" method="POST" action="{{ url_for('register') }}">
       <input type="hidden" name="ref_code" value="{{ ref_code if ref_code is defined else request.args.get('ref', '') }}">

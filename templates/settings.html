@@ -68,6 +68,37 @@
   .settings-row-subtitle {
     margin-top: 2px; font-size: 0.72rem; color: #94a3b8;
   }
+  .settings-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  .settings-quick-action {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: transform .14s ease, background .14s ease, border-color .14s ease;
+    text-decoration: none;
+    color: #e2e8f0;
+  }
+  .settings-quick-action:hover {
+    transform: translateY(-1px);
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(59,130,246,0.24);
+  }
+  .settings-quick-action-icon {
+    width: 42px; height: 42px; display: grid; place-items: center;
+    border-radius: 14px; background: rgba(59,130,246,0.14); color: #7dd3fc; font-size: 1.25rem;
+  }
+  .settings-quick-action-title {
+    font-size: 0.95rem; font-weight: 800; color: #f8fafc;
+  }
+  .settings-quick-action-copy {
+    margin-top: 2px; font-size: 0.78rem; color: #94a3b8;
+  }
 </style>
 
 <div class="settings-shell">
@@ -81,13 +112,39 @@
       <button type="button" class="settings-menu-btn" id="settingsMenuToggle" aria-label="Open settings quick menu">
         <i class='bx bx-dots-vertical-rounded'></i>
       </button>
-      <div class="settings-menu-panel" id="settingsMenuPanel">
+      <div class="settings-menu-panel" id="settingsMenuPanel" aria-label="Settings quick actions">
         <a href="#preferences" class="settings-menu-link"><i class='bx bx-slider-alt'></i> Preferences</a>
         <a href="#security" class="settings-menu-link"><i class='bx bx-shield-quarter'></i> Security</a>
-        <a href="{{ url_for('help_support') }}" class="settings-menu-link"><i class='bx bx-help-circle'></i> Help</a>
-        <a href="{{ url_for('privacy_policy') }}" class="settings-menu-link"><i class='bx bx-lock-open-alt'></i> Privacy</a>
+        <a href="{{ url_for('help_support') }}" class="settings-menu-link"><i class='bx bx-support'></i> Help</a>
+        <a href="{{ url_for('privacy_policy') }}" class="settings-menu-link"><i class='bx bx-lock-alt'></i> Privacy</a>
       </div>
     </div>
+  </div>
+
+  <div class="settings-quick-actions">
+    <a href="{{ url_for('wallet') }}" class="settings-quick-action">
+      <div class="settings-quick-action-icon"><i class='bx bx-wallet'></i></div>
+      <div>
+        <div class="settings-quick-action-title">{{ t.wallet }}</div>
+        <div class="settings-quick-action-copy">View balance, payouts, and transaction history</div>
+      </div>
+    </a>
+    <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="settings-quick-action">
+      <div class="settings-quick-action-icon"><i class='bx bx-user-circle'></i></div>
+      <div>
+        <div class="settings-quick-action-title">{{ t.tab_profile }}</div>
+        <div class="settings-quick-action-copy">Update your profile and socials</div>
+      </div>
+    </a>
+    {% if current_user and current_user['is_admin'] %}
+    <a href="{{ url_for('admin_dashboard') }}" class="settings-quick-action">
+      <div class="settings-quick-action-icon"><i class='bx bx-shield-quarter'></i></div>
+      <div>
+        <div class="settings-quick-action-title">Admin Dashboard</div>
+        <div class="settings-quick-action-copy">Approve deposits and withdrawals</div>
+      </div>
+    </a>
+    {% endif %}
   </div>
 
   <div class="space-y-6">

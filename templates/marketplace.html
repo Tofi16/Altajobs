@@ -479,13 +479,8 @@
   </button>
 
   <div id="addListingModal" class="fixed inset-0 bg-gray-950/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
-    <!-- Header / scrollable body / sticky footer layout so the Publish
-         button is ALWAYS visible and reachable, no matter how tall the
-         form gets or how small the viewport (mobile keyboards, short
-         screens, etc). The card itself is capped to 90vh and is a flex
-         column; only the middle section scrolls. -->
-    <div class="modal-card rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-      <div class="flex items-center justify-between px-6 py-4 shrink-0" style="border-bottom:1px solid var(--border)">
+    <div class="modal-card rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-4 shrink-0 border-b border-white/10">
         <div>
           <h3 class="text-lg font-semibold">List a product</h3>
           <p class="text-sm" style="color:var(--muted)">Create a premium listing and share it with buyers across AltaJobs.</p>
@@ -523,9 +518,7 @@
           </div>
         </div>
 
-        <!-- Sticky footer: stays pinned to the bottom of the modal card,
-             independent of scroll position in the body above. -->
-        <div class="shrink-0 px-6 py-4" style="border-top:1px solid var(--border); padding-bottom: calc(1rem + env(safe-area-inset-bottom));">
+        <div class="shrink-0 px-6 py-4 border-t border-white/10 bg-zinc-950/80" style="padding-bottom: calc(1rem + env(safe-area-inset-bottom));">
           <button type="submit" class="btn btn-primary btn-full w-full font-medium py-2.5 rounded-lg transition">{{ t.publish_listing if t.publish_listing is defined else 'Publish listing' }}</button>
         </div>
       </form>
