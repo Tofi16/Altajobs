@@ -3,62 +3,64 @@
 <style>
   .feed-create-post-card {
     display: flex; flex-direction: column; gap: 14px;
-    background: linear-gradient(180deg, rgba(18,22,32,0.98), rgba(10,13,21,0.98));
-    border: 1px solid rgba(255,255,255,0.08);
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(8, 15, 28, 0.96));
+    border: 1px solid rgba(148, 163, 184, 0.18);
     border-radius: 24px;
-    padding: 16px;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 18px 35px rgba(4,11,25,0.16);
+    padding: 16px 18px;
+    box-shadow: 0 18px 45px rgba(2, 6, 23, 0.22), inset 0 1px 0 rgba(255,255,255,0.04);
+    transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
   }
   .feed-create-post-card:hover {
-    border-color: rgba(34,197,94,0.24);
-  }
-  .compose-row {
-    display: flex; align-items: center; gap: 12px;
-  }
-  .compose-avatar {
-    width: 52px; height: 52px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
-    display: grid; place-items: center; background: linear-gradient(135deg, #22c55e, #0ea5e9);
-    color: #ffffff; font-weight: 900; font-size: 1rem;
+    border-color: rgba(56, 189, 248, 0.28);
+    transform: translateY(-1px);
+    box-shadow: 0 22px 52px rgba(2, 6, 23, 0.26), inset 0 1px 0 rgba(255,255,255,0.05);
   }
   .compose-placeholder {
     flex: 1; min-width: 0;
-    border-radius: 999px; padding: 16px 18px;
-    background: rgba(255,255,255,0.05); color: #cbd5e1;
+    border-radius: 999px; padding: 14px 16px;
+    background: rgba(15, 23, 42, 0.7); color: #94a3b8;
+    border: 1px solid rgba(148, 163, 184, 0.15);
     font-size: 0.95rem; font-weight: 600; cursor: pointer;
+    transition: background .16s ease, border-color .16s ease, color .16s ease;
   }
   .compose-placeholder:hover {
-    background: rgba(255,255,255,0.08);
+    background: rgba(30, 41, 59, 0.75);
+    border-color: rgba(96, 165, 250, 0.28);
+    color: #e2e8f0;
   }
   .compose-shortcuts {
-    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px;
   }
   .compose-shortcut {
-    border: 1px solid rgba(255,255,255,0.08); border-radius: 999px;
-    background: rgba(255,255,255,0.04); color: #e2e8f0;
+    border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 999px;
+    background: rgba(15, 23, 42, 0.7); color: #e2e8f0;
     padding: 8px 12px; font-size: 0.8rem; font-weight: 700;
-    transition: background .15s ease, border-color .15s ease;
+    transition: background .16s ease, border-color .16s ease, color .16s ease;
     cursor: pointer;
   }
   .compose-shortcut:hover {
-    background: rgba(255,255,255,0.08); border-color: rgba(34,197,94,0.24);
+    background: rgba(30, 41, 59, 0.82);
+    border-color: rgba(96, 165, 250, 0.35);
+    color: #f8fafc;
   }
   .feed-filters {
     display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 18px;
   }
   .filter-pill {
-    border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: #cbd5e1; border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.16); background: rgba(15, 23, 42, 0.7); color: #cbd5e1; border-radius: 999px;
     padding: 8px 12px; font-size: 0.78rem; font-weight: 800; cursor: pointer;
+    transition: background .16s ease, border-color .16s ease, color .16s ease;
   }
   .filter-pill.active {
-    background: linear-gradient(140deg, rgba(34,197,94,0.18), rgba(14,165,233,0.16)); border-color: rgba(74,222,128,0.36); color: #f8fafc;
+    background: linear-gradient(140deg, rgba(14, 165, 233, 0.18), rgba(59, 130, 246, 0.16)); border-color: rgba(96, 165, 250, 0.35); color: #f8fafc;
   }
 </style>
 
-<div class="feed-create-post-card" id="composeLauncher" role="button" aria-label="Create a post" tabindex="0">
-  <div class="compose-row">
-    <div class="avatar compose-avatar" style="width:52px;height:52px;">
+<div class="feed-create-post-card group" id="composeLauncher" role="button" aria-label="Create a post" tabindex="0">
+  <div class="flex items-center gap-3">
+    <div class="avatar flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-gradient-to-br from-sky-500 via-cyan-500 to-emerald-400 text-base font-black text-slate-950 shadow-sm">
       {% if current_user['avatar'] %}
-        <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}">
+        <img class="h-full w-full object-cover" src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}">
       {% else %}
         {{ (current_user['full_name'] or current_user['username'])[0] }}
       {% endif %}
@@ -254,46 +256,121 @@
   </div>
 </div>
 
-<div class="bottom-sheet-overlay" id="bottomSheetOverlay"></div>
-<div class="bottom-sheet" id="postActionsSheet" role="dialog" aria-label="Post options">
+<div class="bottom-sheet-overlay" id="feedBottomSheetOverlay"></div>
+<div class="bottom-sheet" id="feedPostActionsSheet" role="dialog" aria-label="Post options">
   <div class="bottom-sheet-handle"></div>
-  <form method="POST" id="sheetDeleteForm" action="">
-    <button type="submit" class="sheet-action sheet-action-danger">
+  <button type="button" class="sheet-action" id="feedCopyLinkBtn">
+    <i class='bx bx-link-alt'></i> Copy Link
+  </button>
+  <button type="button" class="sheet-action" id="feedShareBtn">
+    <i class='bx bx-share-alt'></i> Share
+  </button>
+  <form method="POST" id="feedSheetReportForm" action="{{ url_for('submit_report') }}">
+    <input type="hidden" name="target_type" value="post">
+    <input type="hidden" name="target_id" id="feedSheetReportTargetId" value="">
+    <input type="hidden" name="reason" value="inappropriate">
+    <button type="submit" class="sheet-action">
+      <i class='bx bx-flag'></i> Report Post
+    </button>
+  </form>
+  <form method="POST" id="feedSheetDeleteForm" action="">
+    <button type="submit" class="sheet-action sheet-action-danger" id="feedDeleteBtn">
       <i class='bx bx-trash'></i> {{ t.delete }}
     </button>
   </form>
-  <form method="POST" id="sheetReportForm" action="{{ url_for('submit_report') }}">
-    <input type="hidden" name="target_type" value="post">
-    <input type="hidden" name="target_id" id="sheetReportTargetId" value="">
-    <input type="hidden" name="reason" value="inappropriate">
-    <button type="submit" class="sheet-action">
-      <i class='bx bx-flag'></i> Report
-    </button>
-  </form>
-  <button type="button" class="sheet-action sheet-cancel" id="sheetCancelBtn">Cancel</button>
+  <button type="button" class="sheet-action sheet-cancel" id="feedSheetCancelBtn">Cancel</button>
 </div>
 
-<!-- Share sheet: Copy Link / Send to Follower list -->
-<div class="bottom-sheet" id="shareActionsSheet" role="dialog" aria-label="Share post">
-  <div class="bottom-sheet-handle"></div>
-  <div id="shareSheetMain">
-    <div class="sheet-title">Share this post</div>
-    <button type="button" class="sheet-action" id="sheetCopyLinkBtn">
-      <i class='bx bx-link-alt'></i> Copy Link
-    </button>
-    <button type="button" class="sheet-action" id="sheetSendToFollowerBtn">
-      <i class='bx bx-paper-plane'></i> Send to Follower list
-    </button>
-    <button type="button" class="sheet-action sheet-cancel js-share-sheet-close">Cancel</button>
-  </div>
-  <div id="shareSheetFollowers" style="display:none">
-    <div class="sheet-title">Send to…</div>
-    <div class="sheet-follower-list" id="shareFollowerList">
-      <div class="sheet-empty-note">Loading your followers…</div>
-    </div>
-    <button type="button" class="sheet-action sheet-cancel js-share-sheet-close">Cancel</button>
-  </div>
-</div>
+<script>
+(function () {
+  var overlay = document.getElementById('feedBottomSheetOverlay');
+  var sheet = document.getElementById('feedPostActionsSheet');
+  var copyBtn = document.getElementById('feedCopyLinkBtn');
+  var shareBtn = document.getElementById('feedShareBtn');
+  var deleteForm = document.getElementById('feedSheetDeleteForm');
+  var reportForm = document.getElementById('feedSheetReportForm');
+  var reportTarget = document.getElementById('feedSheetReportTargetId');
+  var cancelBtn = document.getElementById('feedSheetCancelBtn');
+  var currentPostUrl = null;
+  var currentPostId = null;
+
+  if (!overlay || !sheet) return;
+
+  function closeFeedSheet() {
+    sheet.classList.remove('open');
+    overlay.classList.remove('open');
+    currentPostUrl = null;
+    currentPostId = null;
+  }
+
+  function openFeedSheet(postId, postUrl, deleteUrl, canDelete) {
+    currentPostId = postId || '';
+    currentPostUrl = postUrl || window.location.origin + '/post/' + postId;
+    if (deleteForm) {
+      deleteForm.action = deleteUrl || '';
+      deleteForm.style.display = canDelete ? '' : 'none';
+    }
+    if (reportForm && reportTarget) {
+      reportForm.action = '{{ url_for('submit_report') }}';
+      reportTarget.value = currentPostId;
+    }
+    sheet.classList.add('open');
+    overlay.classList.add('open');
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.js-post-menu-btn');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openFeedSheet(btn.dataset.postId, btn.dataset.postUrl, btn.dataset.deleteUrl, btn.dataset.canDelete === 'true');
+  });
+
+  if (copyBtn) {
+    copyBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!currentPostUrl) return;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(currentPostUrl).then(function () {
+          copyBtn.innerHTML = '<i class="bx bx-check"></i> Link copied!';
+          setTimeout(function () { copyBtn.innerHTML = '<i class="bx bx-link-alt"></i> Copy Link'; closeFeedSheet(); }, 800);
+        });
+      }
+    });
+  }
+
+  if (shareBtn) {
+    shareBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!currentPostUrl) return;
+      if (navigator.share) {
+        navigator.share({ title: document.title, url: currentPostUrl }).catch(function () {});
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(currentPostUrl);
+      }
+      closeFeedSheet();
+    });
+  }
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeFeedSheet();
+    });
+  }
+
+  if (overlay) {
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) {
+        closeFeedSheet();
+      }
+    });
+  }
+})();
+</script>
 
 
 {% endblock %}

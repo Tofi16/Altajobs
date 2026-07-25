@@ -8,10 +8,10 @@
   /* ---- Wallet surface tokens (unified brand-blue CTA system) ---- */
   .wallet-hero {
     border-radius: 30px;
-    padding: 30px;
-    background: linear-gradient(180deg, rgba(11, 18, 16, 0.92), rgba(22, 30, 26, 0.98));
-    border: 1px solid rgba(214, 178, 110, 0.18);
-    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.36);
+    padding: 24px;
+    background: linear-gradient(145deg, rgba(7, 12, 18, 0.98), rgba(18, 24, 32, 0.95));
+    border: 1px solid rgba(125, 211, 252, 0.18);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255,255,255,0.05);
     backdrop-filter: blur(24px);
     position: relative;
     overflow: hidden;
@@ -20,8 +20,8 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at top right, rgba(214, 178, 110, 0.14), transparent 28%),
-                radial-gradient(circle at bottom left, rgba(224, 138, 76, 0.1), transparent 26%);
+    background: radial-gradient(circle at 85% -10%, rgba(56, 189, 248, 0.18), transparent 30%),
+                radial-gradient(circle at 15% 120%, rgba(251, 191, 36, 0.14), transparent 28%);
     pointer-events: none;
   }
   .wallet-hero > * {
@@ -36,16 +36,16 @@
   }
   .wallet-hero-label {
     text-transform: uppercase;
-    font-size: 0.75rem;
-    font-weight: 900;
-    letter-spacing: 0.26em;
-    color: #8FA39C;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.24em;
+    color: #7dd3fc;
   }
   .wallet-hero-subtitle {
     margin-top: 8px;
-    color: #D8CDAF;
-    font-size: 0.95rem;
-    line-height: 1.75;
+    color: #cbd5e1;
+    font-size: 0.92rem;
+    line-height: 1.65;
     max-width: 440px;
   }
   .wallet-hero-owner {
@@ -60,41 +60,41 @@
     gap: 18px;
   }
   .wallet-hero-balance {
-    font-size: clamp(2.6rem, 4vw, 3.8rem);
+    font-size: clamp(2.4rem, 4vw, 3.4rem);
     font-weight: 900;
     letter-spacing: -0.04em;
-    color: #ffffff;
+    color: #f8fafc;
   }
   .wallet-hero-balance span {
     font-size: 1rem;
     font-weight: 700;
-    color: #94a3b8;
+    color: #7dd3fc;
   }
   .wallet-hero-note {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 14px;
+    padding: 9px 12px;
     border-radius: 999px;
-    border: 1px solid rgba(214, 178, 110, 0.18);
-    background: rgba(214, 178, 110, 0.06);
-    color: #E9E1C9;
-    font-size: 0.88rem;
+    border: 1px solid rgba(125, 211, 252, 0.16);
+    background: rgba(125, 211, 252, 0.08);
+    color: #e2e8f0;
+    font-size: 0.83rem;
     font-weight: 600;
     max-width: fit-content;
   }
   .wallet-hero-info {
-    margin-top: 26px;
+    margin-top: 22px;
     display: grid;
-    gap: 14px;
+    gap: 12px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .wallet-hero-stat {
-    border-radius: 22px;
-    padding: 18px;
+    border-radius: 18px;
+    padding: 14px;
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: inset 0 1px 2px rgba(255,255,255,0.06);
+    box-shadow: inset 0 1px 2px rgba(255,255,255,0.05);
   }
   .wallet-hero-stat-label {
     font-size: 0.78rem;
@@ -122,30 +122,31 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
-    border-radius: 22px;
-    padding: 18px 10px;
-    font-size: 12px;
-    font-weight: 800;
-    background: rgba(214, 178, 110, 0.05);
-    border: 1px solid rgba(214, 178, 110, 0.14);
-    color: #F4F1EA;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
+    justify-content: center;
+    gap: 8px;
+    border-radius: 18px;
+    padding: 12px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #f8fafc;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
     transition: transform .16s ease, background .16s ease, border-color .16s ease;
   }
   .wallet-action-btn:hover {
     transform: translateY(-1px);
-    background: rgba(214, 178, 110, 0.1);
-    border-color: rgba(214, 178, 110, 0.28);
+    background: rgba(125, 211, 252, 0.08);
+    border-color: rgba(125, 211, 252, 0.2);
   }
   .wallet-action-btn:active { transform: scale(0.98); }
   .wallet-action-icon {
     display: grid;
     place-items: center;
-    height: 46px;
-    width: 46px;
-    border-radius: 16px;
-    font-size: 18px;
+    height: 40px;
+    width: 40px;
+    border-radius: 14px;
+    font-size: 16px;
   }
   .wallet-primary-btn {
     border-radius: 16px;
@@ -179,18 +180,18 @@
     align-items: center;
     justify-content: space-between;
     gap: 14px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
   .wallet-section-title {
-    font-size: 0.78rem;
-    font-weight: 900;
-    color: #94a3b8;
+    font-size: 0.74rem;
+    font-weight: 800;
+    color: #7dd3fc;
     text-transform: uppercase;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.16em;
   }
   .wallet-section-subtitle {
     margin-top: 3px;
-    font-size: 0.92rem;
+    font-size: 0.9rem;
     color: #cbd5e1;
   }
   .wallet-date-group {
@@ -206,20 +207,20 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 14px;
+    gap: 12px;
     background: rgba(255,255,255,0.03);
-    border-radius: 20px;
-    padding: 16px 18px;
+    border-radius: 18px;
+    padding: 12px 14px;
     margin-bottom: 10px;
     border: 1px solid rgba(255,255,255,0.08);
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
   }
-  .tx-main { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .tx-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
   .tx-copy { min-width: 0; }
-  .tx-title { font-size: 0.95rem; font-weight: 900; color: #f8fafc; line-height: 1.3; }
-  .tx-note { margin-top: 4px; font-size: 0.85rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tx-time { margin-top: 4px; font-size: 0.75rem; color: #64748b; }
-  .tx-amount { font-size: 0.95rem; font-weight: 900; text-align: right; }
+  .tx-title { font-size: 0.92rem; font-weight: 800; color: #f8fafc; line-height: 1.3; }
+  .tx-note { margin-top: 3px; font-size: 0.8rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tx-time { margin-top: 3px; font-size: 0.72rem; color: #64748b; }
+  .tx-amount { font-size: 0.9rem; font-weight: 800; text-align: right; }
   .tx-status { margin-top: 6px; display: inline-flex; align-items: center; justify-content: center; padding: 4px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; }
   .tx-status.admin-badge-success { background: rgba(16, 185, 129, 0.12); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.18); }
   .tx-status.admin-badge-warning { background: rgba(249, 115, 22, 0.12); color: #fbbf24; border: 1px solid rgba(249, 115, 22, 0.18); }
@@ -230,7 +231,7 @@
 <div class="mx-auto max-w-xl px-4 py-5 text-slate-200">
 
   <!-- Balance hero -->
-  <section class="wallet-hero mb-4">
+  <section class="wallet-hero mb-4 rounded-[32px]">
     <div class="wallet-hero-top">
       <div>
         <div class="wallet-hero-label">Personal Wallet</div>
@@ -269,15 +270,15 @@
   <section class="mb-5 grid grid-cols-3 gap-2.5" aria-label="Wallet actions">
     <button type="button" data-modal="depositModal" class="wallet-action-btn">
       <span class="wallet-action-icon bg-emerald-500/15 text-emerald-400"><i class='bx bx-down-arrow-alt'></i></span>
-      Deposit
+      <span>Deposit</span>
     </button>
     <button type="button" data-modal="withdrawModal" class="wallet-action-btn">
       <span class="wallet-action-icon bg-red-500/15 text-red-400"><i class='bx bx-up-arrow-alt'></i></span>
-      Withdraw
+      <span>Withdraw</span>
     </button>
     <button type="button" data-modal="sendModal" class="wallet-action-btn">
       <span class="wallet-action-icon bg-sky-500/15 text-sky-400"><i class='bx bx-paper-plane'></i></span>
-      Send
+      <span>Send</span>
     </button>
   </section>
 
@@ -446,10 +447,14 @@
 
   <!-- Receive QR modal -->
   <div id="receiveQrModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm" aria-hidden="true">
-    <div class="w-full max-w-xs rounded-2xl border border-white/10 bg-zinc-900 p-5 text-center shadow-2xl">
+    <div class="w-full max-w-xs rounded-2xl border border-white/10 bg-zinc-900/95 p-5 text-center shadow-2xl">
       <h3 class="mb-1 text-sm font-bold text-slate-100">Receive Funds</h3>
       <p class="mb-4 text-xs text-slate-500">Share this code so others can send you money instantly.</p>
-      <div class="mx-auto grid place-items-center rounded-2xl bg-white p-3" style="width:200px;height:200px" id="receiveQrCode"></div>
+      <div class="mx-auto grid place-items-center rounded-2xl border border-sky-400/20 bg-white p-3 shadow-inner" style="width:200px;height:200px" id="receiveQrCode">
+        <div class="grid h-full w-full place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-center text-[11px] font-medium text-slate-500">
+          QR placeholder<br/>wallet code ready
+        </div>
+      </div>
       <div class="mt-4 rounded-xl border border-white/5 bg-zinc-950/50 px-3 py-2 font-mono text-sm text-slate-200">{{ wallet_id_value or '—' }}</div>
       <button type="button" class="mt-4 w-full rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Close</button>
     </div>

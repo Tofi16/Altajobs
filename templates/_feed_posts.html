@@ -1,64 +1,66 @@
 <style>
   .xpost {
-    border: 1px solid rgba(255,255,255,0.06); border-radius: 22px; padding: 16px; display: flex; gap: 12px;
-    background: linear-gradient(180deg, rgba(18,22,32,0.96), rgba(10,13,21,0.98));
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 10px 35px rgba(2,6,23,0.18);
-    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    border: 1px solid rgba(15, 23, 42, 0.85); border-radius: 24px; padding: 16px 16px 14px; display: flex; gap: 12px;
+    background: #0f172a;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.55), inset 0 1px 0 rgba(255,255,255,0.04);
+    transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
     margin-bottom: 12px;
   }
-  .xpost:hover { transform: translateY(-1px); border-color: rgba(96,165,250,0.24); background: linear-gradient(180deg, rgba(22,27,39,0.98), rgba(11,14,23,0.98)); }
-  .xpost-avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg,#10b981,#0ea5e9); color: #05130d; font-weight: 900; font-size: 1.05rem; text-decoration: none; }
+  .xpost:hover { transform: translateY(-1px); border-color: rgba(59, 130, 246, 0.32); box-shadow: 0 22px 46px rgba(15, 23, 42, 0.65), inset 0 1px 0 rgba(255,255,255,0.05); }
+  .xpost-avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg,#2563eb,#0ea5e9); color: #f8fafc; font-weight: 900; font-size: 1.05rem; text-decoration: none; border: 1px solid rgba(148, 163, 184, 0.12); }
   .xpost-avatar img { width: 100%; height: 100%; object-fit: cover; }
   .xpost-body { flex: 1; min-width: 0; }
   .xpost-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-  .xpost-headline { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; }
-  .xpost-name { font-weight: 800; color: #f1f5f9; text-decoration: none; font-size: 0.95rem; }
+  .xpost-headline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+  .xpost-name { font-weight: 800; color: #f8fafc; text-decoration: none; font-size: 0.95rem; }
   .xpost-badge { display: inline-flex; align-items: center; margin-left: 2px; }
   .xpost-badge .verification-badge {
     width: 18px; height: 18px; display: inline-flex; align-items: center;
     padding: 0; margin: 0; background: none; border: none; border-radius: 0;
   }
   .xpost-badge .verification-badge svg { width: 18px; height: 18px; display: block; }
-  .xpost-meta { color: #71767b; font-size: 0.87rem; font-weight: 400; }
-  .xpost-dot::before { content: "·"; margin: 0 4px; color: #71767b; }
+  .xpost-meta { color: #94a3b8; font-size: 0.84rem; font-weight: 500; }
+  .xpost-dot::before { content: "·"; margin: 0 4px; color: #94a3b8; }
   .xpost-menu-btn {
-    border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(148, 163, 184, 0.16); background: rgba(15, 23, 42, 0.75);
     color: #cbd5e1; cursor: pointer; width: 34px; height: 34px; border-radius: 999px;
-    display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+    display: flex; align-items: center; justify-content: center; font-size: 1.02rem;
     flex-shrink: 0; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
-    transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+    transition: transform .16s ease, background .16s ease, color .16s ease, border-color .16s ease;
   }
   .xpost-menu-btn:hover {
-    background: linear-gradient(135deg, rgba(29,155,240,0.16), rgba(16,185,129,0.14));
-    color: #f8fafc; border-color: rgba(96,165,250,0.35); transform: translateY(-1px);
+    background: rgba(30, 41, 59, 0.95);
+    color: #f8fafc; border-color: rgba(59, 130, 246, 0.35); transform: translateY(-1px);
   }
-  .xpost-content { color: #e7e9ea; font-size: 0.96rem; line-height: 1.55; margin: 2px 0 8px; white-space: pre-wrap; word-break: break-word; }
+  .xpost-content { color: #e2e8f0; font-size: 0.96rem; line-height: 1.6; margin: 8px 0 10px; white-space: pre-wrap; word-break: break-word; }
   .xpost-content.xpost-clamped { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
   .xpost-seemore { background: none; border: none; color: #60a5fa; font-weight: 800; font-size: 0.84rem; cursor: pointer; padding: 2px 0; margin-bottom: 6px; display: none; }
-  .xpost-photo-wrap { border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; overflow: hidden; margin-bottom: 10px; background: rgba(255,255,255,0.02); }
+  .xpost-photo-wrap { border: 1px solid rgba(148, 163, 184, 0.12); border-radius: 18px; overflow: hidden; margin-bottom: 10px; background: rgba(15, 23, 42, 0.58); }
   .xpost-photo { width: 100%; max-height: 420px; object-fit: cover; display: block; }
-  .xpost-job-pill { display: inline-flex; align-items: center; gap: 4px; background: rgba(16,185,129,0.12); color: #34d399; font-size: 0.78rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; margin-bottom: 8px; }
-  .xpost-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; max-width: 380px; }
-  .xpost-action { display: flex; align-items: center; gap: 6px; border: none; background: transparent; color: #94a3b8; font-size: 0.84rem; font-weight: 700; cursor: pointer; padding: 7px 10px; margin: -7px -10px; border-radius: 999px; text-decoration: none; transition: background 0.15s ease, color 0.15s ease; }
-  .xpost-action i { font-size: 1.15rem; }
-  .xpost-action.like:hover, .xpost-action.like.liked { color: #fb7185; background: rgba(249,24,128,0.10); }
-  .xpost-action.comment:hover { color: #60a5fa; background: rgba(29,155,240,0.10); }
-  .xpost-action.repost:hover { color: #34d399; background: rgba(16,185,129,0.10); }
-  .xpost-action.share:hover { color: #fbbf24; background: rgba(251,191,36,0.10); }
-  .xpost-head-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .xpost-job-pill { display: inline-flex; align-items: center; gap: 4px; background: rgba(59, 130, 246, 0.12); color: #bfdbfe; border: 1px solid rgba(59, 130, 246, 0.18); font-size: 0.78rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; margin: 6px 0 8px; }
+  .xpost-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; max-width: 100%; flex-wrap: wrap; gap: 8px; }
+  .xpost-action { display: inline-flex; align-items: center; gap: 6px; border: none; background: transparent; color: #94a3b8; font-size: 0.84rem; font-weight: 700; cursor: pointer; padding: 8px 10px; border-radius: 999px; text-decoration: none; transition: background .16s ease, color .16s ease; }
+  .xpost-action i { font-size: 1.16rem; }
+  .xpost-action.like:hover { color: #3b82f6; background: rgba(59, 130, 246, 0.12); }
+  .xpost-action.like.liked { color: #3b82f6; background: rgba(59, 130, 246, 0.16); }
+  .xpost-action.comment:hover { color: #60a5fa; background: rgba(96, 165, 250, 0.12); }
+  .xpost-action.repost:hover { color: #60a5fa; background: rgba(59, 130, 246, 0.12); }
+  .xpost-action.share:hover { color: #60a5fa; background: rgba(59, 130, 246, 0.12); }
+  .xpost-head-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .xpost-follow-chip {
-    border: 1px solid rgba(255,255,255,0.15); border-radius: 999px; padding: 5px 14px;
-    font-weight: 800; font-size: 0.78rem; color: #e7e9ea; background: linear-gradient(135deg, #22c55e, #10b981);
-    cursor: pointer; white-space: nowrap; transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    border: 1px solid rgba(59, 130, 246, 0.45); border-radius: 999px; padding: 6px 14px;
+    font-weight: 800; font-size: 0.78rem; color: #dbeafe; background: rgba(15, 23, 42, 0.78);
+    cursor: pointer; white-space: nowrap; transition: background .16s ease, color .16s ease, border-color .16s ease;
   }
-  .xpost-follow-chip:not(.following) { background: linear-gradient(135deg, #22c55e, #10b981); color: #04110a; border-color: transparent; }
-  .xpost-follow-chip.following { background: transparent; color: #e7e9ea; }
-  .xpost-follow-chip.following:hover { border-color: rgba(239,68,68,0.4); color: #f87171; }
+  .xpost-follow-chip:not(.following) { background: rgba(15, 23, 42, 0.78); color: #dbeafe; border-color: rgba(59, 130, 246, 0.45); }
+  .xpost-follow-chip:not(.following):hover { background: rgba(59, 130, 246, 0.16); color: #f8fafc; border-color: rgba(96, 165, 250, 0.45); }
+  .xpost-follow-chip.following { background: rgba(30, 41, 59, 0.88); color: #bfdbfe; border-color: rgba(148, 163, 184, 0.24); }
+  .xpost-follow-chip.following:hover { background: rgba(30, 41, 59, 0.95); color: #f8fafc; border-color: rgba(96, 165, 250, 0.35); }
 </style>
 
 {% for item in posts_data %}
   {% set post = item.post %}
-  <article class="xpost" data-post-id="{{ post.id }}" data-post-type="{{ post.post_type }}">
+  <article class="xpost group" data-post-id="{{ post.id }}" data-post-type="{{ post.post_type }}">
     <a href="{{ url_for('profile', user_id=post.user_id) }}" class="xpost-avatar">
       {% if post.avatar %}
         <img src="{{ photo_url(post.avatar) }}" loading="lazy" alt="">
@@ -78,13 +80,14 @@
             <button type="button" class="xpost-follow-chip js-follow-btn {{ 'following' if item.following }}"
                     data-user-id="{{ post.user_id }}"
                     data-follow-label="{{ t.follow }}"
-                    data-following-label="{{ t.unfollow }}"
+                    data-following-label="{{ t.following if t.following is defined else (t.unfollow if t.unfollow is defined else 'Following') }}"
                     aria-pressed="{{ 'true' if item.following else 'false' }}">
-              <span class="follow-label">{{ t.unfollow if item.following else t.follow }}</span>
+              <span class="follow-label">{{ t.following if item.following and t.following is defined else (t.unfollow if item.following else t.follow) }}</span>
             </button>
           {% endif %}
           <button type="button" class="xpost-menu-btn js-post-menu-btn"
                   data-post-id="{{ post.id }}"
+                  data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}"
                   data-delete-url="{{ url_for('delete_post', post_id=post.id) }}"
                   data-can-delete="{{ 'true' if current_user and (post.user_id == current_user['id'] or current_user.get('is_admin')) else 'false' }}"
                   data-use-ui-post-menu="false"

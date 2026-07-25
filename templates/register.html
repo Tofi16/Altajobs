@@ -1,7 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page-shell auth-page-shell">
-  <div class="auth-card bg-white/5 backdrop-blur-lg border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] rounded-2xl">
+  <div class="absolute inset-0 pointer-events-none overflow-hidden">
+    <div class="auth-orb auth-orb-one"></div>
+    <div class="auth-orb auth-orb-two"></div>
+    <div class="auth-orb auth-orb-three"></div>
+  </div>
+  <div class="auth-card">
     <div class="auth-banner">
       <div class="auth-brand">
         <span class="brand-mark">A</span>
@@ -10,7 +15,7 @@
           <p class="auth-subtitle">Join the premium talent marketplace and launch your account in seconds.</p>
         </div>
       </div>
-      <div>
+      <div class="space-y-2">
         <h1 class="auth-title">Create your account</h1>
         <p class="auth-copy">Get hiring, apply faster, and access trusted opportunities.</p>
       </div>
@@ -26,34 +31,49 @@
 
       <div class="auth-field">
         <label for="full_name">{{ t.full_name }}</label>
-        <input id="full_name" class="auth-input text-base bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400/50 transition" type="text" name="full_name" autocomplete="name" required>
+        <div class="auth-input-wrap">
+          <i class='bx bx-user auth-input-icon'></i>
+          <input id="full_name" class="auth-input" type="text" name="full_name" autocomplete="name" required>
+        </div>
       </div>
       <div class="auth-field">
         <label for="username">{{ t.username }}</label>
-        <input id="username" class="auth-input text-base bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400/50 transition" type="text" name="username" autocomplete="username" required>
+        <div class="auth-input-wrap">
+          <i class='bx bx-at auth-input-icon'></i>
+          <input id="username" class="auth-input" type="text" name="username" autocomplete="username" required>
+        </div>
       </div>
       <div class="auth-field">
         <label for="password">{{ t.password }}</label>
-        <input id="password" class="auth-input text-base bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400/50 transition" type="password" name="password" autocomplete="new-password" required>
+        <div class="auth-input-wrap">
+          <i class='bx bx-lock-alt auth-input-icon'></i>
+          <input id="password" class="auth-input" type="password" name="password" autocomplete="new-password" required>
+        </div>
       </div>
       <div class="auth-field">
         <label for="confirm_password">Confirm Password</label>
-        <input id="confirm_password" class="auth-input text-base bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400/50 transition" type="password" name="confirm_password" autocomplete="new-password" required>
+        <div class="auth-input-wrap">
+          <i class='bx bx-lock-open-alt auth-input-icon'></i>
+          <input id="confirm_password" class="auth-input" type="password" name="confirm_password" autocomplete="new-password" required>
+        </div>
       </div>
       <div class="auth-field">
         <label for="user_type">Account type</label>
-        <select id="user_type" class="auth-select text-base bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400/50 transition" name="user_type">
-          <option value="worker">Worker</option>
-          <option value="employer">Employer</option>
-        </select>
+        <div class="auth-input-wrap">
+          <i class='bx bx-briefcase auth-input-icon'></i>
+          <select id="user_type" class="auth-select" name="user_type">
+            <option value="worker">Worker</option>
+            <option value="employer">Employer</option>
+          </select>
+        </div>
       </div>
       <div class="auth-actions">
-        <button type="submit" class="auth-btn w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold py-2.5 rounded-lg shadow-[0_0_15px_rgba(79,70,229,0.4)] transition">{{ t.create_account }}</button>
+        <button type="submit" class="auth-btn">{{ t.create_account }}</button>
       </div>
     </form>
 
     {% if social_auth_enabled %}
-    <div class="auth-copy">Fast account creation with social login.</div>
+    <div class="auth-copy mt-4">Fast account creation with social login.</div>
     <div class="social-grid">
       {% if social_links.google %}
       <a class="social-item" href="{{ social_links.google }}" target="_blank" rel="noopener noreferrer">
