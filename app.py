@@ -5247,6 +5247,46 @@ def wallet():
     )
 
 
+@app.route("/wallet/generate", methods=["POST"])
+@login_required
+def generate_wallet():
+    db = get_db()
+    user_id = session.get("user_id")
+    if not user_id:
+        flash("Unable to generate wallet at this time.")
+        return redirect(url_for("wallet"))
+
+    user = db.execute("SELECT id, wallet_id FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user:
+        flash("Unable to generate wallet at this time.")
+        return redirect(url_for("wallet"))
+
+    existing_wallet_id = _get_row_value(user, "wallet_id")
+    if existing_wallet_id:
+        flash("Wallet is already active.")
+        return redirect(url_for("wallet"))
+
+    try:
+        wallet_id = _generate_wallet_id(db)
+        db.execute("UPDATE users SET wallet_id = ? WHERE id = ?", (wallet_id, user_id))
+
+        if _table_has_column(db, "wallets", "user_id"):
+            wallet_exists = db.execute("SELECT id FROM wallets WHERE user_id = ?", (user_id,)).fetchone()
+            if not wallet_exists:
+                db.execute(
+                    "INSERT INTO wallets (user_id, balance, escrow_balance, created_at) VALUES (?, 0.00, 0.00, ?)",
+                    (user_id, datetime.datetime.utcnow().isoformat()),
+                )
+        db.commit()
+        flash("Your wallet has been generated.")
+    except Exception as exc:
+        db.rollback()
+        print(f"Wallet generation failed: {exc}")
+        flash("We couldn't generate your wallet right now.")
+
+    return redirect(url_for("wallet"))
+
+
 @app.route("/deposit", methods=["GET", "POST"])
 @login_required
 def deposit():

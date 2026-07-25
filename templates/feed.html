@@ -93,7 +93,12 @@
     background: rgba(15, 23, 42, 0.4);
     box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35);
   }
+  .compose-row { display:flex; gap:12px; align-items:flex-start; }
+  .compose-avatar { width:40px; height:40px; }
+  .compose-media-icon input[type="file"] { display:none; }
   .compose-photo-name { display: block; margin: 8px 0 6px; color: #94a3b8; font-size: 0.82rem; }
+  .debug-banner { border:1px dashed #f0ad4e; padding:10px; margin-bottom:8px; background:#fff7e6; color:#6a4b00; border-radius: 16px; }
+  .repost-modal-close { border:none; background:transparent; color:#94a3b8; font-size:1.3rem; cursor:pointer; line-height:1; }
   /* Post button pinned bottom-right; media icon stays on the left */
   .new-post-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px;
     padding-top: 12px; border-top: 1px solid rgba(148, 163, 184, 0.10);
@@ -152,8 +157,8 @@
     </div>
     <p class="compose-type-desc" id="composeTypeDesc">Share an update or story with your network.</p>
     <input type="hidden" name="post_type" id="composePostType" value="general">
-    <div class="compose-row" style="display:flex;gap:12px;align-items:flex-start;">
-      <div class="avatar compose-avatar" style="width:40px;height:40px;">
+    <div class="compose-row">
+      <div class="avatar compose-avatar">
         {% if current_user['avatar'] %}
           <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="">
         {% else %}
@@ -167,7 +172,7 @@
     <div class="new-post-actions" id="composeActions">
       <label class="compose-media-icon" title="{{ t.add_photo }}">
         <i class='bx bx-image-add'></i>
-        <input type="file" name="photo" accept="image/*" style="display:none" id="composePhotoInput">
+        <input type="file" name="photo" accept="image/*" id="composePhotoInput">
       </label>
       <button type="submit" id="composeSubmitButton" class="btn btn-primary btn-disabled" disabled>{{ t.post_button }}</button>
     </div>
@@ -214,7 +219,7 @@
   {% endif %}
   {% if not posts_data %}
     {% if db_warning_message %}
-      <div class="debug-banner" style="border:1px dashed #f0ad4e;padding:10px;margin-bottom:8px;background:#fff7e6;color:#6a4b00;">
+      <div class="debug-banner">
         <strong>Debug:</strong> {{ db_warning_message }}
       </div>
     {% endif %}
@@ -235,9 +240,9 @@
 
 <div id="feedLoadMoreWrap" class="feed-pagination" data-page="{{ page }}" data-has-next="{{ '1' if has_next else '0' }}" data-filter="{{ active_filter or 'all' }}">
   {% if has_next %}
-    <button type="button" id="feedLoadMoreBtn" class="btn">Load More</button>
+    <button type="button" id="feedLoadMoreBtn" class="btn-primary">Load more posts</button>
   {% endif %}
-  <div id="feedLoadMoreSpinner" class="feed-load-more-spinner" hidden>Loading…</div>
+  <div id="feedLoadMoreSpinner" class="feed-load-more-spinner" hidden aria-live="polite">Loading…</div>
 </div>
 
 <script>
@@ -340,17 +345,16 @@
 </script>
 
 <!-- Repost modal: "Send to chat/followers" -->
-<div class="modal-overlay" id="repostModalOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:1090;padding:16px;"></div>
-<div class="modal-card" id="repostModal" role="dialog" aria-label="Send to chat/followers"
-     style="display:none;position:fixed;inset:0;margin:auto;max-width:420px;max-height:min(72vh,460px);height:fit-content;background:var(--surface);border-radius:20px;z-index:1091;padding:18px;overflow-y:auto;">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-    <h3 style="margin:0;font-size:1rem;font-weight:800;">Send to chat / followers</h3>
-    <button type="button" class="js-repost-modal-close" style="border:none;background:transparent;color:var(--muted);font-size:1.3rem;cursor:pointer;line-height:1;">&times;</button>
+<div class="modal-overlay" id="repostModalOverlay"></div>
+<div class="modal-card" id="repostModal" role="dialog" aria-label="Send to chat/followers">
+  <div class="flex items-center justify-between gap-3 mb-3">
+    <h3 class="text-base font-extrabold text-slate-100">Send to chat / followers</h3>
+    <button type="button" class="js-repost-modal-close repost-modal-close">&times;</button>
   </div>
   <button type="button" class="sheet-action" id="repostQuickBtn">
     <i class='bx bx-repost'></i> Repost to your feed
   </button>
-  <div class="sheet-title" style="margin-top:8px;">Or send directly to…</div>
+  <div class="sheet-title">Or send directly to…</div>
   <div class="sheet-follower-list" id="repostFollowerList">
     <div class="sheet-empty-note">Loading your followers…</div>
   </div>
