@@ -38,14 +38,34 @@
   .xpost-photo-wrap { border: 1px solid rgba(148, 163, 184, 0.12); border-radius: 18px; overflow: hidden; margin-bottom: 10px; background: rgba(15, 23, 42, 0.58); }
   .xpost-photo { width: 100%; max-height: 420px; object-fit: cover; display: block; }
   .xpost-job-pill { display: inline-flex; align-items: center; gap: 4px; background: rgba(59, 130, 246, 0.12); color: #bfdbfe; border: 1px solid rgba(59, 130, 246, 0.18); font-size: 0.78rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; margin: 6px 0 8px; }
-  .xpost-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; max-width: 100%; flex-wrap: wrap; gap: 8px; }
-  .xpost-action { display: inline-flex; align-items: center; gap: 6px; border: none; background: transparent; color: #94a3b8; font-size: 0.84rem; font-weight: 700; cursor: pointer; padding: 8px 10px; border-radius: 999px; text-decoration: none; transition: background .16s ease, color .16s ease; }
-  .xpost-action i { font-size: 1.16rem; }
-  .xpost-action.like:hover { color: #3b82f6; background: rgba(59, 130, 246, 0.12); }
-  .xpost-action.like.liked { color: #3b82f6; background: rgba(59, 130, 246, 0.16); }
-  .xpost-action.comment:hover { color: #60a5fa; background: rgba(96, 165, 250, 0.12); }
-  .xpost-action.repost:hover { color: #60a5fa; background: rgba(59, 130, 246, 0.12); }
-  .xpost-action.share:hover { color: #60a5fa; background: rgba(59, 130, 246, 0.12); }
+
+  /* ===== X-style action bar: icon + count pairs, distinct hover colors ===== */
+  .xpost-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; max-width: 425px; gap: 4px; }
+  .xpost-action {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: none; background: transparent; color: #71767b;
+    font-size: 0.82rem; font-weight: 600; cursor: pointer;
+    padding: 6px 10px; margin-left: -10px; border-radius: 999px;
+    text-decoration: none; transition: background .15s ease, color .15s ease;
+  }
+  .xpost-action i { font-size: 1.15rem; transition: transform .15s ease; }
+  .xpost-action:active i { transform: scale(0.88); }
+
+  /* Comment: X blue */
+  .xpost-action.comment:hover { color: #1d9bf0; background: rgba(29, 155, 240, 0.10); }
+
+  /* Repost: X green */
+  .xpost-action.repost:hover { color: #00ba7c; background: rgba(0, 186, 124, 0.10); }
+  .xpost-action.repost.reposted { color: #00ba7c; }
+
+  /* Like: X pink/red */
+  .xpost-action.like:hover { color: #f91880; background: rgba(249, 24, 128, 0.10); }
+  .xpost-action.like.liked { color: #f91880; }
+  .xpost-action.like.liked i { font-weight: 900; }
+
+  /* Share: X blue */
+  .xpost-action.share:hover { color: #1d9bf0; background: rgba(29, 155, 240, 0.10); }
+
   .xpost-head-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .xpost-follow-chip {
     border: 1px solid rgba(59, 130, 246, 0.45); border-radius: 999px; padding: 6px 14px;
@@ -56,6 +76,51 @@
   .xpost-follow-chip:not(.following):hover { background: rgba(59, 130, 246, 0.16); color: #f8fafc; border-color: rgba(96, 165, 250, 0.45); }
   .xpost-follow-chip.following { background: rgba(30, 41, 59, 0.88); color: #bfdbfe; border-color: rgba(148, 163, 184, 0.24); }
   .xpost-follow-chip.following:hover { background: rgba(30, 41, 59, 0.95); color: #f8fafc; border-color: rgba(96, 165, 250, 0.35); }
+
+  /* ===== Inline quick-comment composer (X-style "borderless" input) ===== */
+  .xpost-quick-reply {
+    display: none;
+    align-items: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(148, 163, 184, 0.10);
+  }
+  .xpost-quick-reply.open { display: flex; }
+  .xpost-quick-reply-avatar {
+    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg,#2563eb,#0ea5e9); color: #f8fafc; font-weight: 800; font-size: 0.85rem;
+  }
+  .xpost-quick-reply-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .xpost-quick-reply-field {
+    flex: 1; min-width: 0;
+    display: flex; align-items: flex-end; gap: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(2, 6, 23, 0.55);
+    border-radius: 20px;
+    padding: 8px 8px 8px 16px;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .xpost-quick-reply-field:focus-within {
+    border-color: rgba(59, 130, 246, 0.55);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+  }
+  .xpost-quick-reply-input {
+    flex: 1; resize: none; border: none; background: transparent; outline: none;
+    color: #e2e8f0; font-size: 0.88rem; line-height: 1.4; max-height: 120px;
+    padding: 6px 0;
+  }
+  .xpost-quick-reply-input::placeholder { color: #64748b; }
+  .xpost-quick-reply-send {
+    flex-shrink: 0; border: none; border-radius: 999px; width: 34px; height: 34px;
+    display: grid; place-items: center; font-size: 1rem;
+    background: #1d9bf0; color: #fff; cursor: pointer;
+    transition: background .15s ease, opacity .15s ease, transform .1s ease;
+  }
+  .xpost-quick-reply-send:disabled { opacity: 0.4; cursor: not-allowed; }
+  .xpost-quick-reply-send:not(:disabled):hover { background: #1a8cd8; }
+  .xpost-quick-reply-send:not(:disabled):active { transform: scale(0.92); }
 </style>
 
 {% for item in posts_data %}
@@ -117,21 +182,44 @@
       {% endif %}
 
       <div class="xpost-actions">
+        <!-- FIX: was <a href="#">, which jumped the page to top on click.
+             Now a real <button> with no href at all — nothing for the browser
+             to "jump" to even if a handler failed to attach. -->
+        <button type="button" class="xpost-action comment js-comment-toggle-btn" data-post-id="{{ post.id }}">
+          <i class='bx bx-comment'></i><span class="comment-count">{{ item.comment_count }}</span>
+        </button>
+        <button type="button" class="xpost-action repost js-repost-btn" data-post-id="{{ post.id }}" title="Repost">
+          <i class='bx bx-repost'></i><span class="repost-count">{{ post.share_count or 0 }}</span>
+        </button>
         <button type="button" class="xpost-action like js-like-btn {{ 'liked' if item.liked }}"
                 data-post-id="{{ post.id }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}">
           <i class='bx {{ "bxs-heart" if item.liked else "bx-heart" }}'></i>
           <span class="like-count">{{ item.like_count }}</span>
         </button>
-        <a href="{{ url_for('post_detail', post_id=post.id) }}" class="xpost-action comment">
-          <i class='bx bx-comment'></i><span>{{ item.comment_count }}</span>
-        </a>
-        <button type="button" class="xpost-action repost js-repost-btn" data-post-id="{{ post.id }}" title="Repost">
-          <i class='bx bx-repost'></i><span class="repost-count">{{ post.share_count or 0 }}</span>
-        </button>
         <button type="button" class="xpost-action share js-share-btn" data-post-id="{{ post.id }}"
                 data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}" title="Share">
           <i class='bx bx-share-alt'></i>
         </button>
+      </div>
+
+      <!-- Inline quick-comment composer: hidden until the comment icon is
+           clicked, then expands + focuses in place. No navigation, no jump. -->
+      <div class="xpost-quick-reply js-quick-reply" id="quickReply-{{ post.id }}">
+        <div class="xpost-quick-reply-avatar">
+          {% if current_user and current_user['avatar'] %}
+            <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" alt="">
+          {% elif current_user %}
+            {{ (current_user['full_name'] or current_user['username'])[0] }}
+          {% endif %}
+        </div>
+        <form class="xpost-quick-reply-field js-quick-reply-form" data-post-id="{{ post.id }}"
+              action="{{ url_for('comment_post', post_id=post.id) }}" method="POST">
+          <textarea class="xpost-quick-reply-input js-quick-reply-input" name="content" rows="1"
+                    placeholder="Post your reply"></textarea>
+          <button type="submit" class="xpost-quick-reply-send" disabled aria-label="Reply">
+            <i class='bx bx-send'></i>
+          </button>
+        </form>
       </div>
     </div>
   </article>
@@ -148,9 +236,9 @@
   var reportForm = document.getElementById('sheetReportForm');
   var reportTarget = document.getElementById('sheetReportTargetId');
   var cancelBtn = document.getElementById('sheetCancelBtn');
-  if (!overlay || !sheet) return;
 
   function closeSheet() {
+    if (!sheet || !overlay) return;
     sheet.classList.remove('open');
     overlay.classList.remove('open');
     if (deleteForm) deleteForm.style.display = '';
@@ -160,6 +248,7 @@
   var currentActionPostId = null;
 
   function openSheet(postId, deleteUrl, canDelete) {
+    if (!sheet || !overlay) return;
     currentActionPostId = postId || null;
     if (deleteForm) {
       deleteForm.action = deleteUrl || '';
@@ -172,75 +261,66 @@
     overlay.classList.add('open');
   }
 
-  if (deleteForm) {
-    deleteForm.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var action = deleteForm.action;
-      if (!action) return;
-      fetch(action, {
-        method: 'POST',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (data && data.success) {
-          if (currentActionPostId) {
-            var removed = document.querySelector('.xpost[data-post-id="' + currentActionPostId + '"]');
-            if (!removed) {
-              var btn = document.querySelector('.js-post-menu-btn[data-post-id="' + currentActionPostId + '"]');
-              if (btn) removed = btn.closest('.xpost');
-            }
-            if (removed) removed.remove();
-          }
-          closeSheet();
-        } else {
-          closeSheet();
-        }
-      })
-      .catch(function () {
-        closeSheet();
-      });
-    });
-  }
-
-  document.addEventListener('click', function (e) {
-    var btn = e.target.closest('.js-post-menu-btn');
-    if (!btn) {
-      if (e.target === overlay && sheet.classList.contains('open')) {
+  if (overlay && sheet) {
+    if (deleteForm) {
+      deleteForm.addEventListener('submit', function (e) {
         e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        closeSheet();
-      }
-      return;
+        var action = deleteForm.action;
+        if (!action) return;
+        fetch(action, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          if (data && data.success) {
+            if (currentActionPostId) {
+              var removed = document.querySelector('.xpost[data-post-id="' + currentActionPostId + '"]');
+              if (!removed) {
+                var btn = document.querySelector('.js-post-menu-btn[data-post-id="' + currentActionPostId + '"]');
+                if (btn) removed = btn.closest('.xpost');
+              }
+              if (removed) removed.remove();
+            }
+            closeSheet();
+          } else {
+            closeSheet();
+          }
+        })
+        .catch(function () {
+          closeSheet();
+        });
+      });
     }
 
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    openSheet(btn.dataset.postId, btn.dataset.deleteUrl, btn.dataset.canDelete === 'true');
-  });
-
-  if (cancelBtn) {
-    cancelBtn.addEventListener('click', function (e) {
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('.js-post-menu-btn');
+      if (!btn) {
+        if (e.target === overlay && sheet.classList.contains('open')) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          closeSheet();
+        }
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
-      closeSheet();
+      e.stopImmediatePropagation();
+      openSheet(btn.dataset.postId, btn.dataset.deleteUrl, btn.dataset.canDelete === 'true');
     });
-  }
 
-  if (overlay) {
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay && sheet.classList.contains('open')) {
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', function (e) {
         e.preventDefault();
         e.stopPropagation();
         closeSheet();
-      }
-    });
+      });
+    }
   }
 
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && sheet.classList.contains('open')) {
+    if (e.key === 'Escape' && sheet && sheet.classList.contains('open')) {
       e.preventDefault();
       e.stopPropagation();
       closeSheet();
@@ -262,6 +342,101 @@
         });
       }
     }
+  });
+})();
+
+// ---------- Comment icon: expand + focus the inline reply box, no jump ----------
+(function () {
+  if (window.__xpostQuickReplyBound) return;
+  window.__xpostQuickReplyBound = true;
+
+  function autoGrow(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+  }
+
+  // Toggle: clicking the comment icon never navigates or scrolls the page —
+  // it only opens/closes and focuses the reply box already sitting under
+  // that specific post.
+  document.addEventListener('click', function (e) {
+    var toggleBtn = e.target.closest('.js-comment-toggle-btn');
+    if (!toggleBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    var postId = toggleBtn.dataset.postId;
+    var box = document.getElementById('quickReply-' + postId);
+    if (!box) return;
+
+    var isOpen = box.classList.contains('open');
+    // Close any other open reply boxes so only one is active at a time.
+    document.querySelectorAll('.js-quick-reply.open').forEach(function (openBox) {
+      if (openBox !== box) openBox.classList.remove('open');
+    });
+
+    box.classList.toggle('open', !isOpen);
+    if (!isOpen) {
+      var input = box.querySelector('.js-quick-reply-input');
+      if (input) {
+        // Focus without any scrollIntoView-driven jump; the box is already
+        // in place directly under the action bar the user just clicked.
+        input.focus({ preventScroll: false });
+      }
+    }
+  });
+
+  // Enable/disable send button based on content.
+  document.addEventListener('input', function (e) {
+    var input = e.target.closest('.js-quick-reply-input');
+    if (!input) return;
+    autoGrow(input);
+    var form = input.closest('.js-quick-reply-form');
+    var sendBtn = form ? form.querySelector('.xpost-quick-reply-send') : null;
+    if (sendBtn) sendBtn.disabled = input.value.trim().length === 0;
+  });
+
+  // Submit via fetch — updates the comment count in place, no page reload.
+  document.addEventListener('submit', function (e) {
+    var form = e.target.closest('.js-quick-reply-form');
+    if (!form) return;
+    e.preventDefault();
+
+    var postId = form.dataset.postId;
+    var input = form.querySelector('.js-quick-reply-input');
+    var sendBtn = form.querySelector('.xpost-quick-reply-send');
+    var content = input ? input.value.trim() : '';
+    if (!content || !postId) return;
+
+    if (sendBtn) sendBtn.disabled = true;
+
+    fetch(form.action, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: 'content=' + encodeURIComponent(content)
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data && data.success) {
+          document.querySelectorAll('.xpost[data-post-id="' + postId + '"] .comment-count').forEach(function (el) {
+            el.textContent = data.comment_count;
+          });
+          if (input) {
+            input.value = '';
+            autoGrow(input);
+          }
+          var box = document.getElementById('quickReply-' + postId);
+          if (box) box.classList.remove('open');
+        }
+      })
+      .catch(function (err) {
+        console.error('Comment submit failed', err);
+      })
+      .finally(function () {
+        if (sendBtn) sendBtn.disabled = !content;
+      });
   });
 })();
 </script>

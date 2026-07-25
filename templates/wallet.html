@@ -5,313 +5,295 @@
 {% block content %}
 
 <style>
-  .wallet-panel {
-    border-radius: 38px;
-    padding: 32px;
-    background: linear-gradient(135deg, #0f172a, #020617 55%, #000000);
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    box-shadow: 0 0 30px rgba(59, 130, 246, 0.30);
-    backdrop-filter: blur(22px);
+  /* ===== Premium Wallet Card ===== */
+  .pw-card {
+    position: relative;
+    border-radius: 28px;
+    padding: 28px 24px 22px;
     overflow: hidden;
+    background:
+      radial-gradient(120% 140% at 0% 0%, rgba(56,189,248,0.30) 0%, transparent 45%),
+      radial-gradient(120% 140% at 100% 100%, rgba(99,102,241,0.30) 0%, transparent 50%),
+      linear-gradient(135deg, #0b1220 0%, #0f1a30 45%, #060a14 100%);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 20px 50px -18px rgba(2,6,23,0.85), inset 0 1px 0 rgba(255,255,255,0.06);
   }
-  .wallet-panel::before {
+  .pw-card::before {
     content: '';
     position: absolute;
     inset: 0;
-    border-radius: inherit;
-    background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 28%),
-                radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.10), transparent 34%);
+    pointer-events: none;
+    background-image: radial-gradient(rgba(255,255,255,0.09) 1px, transparent 1px);
+    background-size: 18px 18px;
+    mask-image: linear-gradient(to bottom, black, transparent 75%);
+    opacity: 0.35;
+  }
+  .pw-card-glow {
+    position: absolute;
+    width: 220px; height: 220px;
+    border-radius: 999px;
+    filter: blur(60px);
+    background: rgba(56,189,248,0.25);
+    top: -60px; right: -40px;
     pointer-events: none;
   }
-  .wallet-panel-inner {
-    position: relative;
-    z-index: 1;
+  .pw-row { position: relative; z-index: 1; }
+  .pw-eyebrow { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: #7dd3fc; }
+  .pw-owner-name { margin-top: 2px; font-size: 1.05rem; font-weight: 800; color: #f8fafc; letter-spacing: 0.01em; }
+  .pw-icon-btn {
+    display: grid; place-items: center;
+    width: 42px; height: 42px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.14);
+    color: #e2e8f0;
+    transition: background .15s ease, transform .15s ease;
   }
-  .wallet-hero-overline {
-    text-transform: uppercase;
-    letter-spacing: 0.32em;
-    font-size: 0.72rem;
-    color: #7dd3fc;
-    margin-bottom: 0.85rem;
-  }
-  .wallet-hero-title {
-    font-size: clamp(2.4rem, 4vw, 3.6rem);
-    font-weight: 900;
-    line-height: 0.95;
+  .pw-icon-btn:hover { background: rgba(255,255,255,0.12); transform: translateY(-1px); }
+  .pw-icon-btn:active { transform: translateY(0); }
+  .pw-balance-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #94a3b8; }
+  .pw-balance-value {
+    font-size: clamp(2.1rem, 7vw, 2.85rem);
+    font-weight: 800;
     color: #ffffff;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
   }
-  .wallet-hero-copy {
-    margin-top: 0.9rem;
-    max-width: 44rem;
-    color: #cbd5e1;
-    line-height: 1.75;
-  }
-  .wallet-balance-panel {
-    border-radius: 32px;
-    padding: 30px;
-    background: rgba(15, 23, 42, 0.92);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: inset 0 0 18px rgba(255, 255, 255, 0.04);
-  }
-  .wallet-balance-label {
+  .pw-balance-unit { font-size: 0.95rem; font-weight: 700; color: #7dd3fc; margin-left: 4px; }
+  .pw-token-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 14px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(250,204,21,0.10);
+    border: 1px solid rgba(250,204,21,0.20);
+    color: #fde68a;
     font-size: 0.82rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: #94a3b8;
-  }
-  .wallet-balance-value {
-    margin-top: 0.9rem;
-    font-size: clamp(2.8rem, 5vw, 4.4rem);
-    font-weight: 900;
-    color: #ffffff;
-  }
-  .wallet-balance-value span {
-    margin-left: 0.6rem;
-    font-size: 1rem;
-    font-weight: 700;
-    color: #38bdf8;
-  }
-  .wallet-balance-note {
-    margin-top: 1.1rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.65rem;
-    padding: 0.9rem 1rem;
-    border-radius: 999px;
-    color: #cbd5e1;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    font-size: 0.9rem;
-    font-weight: 600;
-  }
-  .wallet-quick-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 1rem;
-    margin-top: 1.5rem;
-  }
-  .wallet-action-pill {
-    border-radius: 24px;
-    padding: 18px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    backdrop-filter: blur(18px);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.85rem;
-    transition: transform 0.16s ease, background 0.16s ease;
-  }
-  .wallet-action-pill:hover {
-    transform: translateY(-1px);
-    background: rgba(255, 255, 255, 0.08);
-  }
-  .wallet-action-pill span {
-    color: #f8fafc;
     font-weight: 700;
   }
-  .wallet-action-icon {
-    width: 46px;
-    height: 46px;
-    display: grid;
-    place-items: center;
-    border-radius: 18px;
-    font-size: 1.15rem;
-    background: rgba(59, 130, 246, 0.14);
-    color: #38bdf8;
+  .pw-footer-strip {
+    margin-top: 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
   }
-  .wallet-qr-card {
-    border-radius: 28px;
-    padding: 24px;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: inset 0 2px 20px rgba(255, 255, 255, 0.03);
-  }
-  .wallet-qr-label {
-    text-transform: uppercase;
-    letter-spacing: 0.22em;
-    font-size: 0.72rem;
+  .pw-id-text { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86rem; color: #e2e8f0; letter-spacing: 0.03em; }
+  .pw-copy-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 12px;
+    border-radius: 10px;
+    background: rgba(56,189,248,0.12);
+    border: 1px solid rgba(56,189,248,0.24);
     color: #7dd3fc;
-    margin-bottom: 1rem;
+    font-size: 0.76rem; font-weight: 700;
+    transition: background .15s ease;
   }
-  .wallet-qr-frame {
-    display: inline-flex;
-    background: #ffffff;
-    padding: 18px;
-    border-radius: 24px;
+  .pw-copy-btn:hover { background: rgba(56,189,248,0.20); }
+  .pw-gen-wallet-btn {
+    width: 100%;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 11px 14px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #38bdf8, #6366f1);
+    color: #04101f;
+    font-size: 0.86rem; font-weight: 800;
+    box-shadow: 0 8px 20px -8px rgba(56,189,248,0.6);
+    transition: transform .15s ease, opacity .15s ease;
   }
-  .wallet-qr-caption {
-    margin-top: 1rem;
-    color: #cbd5e1;
-    font-size: 0.95rem;
-  }
-  .wallet-stats-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-    margin-top: 1rem;
-  }
-  .wallet-stat-surface {
-    border-radius: 24px;
-    padding: 18px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.10);
-  }
-  .wallet-stat-label {
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-    font-size: 0.75rem;
-    color: #94a3b8;
-  }
-  .wallet-stat-value {
-    margin-top: 0.75rem;
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: #f8fafc;
-  }
-  .wallet-section-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    margin-bottom: 16px;
-  }
-  .wallet-section-title {
-    font-size: 0.74rem;
-    font-weight: 800;
-    color: #7dd3fc;
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-  }
-  .wallet-section-subtitle {
-    margin-top: 3px;
-    font-size: 0.92rem;
-    color: #cbd5e1;
-  }
-  .filter-chip {
-    border-radius: 999px;
-    padding: 10px 18px;
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    background: rgba(255, 255, 255, 0.06);
-    color: #94a3b8;
-    font-weight: 700;
-    transition: background 0.16s ease, color 0.16s ease;
-  }
-  .filter-chip[aria-pressed='true'] {
-    background: rgba(56, 189, 248, 0.18);
-    color: #ffffff;
-  }
-  .tx-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 14px 16px;
-    border-radius: 22px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.10);
-  }
-  .tx-main { display: flex; align-items: center; gap: 14px; min-width: 0; }
-  .tx-title { font-size: 0.96rem; font-weight: 800; color: #f8fafc; }
-  .tx-note { color: #94a3b8; font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tx-time { color: #64748b; font-size: 0.75rem; }
-  .tx-amount { font-weight: 800; text-align: right; }
-  .tx-status { margin-top: 8px; display: inline-flex; align-items: center; justify-content: center; padding: 5px 12px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; }
-  .tx-status.admin-badge-success { background: rgba(16, 185, 129, 0.12); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.18); }
-  .tx-status.admin-badge-warning { background: rgba(249, 115, 22, 0.12); color: #fbbf24; border: 1px solid rgba(249, 115, 22, 0.18); }
-  .tx-status.admin-badge-danger { background: rgba(239, 68, 68, 0.12); color: #fecaca; border: 1px solid rgba(239, 68, 68, 0.18); }
-  #txDateFilter::-webkit-calendar-picker-indicator { filter: invert(0.8); }
-</style>
+  .pw-gen-wallet-btn:hover { transform: translateY(-1px); }
+  .pw-gen-wallet-btn:disabled { opacity: 0.65; transform: none; cursor: not-allowed; }
 
+  /* ===== Circular action buttons ===== */
+  .pw-actions-row {
+    display: flex;
+    justify-content: space-around;
+    gap: 10px;
+    margin: 22px 0 26px;
+  }
+  .pw-action {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    background: none; border: none;
+    flex: 1;
+  }
+  .pw-action-circle {
+    width: 56px; height: 56px;
+    display: grid; place-items: center;
+    border-radius: 999px;
+    font-size: 1.3rem;
+    transition: transform .15s ease, box-shadow .15s ease;
+    border: 1px solid rgba(255,255,255,0.10);
+  }
+  .pw-action:hover .pw-action-circle { transform: translateY(-2px); }
+  .pw-action.deposit .pw-action-circle { background: rgba(45,212,191,0.14); color: #2dd4bf; box-shadow: inset 0 0 0 1px rgba(45,212,191,0.18); }
+  .pw-action.withdraw .pw-action-circle { background: rgba(251,113,133,0.14); color: #fb7185; box-shadow: inset 0 0 0 1px rgba(251,113,133,0.18); }
+  .pw-action.send .pw-action-circle { background: rgba(96,165,250,0.14); color: #60a5fa; box-shadow: inset 0 0 0 1px rgba(96,165,250,0.18); }
+  .pw-action-label { font-size: 0.78rem; font-weight: 700; color: #cbd5e1; }
+
+  /* ===== Transaction history ===== */
+  .pw-section-title { font-size: 0.72rem; font-weight: 800; color: #7dd3fc; text-transform: uppercase; letter-spacing: 0.14em; }
+  .pw-section-subtitle { margin-top: 2px; font-size: 0.86rem; color: #94a3b8; }
+  .pw-filter-chip {
+    border-radius: 999px; padding: 8px 16px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.05);
+    color: #94a3b8; font-weight: 700; font-size: 0.78rem;
+    transition: background .15s ease, color .15s ease;
+  }
+  .pw-filter-chip[aria-pressed='true'] { background: rgba(56,189,248,0.20); color: #fff; border-color: rgba(56,189,248,0.3); }
+  .pw-date-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    margin: 18px 0 8px;
+    padding: 6px 0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #7dd3fc;
+    background: linear-gradient(to bottom, rgba(2,6,23,0.95) 70%, rgba(2,6,23,0));
+    backdrop-filter: blur(6px);
+  }
+  .pw-tx-group { display: flex; flex-direction: column; gap: 8px; }
+  .pw-tx-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 13px 14px;
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.07);
+    transition: transform .12s ease;
+  }
+  .pw-tx-row:hover { transform: translateX(1px); }
+  .pw-tx-row.is-income { background: rgba(16,185,129,0.07); border-left: 3px solid rgba(52,211,153,0.55); }
+  .pw-tx-row.is-expense { background: rgba(244,63,94,0.07); border-left: 3px solid rgba(251,113,133,0.55); }
+  .pw-tx-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .pw-tx-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 999px; font-size: 1rem; flex-shrink: 0; }
+  .pw-tx-icon.in { background: rgba(52,211,153,0.16); color: #34d399; }
+  .pw-tx-icon.out { background: rgba(251,113,133,0.16); color: #fb7185; }
+  .pw-tx-title { font-size: 0.9rem; font-weight: 800; color: #f8fafc; }
+  .pw-tx-note { font-size: 0.76rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 42vw; }
+  .pw-tx-time { font-size: 0.7rem; color: #64748b; margin-top: 1px; }
+  .pw-tx-amount { font-weight: 800; font-size: 0.92rem; text-align: right; }
+  .pw-tx-amount.in { color: #34d399; }
+  .pw-tx-amount.out { color: #fb7185; }
+  .pw-tx-status { margin-top: 4px; display: inline-flex; padding: 3px 10px; border-radius: 999px; font-size: 0.64rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
+  .pw-tx-status.approved { background: rgba(16,185,129,0.14); color: #a7f3d0; border: 1px solid rgba(16,185,129,0.2); }
+  .pw-tx-status.pending { background: rgba(249,115,22,0.14); color: #fbbf24; border: 1px solid rgba(249,115,22,0.2); }
+  .pw-tx-status.rejected { background: rgba(239,68,68,0.14); color: #fecaca; border: 1px solid rgba(239,68,68,0.2); }
+  #txDateFilter::-webkit-calendar-picker-indicator { filter: invert(0.8); }
+
+  /* ===== Modals ===== */
+  .pw-modal-card { width: 100%; max-width: 24rem; border-radius: 22px; border: 1px solid rgba(255,255,255,0.10); background: #0e1526; padding: 22px; box-shadow: 0 30px 60px -20px rgba(0,0,0,0.7); }
+  .pw-field-label { display: block; margin-bottom: 6px; font-size: 0.72rem; font-weight: 700; color: #64748b; }
+  .pw-field-input { width: 100%; border-radius: 12px; border: 1px solid rgba(255,255,255,0.10); background: rgba(2,6,23,0.6); padding: 10px 12px; font-size: 0.88rem; color: #e2e8f0; }
+  .pw-primary-btn { border-radius: 12px; padding: 10px 18px; background: linear-gradient(135deg, #38bdf8, #6366f1); color: #04101f; font-weight: 800; font-size: 0.84rem; }
+  .pw-ghost-btn { border-radius: 12px; padding: 10px 16px; border: 1px solid rgba(255,255,255,0.10); color: #cbd5e1; font-size: 0.8rem; font-weight: 700; }
+</style>
 
 <div class="mx-auto max-w-xl px-4 py-5 text-slate-200">
 
-  <!-- Balance hero -->
   {% set balance = current_user.get('wallet_balance', current_user.get('balance', 0)) %}
   {% set tokens = current_user.get('alta_tokens', 0) %}
-  {% set wallet_id = current_user.get('wallet_id', '') %}
+  {% set wallet_id = current_user.get('wallet_id') %}
+  {% set has_wallet_id = wallet_id and wallet_id|string != 'None' and wallet_id|string.strip() != '' %}
 
-  <section class="mb-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-[2rem] p-6 shadow-2xl relative overflow-hidden mb-8">
-      <!-- Subtle Glow -->
-      <div class="absolute top-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
-      
-      <div class="flex justify-between items-start relative z-10 mb-6">
-        <div>
-          <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Wallet Owner</p>
-          <h2 class="text-white text-lg font-bold tracking-wide">{{ current_user.full_name | default(current_user.username, true) }}</h2>
-        </div>
-        <button class="bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 p-3 rounded-2xl transition-all duration-300 cursor-pointer">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><path d="M3 14h7v7H3z"></path></svg>
+  <!-- Premium balance card -->
+  <section class="pw-card mb-7">
+    <div class="pw-card-glow"></div>
+
+    <div class="pw-row flex items-start justify-between">
+      <div>
+        <p class="pw-eyebrow">Wallet owner</p>
+        <h2 class="pw-owner-name">{{ current_user.full_name | default(current_user.username, true) }}</h2>
+      </div>
+      <!-- QR / Receive button (fixed: now wired to #receiveQrModal via id="openReceiveQr") -->
+      <button type="button" id="openReceiveQr" class="pw-icon-btn" aria-label="Show my wallet QR code" title="Receive funds / show QR">
+        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+          <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+          <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+          <path d="M14 14h3v3h-3z"></path>
+          <path d="M20 14h1v1h-1z"></path>
+          <path d="M14 20h1v1h-1z"></path>
+          <path d="M20 20h1v1h-1z"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="pw-row" style="margin-top:22px">
+      <div class="flex items-center gap-2">
+        <p class="pw-balance-label">Available balance</p>
+        <button id="toggleBalanceBtn" class="text-slate-400 hover:text-white transition-colors" title="Toggle balance visibility" type="button">
+          <svg id="eyeOpen" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <svg id="eyeClosed" class="hidden" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
         </button>
       </div>
-
-      <div class="relative z-10">
-        <div class="flex items-center gap-3 mb-2">
-          <p class="text-slate-400 text-xs font-bold uppercase tracking-wider">Available Balance</p>
-          <button id="toggleBalanceBtn" class="text-slate-400 hover:text-white transition-colors cursor-pointer" title="Toggle Balance Visibility">
-            <!-- Eye Open (Default) -->
-            <svg id="eyeOpen" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-            <!-- Eye Closed (Hidden by default) -->
-            <svg id="eyeClosed" class="hidden" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-          </button>
-        </div>
-        
-        <div class="flex items-baseline gap-2">
-          <h1 class="text-5xl font-extrabold text-white transition-all duration-300" id="balanceAmount" data-balance="{{ balance }}">{{ balance }}</h1>
-          <span class="text-xl text-slate-400 font-medium" id="balanceCurrency">ETB</span>
-        </div>
-        <div class="flex items-center gap-2 mt-4">
-          <span class="text-yellow-500 text-lg">🪙</span>
-          <span class="text-white font-medium" id="tokenAmount" data-token="{{ tokens | default('0', true) }}">{{ tokens | default('0', true) }} Alta Tokens</span>
-        </div>
+      <div class="flex items-baseline mt-1">
+        <span class="pw-balance-value" id="balanceAmount" data-balance="{{ "{:,.0f}".format(balance | float) }}">{{ "{:,.0f}".format(balance | float) }}</span>
+        <span class="pw-balance-unit" id="balanceCurrency">ETB</span>
       </div>
+      <div class="pw-token-pill">
+        <span>🪙</span>
+        <span id="tokenAmount" data-token="{{ tokens | default('0', true) }}">{{ tokens | default('0', true) }} Alta Tokens</span>
+      </div>
+    </div>
 
-      <div class="mt-8 bg-[#0B1121] border border-slate-800/50 rounded-2xl p-4 flex justify-between items-center relative z-10">
-        <p class="text-slate-400 text-sm">Wallet ID <span id="walletIdValue" class="text-white ml-3 font-mono tracking-wide">{{ wallet_id | default('None', true) }}</span></p>
-        <button class="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 text-blue-400 text-sm px-4 py-2 rounded-xl transition-colors font-medium flex items-center gap-2" id="copyWalletId">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+    <div class="pw-footer-strip">
+      {% if has_wallet_id %}
+        <div class="min-w-0">
+          <p class="pw-eyebrow" style="margin-bottom:2px">Wallet ID</p>
+          <span id="walletIdValue" class="pw-id-text">{{ wallet_id }}</span>
+        </div>
+        <button type="button" class="pw-copy-btn" id="copyWalletId">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
           Copy
         </button>
-      </div>
+      {% else %}
+        <form method="POST" action="{{ url_for('generate_wallet') }}" id="genWalletForm" class="w-full">
+          <button type="submit" id="genWalletBtn" class="pw-gen-wallet-btn">
+            <i class='bx bx-wallet'></i> Generate Wallet
+          </button>
+        </form>
+      {% endif %}
     </div>
   </section>
 
-  <section class="grid grid-cols-3 gap-4 mb-8" aria-label="Wallet actions">
-    <button type="button" data-modal="depositModal" class="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col items-center justify-center gap-3 hover:bg-slate-800 transition cursor-pointer">
-      <span class="rounded-full bg-teal-400/10 p-3 text-teal-400"><i class='bx bx-down-arrow-alt'></i></span>
-      <span class="text-sm font-semibold text-white">Deposit</span>
+  <!-- Circular action buttons -->
+  <section class="pw-actions-row" aria-label="Wallet actions">
+    <button type="button" data-modal="depositModal" class="pw-action deposit">
+      <span class="pw-action-circle"><i class='bx bx-down-arrow-alt'></i></span>
+      <span class="pw-action-label">Deposit</span>
     </button>
-    <button type="button" data-modal="withdrawModal" class="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col items-center justify-center gap-3 hover:bg-slate-800 transition cursor-pointer">
-      <span class="rounded-full bg-rose-400/10 p-3 text-rose-400"><i class='bx bx-up-arrow-alt'></i></span>
-      <span class="text-sm font-semibold text-white">Withdraw</span>
+    <button type="button" data-modal="withdrawModal" class="pw-action withdraw">
+      <span class="pw-action-circle"><i class='bx bx-up-arrow-alt'></i></span>
+      <span class="pw-action-label">Withdraw</span>
     </button>
-    <button type="button" data-modal="sendModal" class="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col items-center justify-center gap-3 hover:bg-slate-800 transition cursor-pointer">
-      <span class="rounded-full bg-blue-400/10 p-3 text-blue-400"><i class='bx bx-paper-plane'></i></span>
-      <span class="text-sm font-semibold text-white">Send</span>
+    <button type="button" data-modal="sendModal" class="pw-action send">
+      <span class="pw-action-circle"><i class='bx bx-paper-plane'></i></span>
+      <span class="pw-action-label">Send</span>
     </button>
   </section>
 
   <!-- Wallet activity -->
   <section>
-    <div class="wallet-section-head">
+    <div class="flex items-center justify-between gap-3 mb-3">
       <div>
-        <div class="wallet-section-title">Wallet activity</div>
-        <div class="wallet-section-subtitle">Track your latest deposits, withdrawals, and transfers</div>
+        <div class="pw-section-title">Wallet activity</div>
+        <div class="pw-section-subtitle">Deposits, withdrawals & transfers</div>
       </div>
       <div class="flex items-center gap-1.5">
         <input type="date" id="txDateFilter" class="rounded-lg border border-white/10 bg-zinc-900/60 px-2 py-1 text-[11px] text-slate-300" aria-label="Filter by date">
         <button type="button" id="txDateClear" class="hidden text-[11px] font-semibold text-sky-400">Clear</button>
       </div>
     </div>
-    <div class="mb-3 flex items-center gap-1.5" role="group" aria-label="Filter transactions">
-      <button type="button" class="filter-chip" data-filter="all" aria-pressed="true">All</button>
-      <button type="button" class="filter-chip" data-filter="income" aria-pressed="false">Income</button>
-      <button type="button" class="filter-chip" data-filter="expense" aria-pressed="false">Expense</button>
+    <div class="mb-4 flex items-center gap-1.5" role="group" aria-label="Filter transactions">
+      <button type="button" class="pw-filter-chip" data-filter="all" aria-pressed="true">All</button>
+      <button type="button" class="pw-filter-chip" data-filter="income" aria-pressed="false">Income</button>
+      <button type="button" class="pw-filter-chip" data-filter="expense" aria-pressed="false">Expense</button>
     </div>
 
-    <div id="requestsList" class="space-y-4">
+    <div id="requestsList">
       {% set reqs = requests if requests is defined else history if history is defined else [] %}
       {% if reqs and reqs|length > 0 %}
         {% set ns = namespace(last_date='') %}
@@ -324,28 +306,26 @@
           {% if full_date != ns.last_date %}
             {% if not loop.first %}</div>{% endif %}
             {% set ns.last_date = full_date %}
-            <div class="wallet-date-group">{{ full_date }}</div>
-            <div>
+            <div class="pw-date-sticky">{{ full_date }}</div>
+            <div class="pw-tx-group">
           {% endif %}
-          <div class="tx-row"
+          {% set amount_unit = 'ETB' %}
+          {% if note_val and 'Alta tokens' in note_val %}{% set amount_unit = 'tokens' %}{% endif %}
+          <div class="pw-tx-row {{ 'is-expense' if is_withdrawal else 'is-income' }}"
                data-tx-flow="{{ 'expense' if is_withdrawal else 'income' }}" data-tx-date="{{ full_date }}">
-            <div class="tx-main">
-              <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-base {{ 'bg-red-500/15 text-red-400' if is_withdrawal else 'bg-emerald-500/15 text-emerald-400' }}">
+            <div class="pw-tx-main">
+              <span class="pw-tx-icon {{ 'out' if is_withdrawal else 'in' }}">
                 <i class='bx {{ "bx-up-arrow-alt" if is_withdrawal else "bx-down-arrow-alt" }}'></i>
               </span>
-              <div class="tx-copy">
-                <div class="tx-title">{{ tx_type|capitalize }}</div>
-                <div class="tx-note">{{ note_val or 'Wallet activity update' }}</div>
-                <div class="tx-time">{{ (r['created_at'][11:16] if 'created_at' in r.keys() and r['created_at'] else '') }}</div>
+              <div class="min-w-0">
+                <div class="pw-tx-title">{{ tx_type|capitalize }}</div>
+                <div class="pw-tx-note">{{ note_val or 'Wallet activity update' }}</div>
+                <div class="pw-tx-time">{{ (r['created_at'][11:16] if 'created_at' in r.keys() and r['created_at'] else '') }}</div>
               </div>
             </div>
             <div class="shrink-0 text-right">
-              {% set amount_unit = 'ETB' %}
-              {% if note_val and 'Alta tokens' in note_val %}
-                {% set amount_unit = 'tokens' %}
-              {% endif %}
-              <div class="tx-amount {{ 'text-red-400' if is_withdrawal else 'text-emerald-400' }}">{{ '-' if is_withdrawal else '+' }}{{ (r['amount'] if 'amount' in r.keys() else '') }} {{ amount_unit }}</div>
-              <span class="admin-badge tx-status {{ 'admin-badge-success' if status == 'approved' else ('admin-badge-danger' if status in ('rejected','declined') else 'admin-badge-warning') }}">{{ status|capitalize }}</span>
+              <div class="pw-tx-amount {{ 'out' if is_withdrawal else 'in' }}">{{ '-' if is_withdrawal else '+' }}{{ "{:,.0f}".format((r['amount'] if 'amount' in r.keys() else 0) | float) }} {{ amount_unit }}</div>
+              <span class="pw-tx-status {{ 'approved' if status == 'approved' else ('rejected' if status in ('rejected','declined') else 'pending') }}">{{ status|capitalize }}</span>
             </div>
           </div>
         {% endfor %}
@@ -357,19 +337,19 @@
     <div id="txEmptyFiltered" class="hidden rounded-2xl border border-white/5 bg-zinc-900/40 px-3 py-8 text-center text-sm text-slate-500">No transactions match this filter</div>
   </section>
 
-  <!-- Modals -->
+  <!-- Deposit modal -->
   <div id="depositModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm" aria-hidden="true">
-    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
+    <div class="pw-modal-card">
       <h3 class="mb-4 text-sm font-bold text-slate-100">Deposit Funds</h3>
       <form id="depositForm" method="POST" action="{{ url_for('wallet_deposit') }}" enctype="multipart/form-data" class="space-y-3">
         <div>
-          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Amount</label>
-          <input name="amount" type="number" step="0.01" min="1" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+          <label class="pw-field-label">Amount</label>
+          <input name="amount" type="number" step="0.01" min="1" required class="pw-field-input">
         </div>
         <div>
-          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Bank</label>
+          <label class="pw-field-label">Bank</label>
           {% if banks and banks|length > 0 %}
-            <select name="bank_id" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+            <select name="bank_id" required class="pw-field-input">
               <option value="">Select bank</option>
               {% for bank in banks %}
                 <option value="{{ bank['id'] }}">{{ bank['bank_name'] }} — {{ bank['account_holder_name'] if bank['account_holder_name'] else bank['account_name'] }} / {{ bank['account_number'] }}</option>
@@ -380,51 +360,53 @@
           {% endif %}
         </div>
         <div>
-          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Transaction Reference ID</label>
-          <input name="transaction_ref" type="text" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+          <label class="pw-field-label">Transaction Reference ID</label>
+          <input name="transaction_ref" type="text" required class="pw-field-input">
         </div>
         <div>
-          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Attach receipt (optional)</label>
+          <label class="pw-field-label">Attach receipt (optional)</label>
           <input name="receipt_photo" type="file" accept="image/*" class="w-full text-xs text-slate-400">
         </div>
         <div class="flex justify-end gap-2 pt-1">
-          <button type="button" class="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
-          <button type="submit" class="wallet-primary-btn">Submit Deposit</button>
+          <button type="button" class="pw-ghost-btn" data-close>Cancel</button>
+          <button type="submit" class="pw-primary-btn">Submit Deposit</button>
         </div>
       </form>
     </div>
   </div>
 
+  <!-- Withdraw modal -->
   <div id="withdrawModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm" aria-hidden="true">
-    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
+    <div class="pw-modal-card">
       <h3 class="mb-4 text-sm font-bold text-slate-100">Withdraw Funds</h3>
       <form id="withdrawForm" method="POST" action="{{ url_for('withdraw_request') }}" class="space-y-3">
         <div>
-          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Amount</label>
-          <input name="amount" type="number" step="0.01" min="10" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+          <label class="pw-field-label">Amount</label>
+          <input name="amount" type="number" step="0.01" min="10" required class="pw-field-input">
         </div>
         <div>
-          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Destination Account Name</label>
-          <input name="account_name" type="text" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+          <label class="pw-field-label">Destination Account Name</label>
+          <input name="account_name" type="text" required class="pw-field-input">
         </div>
         <div>
-          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Account Number</label>
-          <input name="account_number" type="text" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+          <label class="pw-field-label">Account Number</label>
+          <input name="account_number" type="text" required class="pw-field-input">
         </div>
         <div>
-          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Bank Name</label>
-          <input name="bank_name_manual" type="text" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+          <label class="pw-field-label">Bank Name</label>
+          <input name="bank_name_manual" type="text" required class="pw-field-input">
         </div>
         <div class="flex justify-end gap-2 pt-1">
-          <button type="button" class="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
-          <button type="submit" class="wallet-primary-btn">Request Withdraw</button>
+          <button type="button" class="pw-ghost-btn" data-close>Cancel</button>
+          <button type="submit" class="pw-primary-btn">Request Withdraw</button>
         </div>
       </form>
     </div>
   </div>
 
+  <!-- Send modal -->
   <div id="sendModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm" aria-hidden="true">
-    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
+    <div class="pw-modal-card">
       <div class="mb-4 flex items-center justify-between">
         <h3 class="text-sm font-bold text-slate-100">Send Funds</h3>
         <button type="button" id="openScanQr" class="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-sky-400 hover:bg-white/10">
@@ -433,24 +415,24 @@
       </div>
       <form id="sendForm" method="POST" action="{{ url_for('wallet_transfer') }}" class="space-y-3">
         <div>
-          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Amount</label>
-          <input name="amount" type="number" step="0.01" min="0.01" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+          <label class="pw-field-label">Amount</label>
+          <input name="amount" type="number" step="0.01" min="0.01" required class="pw-field-input">
         </div>
         <div>
-          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Currency</label>
-          <select name="currency" class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+          <label class="pw-field-label">Currency</label>
+          <select name="currency" class="pw-field-input">
             <option value="etb">ETB</option>
             <option value="tokens">Alta tokens</option>
           </select>
         </div>
         <div>
-          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Recipient Wallet ID</label>
-          <input name="recipient_wallet_id" id="recipientWalletId" type="text" required autocomplete="off" class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+          <label class="pw-field-label">Recipient Wallet ID</label>
+          <input name="recipient_wallet_id" id="recipientWalletId" type="text" required autocomplete="off" class="pw-field-input">
           <p id="recipientNameHint" class="mt-1 text-xs"></p>
         </div>
         <div class="flex justify-end gap-2 pt-1">
-          <button type="button" class="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
-          <button type="submit" id="sendSubmitBtn" class="wallet-primary-btn">Send</button>
+          <button type="button" class="pw-ghost-btn" data-close>Cancel</button>
+          <button type="submit" id="sendSubmitBtn" class="pw-primary-btn">Send</button>
         </div>
       </form>
     </div>
@@ -461,12 +443,18 @@
     <div class="w-full max-w-xs rounded-2xl border border-white/10 bg-zinc-900/95 p-5 text-center shadow-2xl">
       <h3 class="mb-1 text-sm font-bold text-slate-100">Receive Funds</h3>
       <p class="mb-4 text-xs text-slate-500">Share this code so others can send you money instantly.</p>
-      <div class="mx-auto grid place-items-center rounded-2xl border border-sky-400/20 bg-white p-3 shadow-inner" style="width:200px;height:200px" id="receiveQrCode">
-        <div class="grid h-full w-full place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-center text-[11px] font-medium text-slate-500">
-          QR placeholder<br/>wallet code ready
+      {% if has_wallet_id %}
+        <div class="mx-auto grid place-items-center rounded-2xl border border-sky-400/20 bg-white p-3 shadow-inner" style="width:200px;height:200px" id="receiveQrCode">
+          <div class="grid h-full w-full place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-center text-[11px] font-medium text-slate-500">
+            QR placeholder<br/>wallet code ready
+          </div>
         </div>
-      </div>
-      <div class="mt-4 rounded-xl border border-white/5 bg-zinc-950/50 px-3 py-2 font-mono text-sm text-slate-200">{{ current_user.get('wallet_id', '—') }}</div>
+        <div class="mt-4 rounded-xl border border-white/5 bg-zinc-950/50 px-3 py-2 font-mono text-sm text-slate-200">{{ wallet_id }}</div>
+      {% else %}
+        <div class="rounded-xl border border-dashed border-white/10 bg-zinc-950/40 px-4 py-8 text-xs text-slate-500">
+          Generate a wallet first to get your receive code.
+        </div>
+      {% endif %}
       <button type="button" class="mt-4 w-full rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Close</button>
     </div>
   </div>
@@ -490,15 +478,6 @@ document.querySelectorAll('[data-modal]').forEach(function(btn) {
     var m = document.getElementById(btn.getAttribute('data-modal'));
     if (m) { m.classList.remove('hidden'); m.classList.add('flex'); m.setAttribute('aria-hidden', 'false'); }
   });
-});
-
-document.getElementById('openReceiveQr')?.addEventListener('click', function() {
-  var m = document.getElementById('receiveQrModal');
-  if (m) {
-    m.classList.remove('hidden');
-    m.classList.add('flex');
-    m.setAttribute('aria-hidden', 'false');
-  }
 });
 
 document.querySelectorAll('[data-close]').forEach(function(b) {
@@ -570,10 +549,23 @@ document.querySelectorAll('#depositModal, #withdrawModal, #sendModal, #receiveQr
   updateDisplay();
 })();
 
+// --- QR BUG FIX ---
+// Previously the top-right button on the balance card had no id/handler at all,
+// so nothing fired on click. It now has id="openReceiveQr" (see HTML above),
+// which this listener opens, and the block below renders the QR code into it.
+document.getElementById('openReceiveQr')?.addEventListener('click', function() {
+  var m = document.getElementById('receiveQrModal');
+  if (m) {
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+    m.setAttribute('aria-hidden', 'false');
+  }
+});
+
 // Receive QR code render (generated on demand, once)
 (function () {
   var openBtn = document.getElementById('openReceiveQr');
-  var walletId = {{ current_user.get('wallet_id', '')|tojson }};
+  var walletId = {{ (wallet_id if has_wallet_id else '')|tojson }};
   var rendered = false;
   if (!openBtn) return;
   openBtn.addEventListener('click', function () {
@@ -667,7 +659,7 @@ function stopQrScanner() {
 
 // Transaction filters (flow + date), operating on already-rendered rows
 (function () {
-  var chips = document.querySelectorAll('.filter-chip');
+  var chips = document.querySelectorAll('.pw-filter-chip');
   var dateInput = document.getElementById('txDateFilter');
   var dateClear = document.getElementById('txDateClear');
   var list = document.getElementById('requestsList');
@@ -678,15 +670,15 @@ function stopQrScanner() {
     var activeDate = dateInput ? dateInput.value : '';
     dateClear.classList.toggle('hidden', !activeDate);
     var anyVisible = false;
-    document.querySelectorAll('.tx-row').forEach(function (row) {
+    document.querySelectorAll('.pw-tx-row').forEach(function (row) {
       var flowOk = activeFlow === 'all' || row.getAttribute('data-tx-flow') === activeFlow;
       var dateOk = !activeDate || row.getAttribute('data-tx-date') === activeDate;
       var visible = flowOk && dateOk;
       row.style.display = visible ? '' : 'none';
       if (visible) anyVisible = true;
     });
-    document.querySelectorAll('#requestsList > div.divide-y').forEach(function (group) {
-      var hasVisibleRow = Array.prototype.some.call(group.querySelectorAll('.tx-row'), function (r) { return r.style.display !== 'none'; });
+    document.querySelectorAll('#requestsList > div.pw-tx-group').forEach(function (group) {
+      var hasVisibleRow = Array.prototype.some.call(group.querySelectorAll('.pw-tx-row'), function (r) { return r.style.display !== 'none'; });
       group.style.display = hasVisibleRow ? '' : 'none';
       var header = group.previousElementSibling;
       if (header) header.style.display = hasVisibleRow ? '' : 'none';
