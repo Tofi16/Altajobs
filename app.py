@@ -515,6 +515,7 @@ def init_postgres_db():
             id SERIAL PRIMARY KEY,
             post_id INTEGER NOT NULL,
             user_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
             UNIQUE(post_id, user_id),
             FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -898,6 +899,7 @@ def init_postgres_db():
         cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_status_created_at ON posts (status, created_at DESC)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_likes_post_id ON likes (post_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_likes_user_id ON likes (user_id)")
+        cur.execute("ALTER TABLE likes ADD COLUMN IF NOT EXISTS created_at TEXT DEFAULT ''")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments (post_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_saved_posts_user_post ON saved_posts (user_id, post_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_job_applications_applicant_post ON job_applications (applicant_id, post_id)")
@@ -3700,9 +3702,10 @@ def api_toggle_like(post_id):
         db.commit()
         liked = False
     else:
+        now = datetime.datetime.utcnow().isoformat()
         db.execute(
             "INSERT INTO likes (post_id, user_id, created_at) VALUES (?, ?, ?)",
-            (post_id, session["user_id"], datetime.datetime.utcnow().isoformat()),
+            (post_id, session["user_id"], now),
         )
         db.commit()
         liked = True

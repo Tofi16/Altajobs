@@ -219,7 +219,8 @@ document.addEventListener("DOMContentLoaded", function () {
   const photoName = document.getElementById("composePhotoName");
   const composeForm = document.getElementById("composeForm");
   const composeSubmit = document.getElementById("composeSubmitButton");
-  if (!textarea || !actions) return;
+  const photoButton = document.querySelector('.compose-media-icon');
+  if (!textarea) return;
 
   const updateComposeSubmitState = function () {
     const hasText = textarea.value.trim().length > 0;
@@ -263,6 +264,14 @@ document.addEventListener("DOMContentLoaded", function () {
       expand();
       photoName.textContent = photoInput.files && photoInput.files[0] ? photoInput.files[0].name : "";
       updateComposeSubmitState();
+    });
+  }
+
+  if (photoInput && photoButton) {
+    photoButton.addEventListener('click', function (e) {
+      if (photoInput) {
+        photoInput.click();
+      }
     });
   }
 
@@ -851,38 +860,59 @@ document.addEventListener("DOMContentLoaded", function () {
     const followerListEl = document.getElementById("shareFollowerList");
     const copyBtn = document.getElementById("sheetCopyLinkBtn");
     const sendBtn = document.getElementById("sheetSendToFollowerBtn");
-    if (!overlay || !sheet) return;
 
     let currentSharePostId = null;
     let currentShareUrl = null;
 
+    function doShareUrl(url) {
+      if (!url) return;
+      if (window.AJUI && typeof window.AJUI.doShare === "function") {
+        window.AJUI.doShare(url);
+        return;
+      }
+      if (navigator.share) {
+        navigator.share({ title: document.title, url: url }).catch(function () {});
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).catch(function () {});
+      }
+    }
+
     function closeShareSheet() {
+      if (!sheet || !overlay) return;
       sheet.classList.remove("open");
       overlay.classList.remove("open");
-      mainPanel.style.display = "";
-      followersPanel.style.display = "none";
+      if (mainPanel) mainPanel.style.display = "";
+      if (followersPanel) followersPanel.style.display = "none";
     }
 
     document.addEventListener("click", function (e) {
       const btn = e.target.closest(".js-share-btn");
-      if (btn) {
-        cancelActionClick(e);
-        currentSharePostId = btn.dataset.postId;
-        currentShareUrl = btn.dataset.postUrl;
-        mainPanel.style.display = "";
-        followersPanel.style.display = "none";
+      if (!btn) return;
+      cancelActionClick(e);
+      currentSharePostId = btn.dataset.postId;
+      currentShareUrl = btn.dataset.postUrl || (currentSharePostId ? window.location.origin + "/post/" + currentSharePostId : null);
+      if (!currentShareUrl) return;
+      if (overlay && sheet) {
+        if (mainPanel) mainPanel.style.display = "";
+        if (followersPanel) followersPanel.style.display = "none";
         sheet.classList.add("open");
         overlay.classList.add("open");
-        return;
+      } else {
+        doShareUrl(currentShareUrl);
       }
+    });
+
+    function isSheetOpen() {
+      return sheet && sheet.classList.contains("open");
+    }
+
+    document.addEventListener("click", function (e) {
       if (e.target.closest(".js-share-sheet-close")) {
         cancelActionClick(e);
         closeShareSheet();
         return;
       }
-      // Overlay is shared with the post-options sheet; only close this one
-      // if this sheet is the one currently open.
-      if (e.target === overlay && sheet.classList.contains("open")) {
+      if (e.target === overlay && isSheetOpen()) {
         cancelActionClick(e);
         closeShareSheet();
       }
@@ -908,9 +938,11 @@ document.addEventListener("DOMContentLoaded", function () {
     if (sendBtn) {
       sendBtn.addEventListener("click", function (e) {
         cancelActionClick(e);
-        mainPanel.style.display = "none";
-        followersPanel.style.display = "";
-        renderFollowerList(followerListEl, currentSharePostId, closeShareSheet);
+        if (mainPanel) mainPanel.style.display = "none";
+        if (followersPanel) followersPanel.style.display = "";
+        if (followerListEl) {
+          renderFollowerList(followerListEl, currentSharePostId, closeShareSheet);
+        }
       });
     }
   });

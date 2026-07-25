@@ -170,8 +170,9 @@
     </div>
     <span class="compose-photo-name" id="composePhotoName"></span>
     <div class="new-post-actions" id="composeActions">
-      <label class="compose-media-icon" title="{{ t.add_photo }}">
+      <label class="compose-media-icon" for="composePhotoInput" title="{{ t.add_photo }}">
         <i class='bx bx-image-add'></i>
+        <span class="compose-media-label">Upload photo</span>
         <input type="file" name="photo" accept="image/*" id="composePhotoInput">
       </label>
       <button type="submit" id="composeSubmitButton" class="btn btn-primary btn-disabled" disabled>{{ t.post_button }}</button>
