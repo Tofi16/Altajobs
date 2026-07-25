@@ -1,104 +1,41 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page-shell auth-page-shell">
-  <div class="absolute inset-0 pointer-events-none overflow-hidden">
-    <div class="auth-orb auth-orb-one"></div>
-    <div class="auth-orb auth-orb-two"></div>
-    <div class="auth-orb auth-orb-three"></div>
-  </div>
-  <div class="auth-card">
-    <div class="auth-banner">
-      <div class="auth-brand">
-        <span class="brand-mark">A</span>
-        <div>
-          <p class="auth-brand-label">AltaJobs Registration</p>
-          <p class="auth-subtitle">Join the premium talent marketplace and launch your account in seconds.</p>
-        </div>
-      </div>
-      <div class="space-y-2">
-        <h1 class="auth-title">Create your account</h1>
-        <p class="auth-copy">Get hiring, apply faster, and access trusted opportunities.</p>
-      </div>
-      <div class="auth-feature-list">
-        <div class="auth-feature"><span class="auth-feature-icon">✔</span><div><strong>Employer or worker</strong> accounts tailored to your hiring workflow.</div></div>
-        <div class="auth-feature"><span class="auth-feature-icon">✔</span><div><strong>Verified network</strong> and trusted jobs for every application.</div></div>
-        <div class="auth-feature"><span class="auth-feature-icon">✔</span><div><strong>Fast onboarding</strong> with clear steps and simple account setup.</div></div>
-      </div>
+<div class="min-h-screen flex items-center justify-center bg-slate-950 px-4 py-8 text-slate-100">
+  <div class="w-full max-w-md bg-slate-900/95 border border-white/10 backdrop-blur-xl rounded-3xl shadow-2xl p-8">
+    <div class="mb-8 text-center">
+      <div class="text-4xl font-black tracking-tight text-white">AltaJobs <span class="text-cyan-300">.</span></div>
     </div>
-
-    <form class="auth-form" method="POST" action="{{ url_for('register') }}">
+    <form method="POST" action="{{ url_for('register') }}" class="space-y-5" id="registerForm">
       <input type="hidden" name="ref_code" value="{{ ref_code if ref_code is defined else request.args.get('ref', '') }}">
-
-      <div class="auth-field">
-        <label for="full_name">{{ t.full_name }}</label>
-        <div class="auth-input-wrap">
-          <i class='bx bx-user auth-input-icon'></i>
-          <input id="full_name" class="auth-input" type="text" name="full_name" autocomplete="name" required>
-        </div>
+      <input type="hidden" name="confirm_password" id="confirm_password" value="">
+      <input type="hidden" name="user_type" value="worker">
+      <div>
+        <label for="username" class="block text-sm font-semibold text-slate-300 mb-2">{{ t.username }}</label>
+        <input id="username" name="username" type="text" autocomplete="username" required
+               class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20" />
       </div>
-      <div class="auth-field">
-        <label for="username">{{ t.username }}</label>
-        <div class="auth-input-wrap">
-          <i class='bx bx-at auth-input-icon'></i>
-          <input id="username" class="auth-input" type="text" name="username" autocomplete="username" required>
-        </div>
+      <div>
+        <label for="password" class="block text-sm font-semibold text-slate-300 mb-2">{{ t.password }}</label>
+        <input id="password" name="password" type="password" autocomplete="new-password" required
+               class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20" />
       </div>
-      <div class="auth-field">
-        <label for="password">{{ t.password }}</label>
-        <div class="auth-input-wrap">
-          <i class='bx bx-lock-alt auth-input-icon'></i>
-          <input id="password" class="auth-input" type="password" name="password" autocomplete="new-password" required>
-        </div>
-      </div>
-      <div class="auth-field">
-        <label for="confirm_password">Confirm Password</label>
-        <div class="auth-input-wrap">
-          <i class='bx bx-lock-open-alt auth-input-icon'></i>
-          <input id="confirm_password" class="auth-input" type="password" name="confirm_password" autocomplete="new-password" required>
-        </div>
-      </div>
-      <div class="auth-field">
-        <label for="user_type">Account type</label>
-        <div class="auth-input-wrap">
-          <i class='bx bx-briefcase auth-input-icon'></i>
-          <select id="user_type" class="auth-select" name="user_type">
-            <option value="worker">Worker</option>
-            <option value="employer">Employer</option>
-          </select>
-        </div>
-      </div>
-      <div class="auth-actions">
-        <button type="submit" class="auth-btn">{{ t.create_account }}</button>
-      </div>
+      <button type="submit" class="w-full rounded-2xl bg-cyan-500 px-4 py-3 text-base font-semibold text-slate-950 transition hover:bg-cyan-400">{{ t.create_account }}</button>
     </form>
-
-    {% if social_auth_enabled %}
-    <div class="auth-copy mt-4">Fast account creation with social login.</div>
-    <div class="social-grid">
-      {% if social_links.google %}
-      <a class="social-item" href="{{ social_links.google }}" target="_blank" rel="noopener noreferrer">
-        <i class='bx bxl-google'></i>
-        Google
-      </a>
-      {% endif %}
-      {% if social_links.telegram %}
-      <a class="social-item" href="{{ social_links.telegram }}" target="_blank" rel="noopener noreferrer">
-        <i class='bx bxl-telegram'></i>
-        Telegram
-      </a>
-      {% endif %}
-      {% if social_links.discord %}
-      <a class="social-item" href="{{ social_links.discord }}" target="_blank" rel="noopener noreferrer">
-        <i class='bx bxl-discord'></i>
-        Discord
-      </a>
-      {% endif %}
-    </div>
-    {% endif %}
-
-    <div class="auth-footer">
-      <div>{{ t.get('already_have_account', 'Already have an account?') }}</div>
-      <a class="auth-link" href="{{ url_for('login') }}">{{ t.login }}</a>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var form = document.getElementById('registerForm');
+        var password = document.getElementById('password');
+        var confirm = document.getElementById('confirm_password');
+        if (form && password && confirm) {
+          form.addEventListener('submit', function () {
+            confirm.value = password.value;
+          });
+        }
+      });
+    </script>
+    <div class="mt-6 text-center text-sm text-slate-400">
+      <span>{{ t.get('already_have_account', 'Already have an account?') }}</span>
+      <a href="{{ url_for('login') }}" class="font-semibold text-cyan-300 hover:text-cyan-200">{{ t.login }}</a>
     </div>
   </div>
 </div>

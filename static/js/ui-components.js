@@ -219,9 +219,10 @@
     var btn = e.target.closest('.js-post-menu-btn');
     if (btn) {
       if (btn.dataset.useUiPostMenu === 'false') {
+        cancelActionClick(e);
         return;
       }
-      e.preventDefault(); e.stopPropagation();
+      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
       var postId = btn.dataset.postId || '';
       var postUrl = btn.dataset.postUrl || (window.location.origin + '/post/' + postId);
       var deleteUrl = btn.dataset.deleteUrl || '#';

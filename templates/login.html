@@ -1,78 +1,26 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="page-shell auth-page-shell">
-  <div class="absolute inset-0 pointer-events-none overflow-hidden">
-    <div class="auth-orb auth-orb-one"></div>
-    <div class="auth-orb auth-orb-two"></div>
-    <div class="auth-orb auth-orb-three"></div>
-  </div>
-  <div class="auth-card">
-    <div class="auth-banner">
-      <div class="auth-brand">
-        <span class="brand-mark">A</span>
-        <div>
-          <p class="auth-brand-label">AltaJobs Secure Portal</p>
-          <p class="auth-subtitle">Sign in to continue to the premium talent marketplace.</p>
-        </div>
-      </div>
-      <div class="space-y-2">
-        <h1 class="auth-title">Welcome back</h1>
-        <p class="auth-copy">Secure access to your dashboard, listings, and hiring tools.</p>
-      </div>
-      <div class="auth-feature-list">
-        <div class="auth-feature"><span class="auth-feature-icon">✔</span><div><strong>Secure logins</strong> with modern session protection and fast access.</div></div>
-        <div class="auth-feature"><span class="auth-feature-icon">✔</span><div><strong>All your work</strong> in one place — jobs, messages, and verified opportunities.</div></div>
-        <div class="auth-feature"><span class="auth-feature-icon">✔</span><div><strong>Trusted marketplace</strong> for employers and talent to connect professionally.</div></div>
-      </div>
+<div class="min-h-screen flex items-center justify-center bg-slate-950 px-4 py-8 text-slate-100">
+  <div class="w-full max-w-md bg-slate-900/95 border border-white/10 backdrop-blur-xl rounded-3xl shadow-2xl p-8">
+    <div class="mb-8 text-center">
+      <div class="text-4xl font-black tracking-tight text-white">AltaJobs <span class="text-cyan-300">.</span></div>
     </div>
-
-    <form class="auth-form" method="POST" action="{{ url_for('login') }}">
-      <div class="auth-field">
-        <label for="username">{{ t.username }}</label>
-        <div class="auth-input-wrap">
-          <i class='bx bx-user auth-input-icon'></i>
-          <input id="username" class="auth-input" type="text" name="username" autocomplete="username" required>
-        </div>
+    <form method="POST" action="{{ url_for('login') }}" class="space-y-5">
+      <div>
+        <label for="username" class="block text-sm font-semibold text-slate-300 mb-2">{{ t.username }}</label>
+        <input id="username" name="username" type="text" autocomplete="username" required
+               class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20" />
       </div>
-      <div class="auth-field">
-        <label for="password">{{ t.password }}</label>
-        <div class="auth-input-wrap">
-          <i class='bx bx-lock-alt auth-input-icon'></i>
-          <input id="password" class="auth-input" type="password" name="password" autocomplete="current-password" required>
-        </div>
+      <div>
+        <label for="password" class="block text-sm font-semibold text-slate-300 mb-2">{{ t.password }}</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required
+               class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20" />
       </div>
-      <div class="auth-actions">
-        <button type="submit" class="auth-btn">{{ t.login }}</button>
-      </div>
+      <button type="submit" class="w-full rounded-2xl bg-cyan-500 px-4 py-3 text-base font-semibold text-slate-950 transition hover:bg-cyan-400">{{ t.login }}</button>
     </form>
-
-    {% if social_auth_enabled %}
-    <div class="auth-copy mt-4">Continue with your preferred platform.</div>
-    <div class="social-grid">
-      {% if social_links.google %}
-      <a class="social-item" href="{{ social_links.google }}" target="_blank" rel="noopener noreferrer">
-        <i class='bx bxl-google'></i>
-        Google
-      </a>
-      {% endif %}
-      {% if social_links.telegram %}
-      <a class="social-item" href="{{ social_links.telegram }}" target="_blank" rel="noopener noreferrer">
-        <i class='bx bxl-telegram'></i>
-        Telegram
-      </a>
-      {% endif %}
-      {% if social_links.discord %}
-      <a class="social-item" href="{{ social_links.discord }}" target="_blank" rel="noopener noreferrer">
-        <i class='bx bxl-discord'></i>
-        Discord
-      </a>
-      {% endif %}
-    </div>
-    {% endif %}
-
-    <div class="auth-footer">
-      <p>{{ t.get('new_here', 'New here?') }}</p>
-      <a class="auth-link" href="{{ url_for('register') }}">{{ t.create_account }}</a>
+    <div class="mt-6 text-center text-sm text-slate-400">
+      <span>{{ t.get('new_here', 'New here?') }}</span>
+      <a href="{{ url_for('register') }}" class="font-semibold text-cyan-300 hover:text-cyan-200">{{ t.create_account }}</a>
     </div>
   </div>
 </div>

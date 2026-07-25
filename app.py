@@ -5210,12 +5210,12 @@ def wallet():
     challenge_status = _safe_fetch_challenge_status(db, user["id"])
 
     template_name = None
-    if os.path.exists(os.path.join(app.root_path, "templates", "wallet 1.html")):
+    if os.path.exists(os.path.join(app.root_path, "templates", "wallet.html")):
+        template_name = "wallet.html"
+    elif os.path.exists(os.path.join(app.root_path, "templates", "wallet 1.html")):
         template_name = "wallet 1.html"
     elif os.path.exists(os.path.join(app.root_path, "templates", "wallet (6).html")):
         template_name = "wallet (6).html"
-    elif os.path.exists(os.path.join(app.root_path, "templates", "wallet.html")):
-        template_name = "wallet.html"
     elif os.path.exists(os.path.join(app.root_path, "templates", "wallet_welcome.html")):
         template_name = "wallet_welcome.html"
     else:

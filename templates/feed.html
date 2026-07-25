@@ -323,6 +323,7 @@
     if (!btn) return;
     e.preventDefault();
     e.stopPropagation();
+    e.stopImmediatePropagation();
     openFeedSheet(btn.dataset.postId, btn.dataset.postUrl, btn.dataset.deleteUrl, btn.dataset.canDelete === 'true');
   });
 
