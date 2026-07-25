@@ -1,57 +1,264 @@
-{# =============================================================================
-   SNIPPET 1 — _feed_posts.html
-   -----------------------------------------------------------------------------
-   Your file already has 90% of the right structure (the js-follow-btn and
-   js-post-menu-btn hooks, and a bottom-sheet in feed.html). The changes below
-   are the minimal diffs needed:
-
-     a) Follow chip — add a checkmark icon span so "Following" state is
-        visually distinct (hollow + check), not just a text swap.
-     b) Post menu button — unchanged, just make sure the inline <script> at
-        the bottom of this file is DELETED (see note at the very bottom of
-        this snippet) so it can't double-bind against static/js/altajobs-ui.js.
-     c) Share button — new. Sits next to the existing repost/share icons.
-   ========================================================================= #}
-
-<!-- (a) Follow chip — replace the existing <button class="xpost-follow-chip ...">
-     block inside _feed_posts.html with this: -->
-{% if current_user and post.user_id != current_user['id'] %}
-  <button type="button" class="xpost-follow-chip js-follow-btn {{ 'following' if item.following }}"
-          data-user-id="{{ post.user_id }}"
-          data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
-    <i class='bx bx-check follow-check-icon' aria-hidden="true"></i>
-    <span class="follow-chip-label">{{ t.unfollow if item.following else t.follow }}</span>
-  </button>
-{% endif %}
-
-<!-- Add this alongside your existing .xpost-follow-chip CSS block in the
-     <style> at the top of _feed_posts.html: -->
 <style>
-  .xpost-follow-chip { display: inline-flex; align-items: center; gap: 4px; }
-  .xpost-follow-chip .follow-check-icon { display: none; font-size: 1rem; }
-  .xpost-follow-chip.following .follow-check-icon { display: inline-block; }
-  .xpost-follow-chip.pending { opacity: 0.65; pointer-events: none; }
+  .xpost {
+    border: 1px solid rgba(255,255,255,0.06); border-radius: 22px; padding: 16px; display: flex; gap: 12px;
+    background: linear-gradient(180deg, rgba(18,22,32,0.96), rgba(10,13,21,0.98));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 10px 35px rgba(2,6,23,0.18);
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    margin-bottom: 12px;
+  }
+  .xpost:hover { transform: translateY(-1px); border-color: rgba(96,165,250,0.24); background: linear-gradient(180deg, rgba(22,27,39,0.98), rgba(11,14,23,0.98)); }
+  .xpost-avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg,#10b981,#0ea5e9); color: #05130d; font-weight: 900; font-size: 1.05rem; text-decoration: none; }
+  .xpost-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .xpost-body { flex: 1; min-width: 0; }
+  .xpost-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .xpost-headline { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; }
+  .xpost-name { font-weight: 800; color: #f1f5f9; text-decoration: none; font-size: 0.95rem; }
+  .xpost-badge { display: inline-flex; align-items: center; margin-left: 2px; }
+  .xpost-badge .verification-badge {
+    width: 18px; height: 18px; display: inline-flex; align-items: center;
+    padding: 0; margin: 0; background: none; border: none; border-radius: 0;
+  }
+  .xpost-badge .verification-badge svg { width: 18px; height: 18px; display: block; }
+  .xpost-meta { color: #71767b; font-size: 0.87rem; font-weight: 400; }
+  .xpost-dot::before { content: "·"; margin: 0 4px; color: #71767b; }
+  .xpost-menu-btn {
+    border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
+    color: #cbd5e1; cursor: pointer; width: 34px; height: 34px; border-radius: 999px;
+    display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+    flex-shrink: 0; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+  }
+  .xpost-menu-btn:hover {
+    background: linear-gradient(135deg, rgba(29,155,240,0.16), rgba(16,185,129,0.14));
+    color: #f8fafc; border-color: rgba(96,165,250,0.35); transform: translateY(-1px);
+  }
+  .xpost-content { color: #e7e9ea; font-size: 0.96rem; line-height: 1.55; margin: 2px 0 8px; white-space: pre-wrap; word-break: break-word; }
+  .xpost-content.xpost-clamped { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+  .xpost-seemore { background: none; border: none; color: #60a5fa; font-weight: 800; font-size: 0.84rem; cursor: pointer; padding: 2px 0; margin-bottom: 6px; display: none; }
+  .xpost-photo-wrap { border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; overflow: hidden; margin-bottom: 10px; background: rgba(255,255,255,0.02); }
+  .xpost-photo { width: 100%; max-height: 420px; object-fit: cover; display: block; }
+  .xpost-job-pill { display: inline-flex; align-items: center; gap: 4px; background: rgba(16,185,129,0.12); color: #34d399; font-size: 0.78rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; margin-bottom: 8px; }
+  .xpost-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; max-width: 380px; }
+  .xpost-action { display: flex; align-items: center; gap: 6px; border: none; background: transparent; color: #94a3b8; font-size: 0.84rem; font-weight: 700; cursor: pointer; padding: 7px 10px; margin: -7px -10px; border-radius: 999px; text-decoration: none; transition: background 0.15s ease, color 0.15s ease; }
+  .xpost-action i { font-size: 1.15rem; }
+  .xpost-action.like:hover, .xpost-action.like.liked { color: #fb7185; background: rgba(249,24,128,0.10); }
+  .xpost-action.comment:hover { color: #60a5fa; background: rgba(29,155,240,0.10); }
+  .xpost-action.repost:hover { color: #34d399; background: rgba(16,185,129,0.10); }
+  .xpost-action.share:hover { color: #fbbf24; background: rgba(251,191,36,0.10); }
+  .xpost-head-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .xpost-follow-chip {
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 999px; padding: 5px 14px;
+    font-weight: 800; font-size: 0.78rem; color: #e7e9ea; background: linear-gradient(135deg, #22c55e, #10b981);
+    cursor: pointer; white-space: nowrap; transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .xpost-follow-chip:not(.following) { background: linear-gradient(135deg, #22c55e, #10b981); color: #04110a; border-color: transparent; }
+  .xpost-follow-chip.following { background: transparent; color: #e7e9ea; }
+  .xpost-follow-chip.following:hover { border-color: rgba(239,68,68,0.4); color: #f87171; }
 </style>
 
-<!-- (c) Share button — add this <button> right after the existing
-     .xpost-action.share button inside the .xpost-actions row. It tries the
-     native OS share sheet first and falls back to the existing
-     #shareActionsSheet (Copy Link / Send to Follower) bottom sheet that
-     feed.html already defines — no new sheet markup needed. -->
-<button type="button" class="xpost-action share js-native-share-btn" data-post-id="{{ post.id }}"
-        data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}"
-        data-post-title="{{ (post.content or 'Check out this post on AltaJobs')[:120] }}"
-        title="Share">
-  <i class='bx bx-share-alt'></i>
-</button>
+{% for item in posts_data %}
+  {% set post = item.post %}
+  <article class="xpost" data-post-id="{{ post.id }}" data-post-type="{{ post.post_type }}">
+    <a href="{{ url_for('profile', user_id=post.user_id) }}" class="xpost-avatar">
+      {% if post.avatar %}
+        <img src="{{ photo_url(post.avatar) }}" loading="lazy" alt="">
+      {% else %}
+        {{ (post.full_name or post.username)[0]|upper }}
+      {% endif %}
+    </a>
+    <div class="xpost-body">
+      <div class="xpost-head">
+        <div class="xpost-headline">
+          <a href="{{ url_for('profile', user_id=post.user_id) }}" class="xpost-name">{{ item.author_name }}</a>
+          <span class="xpost-badge">{{ verification_badge_svg(post) }}</span>
+          <span class="xpost-meta xpost-dot">@{{ post.username }} · {{ post.created_at[:16].replace('T',' ') if post.created_at else '' }}</span>
+        </div>
+        <div class="xpost-head-actions">
+          {% if current_user and post.user_id != current_user['id'] %}
+            <button type="button" class="xpost-follow-chip js-follow-btn {{ 'following' if item.following }}"
+                    data-user-id="{{ post.user_id }}"
+                    data-follow-label="{{ t.follow }}"
+                    data-following-label="{{ t.unfollow }}"
+                    aria-pressed="{{ 'true' if item.following else 'false' }}">
+              <span class="follow-label">{{ t.unfollow if item.following else t.follow }}</span>
+            </button>
+          {% endif %}
+          <button type="button" class="xpost-menu-btn js-post-menu-btn"
+                  data-post-id="{{ post.id }}"
+                  data-delete-url="{{ url_for('delete_post', post_id=post.id) }}"
+                  data-can-delete="{{ 'true' if current_user and (post.user_id == current_user['id'] or current_user.get('is_admin')) else 'false' }}"
+                  data-use-ui-post-menu="false"
+                  aria-label="More options">
+            <i class='bx bx-dots-horizontal-rounded'></i>
+          </button>
+        </div>
+      </div>
 
-{# =============================================================================
-   IMPORTANT: delete the <script>...</script> block currently at the bottom
-   of _feed_posts.html (the one that defines the IIFE handling
-   .js-xpost-content "see more" and .js-post-menu-btn). Its logic is now
-   consolidated into static/js/altajobs-ui.js, which is loaded once via
-   base.html and works whether this partial is rendered on first load or
-   inserted later by the "Load More" AJAX handler. Keeping both copies is
-   exactly the kind of double-binding that causes bugs like "Cancel doesn't
-   close the menu" — two listeners fighting over the same class toggle.
-   ========================================================================= #}
+      {% if post.post_type == 'job' %}
+        <div class="xpost-job-pill">💼 {{ t.post_job if t.post_job is defined else 'Job' }}</div>
+      {% endif %}
+
+      {% if post.content %}
+        <a href="{{ url_for('post_detail', post_id=post.id) }}" style="text-decoration:none">
+          <p class="xpost-content xpost-clamped js-xpost-content">{{ post.content }}</p>
+        </a>
+        <button type="button" class="xpost-seemore js-xpost-seemore"
+                data-see-more="{{ t.see_more if t.see_more is defined else 'See more' }}"
+                data-see-less="{{ t.see_less if t.see_less is defined else 'See less' }}">{{ t.see_more if t.see_more is defined else 'See more' }}</button>
+      {% endif %}
+
+      {% if post.photo %}
+        <a href="{{ url_for('post_detail', post_id=post.id) }}" class="xpost-photo-wrap">
+          <img class="xpost-photo" src="{{ photo_url(post.photo) }}" loading="lazy" alt="">
+        </a>
+      {% endif %}
+
+      <div class="xpost-actions">
+        <button type="button" class="xpost-action like js-like-btn {{ 'liked' if item.liked }}"
+                data-post-id="{{ post.id }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}">
+          <i class='bx {{ "bxs-heart" if item.liked else "bx-heart" }}'></i>
+          <span class="like-count">{{ item.like_count }}</span>
+        </button>
+        <a href="{{ url_for('post_detail', post_id=post.id) }}" class="xpost-action comment">
+          <i class='bx bx-comment'></i><span>{{ item.comment_count }}</span>
+        </a>
+        <button type="button" class="xpost-action repost js-repost-btn" data-post-id="{{ post.id }}" title="Repost">
+          <i class='bx bx-repost'></i><span class="repost-count">{{ post.share_count or 0 }}</span>
+        </button>
+        <button type="button" class="xpost-action share js-share-btn" data-post-id="{{ post.id }}"
+                data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}" title="Share">
+          <i class='bx bx-share-alt'></i>
+        </button>
+      </div>
+    </div>
+  </article>
+{% endfor %}
+
+<script>
+(function () {
+  if (window.__xpostMenuBound) return;
+  window.__xpostMenuBound = true;
+
+  var overlay = document.getElementById('bottomSheetOverlay');
+  var sheet = document.getElementById('postActionsSheet');
+  var deleteForm = document.getElementById('sheetDeleteForm');
+  var reportForm = document.getElementById('sheetReportForm');
+  var reportTarget = document.getElementById('sheetReportTargetId');
+  var cancelBtn = document.getElementById('sheetCancelBtn');
+  if (!overlay || !sheet) return;
+
+  function closeSheet() {
+    sheet.classList.remove('open');
+    overlay.classList.remove('open');
+    if (deleteForm) deleteForm.style.display = '';
+    if (reportTarget) reportTarget.value = '';
+  }
+
+  var currentActionPostId = null;
+
+  function openSheet(postId, deleteUrl, canDelete) {
+    currentActionPostId = postId || null;
+    if (deleteForm) {
+      deleteForm.action = deleteUrl || '';
+      deleteForm.style.display = canDelete ? '' : 'none';
+    }
+    if (reportTarget) {
+      reportTarget.value = postId || '';
+    }
+    sheet.classList.add('open');
+    overlay.classList.add('open');
+  }
+
+  if (deleteForm) {
+    deleteForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var action = deleteForm.action;
+      if (!action) return;
+      fetch(action, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data && data.success) {
+          if (currentActionPostId) {
+            var removed = document.querySelector('.xpost[data-post-id="' + currentActionPostId + '"]');
+            if (!removed) {
+              var btn = document.querySelector('.js-post-menu-btn[data-post-id="' + currentActionPostId + '"]');
+              if (btn) removed = btn.closest('.xpost');
+            }
+            if (removed) removed.remove();
+          }
+          closeSheet();
+        } else {
+          closeSheet();
+        }
+      })
+      .catch(function () {
+        closeSheet();
+      });
+    });
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.js-post-menu-btn');
+    if (!btn) {
+      if (e.target === overlay && sheet.classList.contains('open')) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        closeSheet();
+      }
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    openSheet(btn.dataset.postId, btn.dataset.deleteUrl, btn.dataset.canDelete === 'true');
+  });
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeSheet();
+    });
+  }
+
+  if (overlay) {
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay && sheet.classList.contains('open')) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeSheet();
+      }
+    });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && sheet.classList.contains('open')) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeSheet();
+    }
+  });
+
+  document.querySelectorAll('.js-xpost-content').forEach(function (el) {
+    if (el.dataset.xpostBound) return;
+    el.dataset.xpostBound = '1';
+    if (el.scrollHeight > el.clientHeight + 4) {
+      var btn = el.parentElement.querySelector('.js-xpost-seemore');
+      if (btn) {
+        btn.style.display = 'inline-block';
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var expanded = el.classList.toggle('xpost-clamped') === false;
+          btn.textContent = expanded ? btn.dataset.seeLess : btn.dataset.seeMore;
+        });
+      }
+    }
+  });
+})();
+</script>

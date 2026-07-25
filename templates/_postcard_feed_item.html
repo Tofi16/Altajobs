@@ -1,73 +1,76 @@
-{# =============================================================================
-   SNIPPET 2 — _postcard_feed_item.html
-   -----------------------------------------------------------------------------
-   This partial doesn't currently have a follow button or a menu/share button
-   at all — only like/comment/repost/share icons with no menu (⋯). Add both,
-   using the exact same JS hooks (js-follow-btn, js-post-menu-btn,
-   js-native-share-btn) so one shared static/js/altajobs-ui.js file drives
-   every post card style in the app.
-   ========================================================================= #}
+{# ==========================================================================
+   POSTCARD FEED ITEM — single post card
+   Drop-in replacement for one post's markup inside _feed_posts.html's loop.
+   Expects the same `post` row object your existing partial uses (adjust
+   field names below if your row keys differ, e.g. post['user_full_name']).
+   Requires premium-redesign.css to be loaded on the page.
+   ========================================================================== #}
 
-<div class="pc-header">
-  <div class="pc-avatar">
-    {# ...unchanged avatar markup... #}
-  </div>
+<article class="pc-card" data-post-id="{{ post['id'] }}">
 
-  <div class="pc-identity">
-    <div class="pc-name-row">
-      {# ...unchanged name / badge / role-pill markup... #}
+  <div class="pc-header">
+    <div class="pc-avatar">
+      {% if post['avatar'] %}
+        <img src="{{ photo_url(post['avatar']) }}" loading="lazy" decoding="async" alt="{{ post['full_name'] or post['username'] }}">
+      {% else %}
+        <div style="width:100%;height:100%;display:grid;place-items:center;background:var(--pw-surface-raised);color:var(--pw-gold-bright);font-weight:700;">
+          {{ (post['full_name'] or post['username'])[0] }}
+        </div>
+      {% endif %}
     </div>
-    <div class="pc-meta">{{ post['created_at'] }}</div>
+
+    <div class="pc-identity">
+      <div class="pc-name-row">
+        <span class="pc-name">{{ post['full_name'] or post['username'] }}</span>
+        {% if post['verification_tier'] in ('blue', 'gold') %}
+          {# Self-contained badge — swap for your existing verification badge
+             include/macro if you already have one elsewhere in the app. #}
+          <span class="verification-badge--inline verification-badge--{{ post['verification_tier'] }}" title="{{ 'Gold Verified' if post['verification_tier'] == 'gold' else 'Verified' }}">
+            <svg viewBox="0 0 22 22" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <path d="M11 1.5l2.6 1.3 2.9-.4 1.3 2.6 2.6 1.3-.4 2.9 1.3 2.6-1.9 2.2.4 2.9-2.9.4-1.9 2.2-2.6-1.3-2.9.4-1.3-2.6-2.6-1.3.4-2.9-1.3-2.6 1.9-2.2-.4-2.9 2.9-.4 1.9-2.2z"/>
+              <path d="M8.2 11.2l1.8 1.8 3.8-3.8" stroke="{{ '#3b2a00' if post['verification_tier'] == 'gold' else '#0B1210' }}" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        {% endif %}
+        {% if post['post_type'] == 'job' %}
+          <span class="pc-role-pill">💼 Job</span>
+        {% elif post['post_type'] == 'skill' %}
+          <span class="pc-role-pill">🧩 Seeking</span>
+        {% endif %}
+      </div>
+      <div class="pc-meta">{{ post['created_at'] }}</div>
+    </div>
   </div>
 
-  {# --- NEW: follow chip + menu button, right-aligned in the header --- #}
-  <div class="pc-head-actions" style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-    {% if current_user and post['user_id'] != current_user['id'] %}
-      <button type="button" class="pc-follow-chip js-follow-btn {{ 'following' if post['following'] }}"
-              data-user-id="{{ post['user_id'] }}"
-              data-follow-label="Follow" data-following-label="Following">
-        <i class='bx bx-check follow-check-icon' aria-hidden="true"></i>
-        <span class="follow-chip-label">{{ 'Following' if post['following'] else 'Follow' }}</span>
-      </button>
-    {% endif %}
-    <button type="button" class="pc-menu-btn js-post-menu-btn"
-            data-post-id="{{ post['id'] }}"
-            data-delete-url="{{ url_for('delete_post', post_id=post['id']) }}"
-            aria-label="More options">
-      <i class='bx bx-dots-horizontal-rounded'></i>
+  {% if post['content'] %}
+    <p class="pc-body-text">{{ post['content'] }}</p>
+  {% endif %}
+
+  {% if post['photo'] %}
+    <div class="pc-media">
+      <img src="{{ photo_url(post['photo']) }}" loading="lazy" decoding="async" alt="Post image">
+      {% if post['post_type'] == 'job' %}
+        <span class="pc-media-tag"><i class='bx bxs-briefcase'></i> Hiring now</span>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="pc-actions">
+    <button type="button" class="pc-action-btn js-like-btn {{ 'liked' if post['liked'] else '' }}" data-post-id="{{ post['id'] }}">
+      <i class='bx {{ "bxs-heart" if post['liked'] else "bx-heart" }}'></i>
+      <span>{{ post['like_count'] if post['like_count'] is defined else 0 }}</span>
+    </button>
+    <button type="button" class="pc-action-btn js-comment-btn" data-post-id="{{ post['id'] }}">
+      <i class='bx bx-comment'></i>
+      <span>{{ post['comment_count'] if post['comment_count'] is defined else 0 }}</span>
+    </button>
+    <button type="button" class="pc-action-btn js-repost-btn" data-post-id="{{ post['id'] }}">
+      <i class='bx bx-repost'></i>
+      <span>Repost</span>
+    </button>
+    <button type="button" class="pc-action-btn js-share-btn" data-post-id="{{ post['id'] }}">
+      <i class='bx bx-share-alt'></i>
     </button>
   </div>
-</div>
 
-<!-- Add to premium-redesign.css (mirrors .xpost-follow-chip from _feed_posts.html) -->
-<style>
-  .pc-follow-chip {
-    display: inline-flex; align-items: center; gap: 4px;
-    border: 1px solid var(--pw-gold-bright, rgba(255,255,255,0.15));
-    border-radius: 999px; padding: 5px 12px; font-weight: 700; font-size: 0.78rem;
-    background: var(--pw-gold-bright, #10b981); color: #05130d; cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-  }
-  .pc-follow-chip .follow-check-icon { display: none; font-size: 1rem; }
-  .pc-follow-chip.following {
-    background: transparent; color: var(--pw-text, #e7e9ea);
-  }
-  .pc-follow-chip.following .follow-check-icon { display: inline-block; }
-  .pc-follow-chip.following:hover { border-color: rgba(239,68,68,0.4); color: #f87171; }
-  .pc-follow-chip.pending { opacity: 0.65; pointer-events: none; }
-
-  .pc-menu-btn {
-    width: 32px; height: 32px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(255,255,255,0.04); color: var(--pw-text, #cbd5e1); display: flex;
-    align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
-  }
-</style>
-
-<!-- Update the existing js-share-btn button in .pc-actions to add the
-     native-share hooks (title/url data attributes + renamed class so the
-     shared handler in altajobs-ui.js picks it up): -->
-<button type="button" class="pc-action-btn js-native-share-btn" data-post-id="{{ post['id'] }}"
-        data-post-url="{{ url_for('post_detail', post_id=post['id'], _external=True) }}"
-        data-post-title="{{ (post['content'] or 'Check out this post on AltaJobs')[:120] }}">
-  <i class='bx bx-share-alt'></i>
-</button>
+</article>
