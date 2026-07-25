@@ -91,6 +91,7 @@
   }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+{% block extra_styles %}{% endblock %}
 <noscript><style>body{opacity:1;visibility:visible;transition:none;}#page-loader{display:none!important;}</style></noscript>
 </head>
 <body class="{% if request.path.startswith('/admin') %}admin-page{% endif %}">
