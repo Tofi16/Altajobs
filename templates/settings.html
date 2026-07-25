@@ -3,101 +3,109 @@
 
 <style>
   .settings-shell {
-    max-width: 720px; margin: 0 auto; padding: 20px 16px 24px;
+    max-width: 760px; margin: 0 auto; padding: 24px 20px 28px;
+    background: linear-gradient(180deg, rgba(7, 11, 20, 0.96), rgba(10, 15, 28, 0.98));
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 32px;
+    box-shadow: 0 32px 90px rgba(0, 0, 0, 0.36);
+    backdrop-filter: blur(25px);
   }
   .settings-topbar {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    margin-bottom: 18px;
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    margin-bottom: 24px;
   }
   .settings-title-wrap {
     display: flex; flex-direction: column; gap: 4px;
   }
   .settings-title {
-    font-size: 1.15rem; font-weight: 900; color: #f8fafc;
+    font-size: 1.45rem; font-weight: 900; color: #f8fafc;
   }
   .settings-subtitle {
-    font-size: 0.78rem; color: #94a3b8;
+    font-size: 0.9rem; color: #94a3b8;
   }
   .settings-menu-wrap {
     position: relative;
   }
   .settings-menu-btn {
-    width: 42px; height: 42px; border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04);
+    width: 46px; height: 46px; border-radius: 14px;
+    border: 1px solid rgba(214, 178, 110, 0.18); background: rgba(214, 178, 110, 0.08);
     color: #e2e8f0; display: grid; place-items: center;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+    transition: transform .16s ease, background .16s ease, border-color .16s ease;
   }
+  .settings-menu-btn:hover { background: rgba(214, 178, 110, 0.12); transform: translateY(-1px); }
   .settings-menu-panel {
-    position: absolute; top: calc(100% + 8px); right: 0; min-width: 220px;
-    padding: 8px; border-radius: 16px; background: rgba(15, 23, 42, 0.97);
-    border: 1px solid rgba(148, 163, 184, 0.16); backdrop-filter: blur(14px);
-    box-shadow: 0 18px 40px rgba(2, 6, 23, 0.38); display: none;
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 240px;
+    padding: 10px; border-radius: 18px; background: rgba(7, 11, 20, 0.98);
+    border: 1px solid rgba(214, 178, 110, 0.18); backdrop-filter: blur(18px);
+    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.35); display: none;
     z-index: 30;
   }
   .settings-menu-panel.open { display: block; }
   .settings-menu-link {
-    display: flex; align-items: center; gap: 10px; padding: 10px 10px;
-    border-radius: 12px; color: #e2e8f0; font-size: 0.88rem; font-weight: 700;
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+    border-radius: 14px; color: #e2e8f0; font-size: 0.92rem; font-weight: 700;
   }
-  .settings-menu-link:hover { background: rgba(255,255,255,0.06); }
-  .settings-menu-link i { font-size: 1rem; }
+  .settings-menu-link:hover { background: rgba(214, 178, 110, 0.06); }
+  .settings-menu-link i { font-size: 1.05rem; color: #D6B26E; }
   .settings-card {
-    background: linear-gradient(180deg, rgba(24,27,39,0.88), rgba(9,12,20,0.92));
-    border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; padding: 16px;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+    background: rgba(10, 16, 32, 0.92);
+    border: 1px solid rgba(255,255,255,0.06); border-radius: 24px; padding: 20px;
+    box-shadow: inset 0 1px 2px rgba(255,255,255,0.02);
   }
   .settings-card-title {
-    font-size: 0.82rem; font-weight: 800; color: #f8fafc; text-transform: uppercase;
-    letter-spacing: 0.12em;
+    font-size: 0.78rem; font-weight: 800; color: #f8fafc; text-transform: uppercase;
+    letter-spacing: 0.14em;
   }
   .settings-row {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    padding: 12px 10px; border-radius: 14px; transition: background .14s ease;
+    padding: 14px 16px; border-radius: 20px; transition: background .16s ease;
   }
-  .settings-row:hover { background: rgba(255,255,255,0.04); }
+  .settings-row:hover { background: rgba(214, 178, 110, 0.04); }
   .settings-row-left {
-    display: flex; align-items: center; gap: 12px; min-width: 0;
+    display: flex; align-items: center; gap: 14px; min-width: 0;
   }
   .settings-icon {
-    width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px;
-    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06);
+    width: 44px; height: 44px; display: grid; place-items: center; border-radius: 16px;
+    background: rgba(214, 178, 110, 0.10); border: 1px solid rgba(214, 178, 110, 0.14);
   }
   .settings-row-title {
-    font-size: 0.9rem; font-weight: 800; color: #f8fafc;
+    font-size: 0.95rem; font-weight: 900; color: #f8fafc;
   }
   .settings-row-subtitle {
-    margin-top: 2px; font-size: 0.72rem; color: #94a3b8;
+    margin-top: 2px; font-size: 0.78rem; color: #8FA39C;
   }
   .settings-quick-actions {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 12px;
-    margin-bottom: 18px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    margin-bottom: 22px;
   }
   .settings-quick-action {
-    display: flex; align-items: center; gap: 14px;
-    padding: 16px 18px;
-    border-radius: 18px;
+    display: flex; align-items: center; gap: 16px;
+    padding: 20px 22px;
+    border-radius: 24px;
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.08);
-    transition: transform .14s ease, background .14s ease, border-color .14s ease;
+    transition: transform .16s ease, background .16s ease, border-color .16s ease;
     text-decoration: none;
     color: #e2e8f0;
+    backdrop-filter: blur(14px);
   }
   .settings-quick-action:hover {
     transform: translateY(-1px);
-    background: rgba(255,255,255,0.08);
-    border-color: rgba(59,130,246,0.24);
+    background: rgba(214, 178, 110, 0.08);
+    border-color: rgba(214, 178, 110, 0.18);
   }
   .settings-quick-action-icon {
-    width: 42px; height: 42px; display: grid; place-items: center;
-    border-radius: 14px; background: rgba(59,130,246,0.14); color: #7dd3fc; font-size: 1.25rem;
+    width: 50px; height: 50px; display: grid; place-items: center;
+    border-radius: 18px; background: rgba(214, 178, 110, 0.16); color: #D6B26E; font-size: 1.4rem;
   }
   .settings-quick-action-title {
-    font-size: 0.95rem; font-weight: 800; color: #f8fafc;
+    font-size: 1rem; font-weight: 900; color: #f8fafc;
   }
   .settings-quick-action-copy {
-    margin-top: 2px; font-size: 0.78rem; color: #94a3b8;
+    margin-top: 2px; font-size: 0.78rem; color: #8FA39C;
   }
 </style>
 

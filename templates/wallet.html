@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{% block extra_styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/premium-redesign.css') }}">
+{% endblock %}
 {% block content %}
 
 <style>
@@ -6,10 +9,10 @@
   .wallet-hero {
     border-radius: 30px;
     padding: 30px;
-    background: linear-gradient(180deg, rgba(14, 33, 72, 0.88), rgba(8, 14, 26, 0.98));
-    border: 1px solid rgba(96, 165, 250, 0.18);
-    box-shadow: 0 28px 70px rgba(5, 15, 35, 0.32);
-    backdrop-filter: blur(20px);
+    background: linear-gradient(180deg, rgba(11, 18, 16, 0.92), rgba(22, 30, 26, 0.98));
+    border: 1px solid rgba(214, 178, 110, 0.18);
+    box-shadow: 0 28px 70px rgba(0, 0, 0, 0.36);
+    backdrop-filter: blur(24px);
     position: relative;
     overflow: hidden;
   }
@@ -17,8 +20,8 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at top right, rgba(96, 165, 250, 0.16), transparent 28%),
-                radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.12), transparent 26%);
+    background: radial-gradient(circle at top right, rgba(214, 178, 110, 0.14), transparent 28%),
+                radial-gradient(circle at bottom left, rgba(224, 138, 76, 0.1), transparent 26%);
     pointer-events: none;
   }
   .wallet-hero > * {
@@ -36,18 +39,18 @@
     font-size: 0.75rem;
     font-weight: 900;
     letter-spacing: 0.26em;
-    color: #94a3b8;
+    color: #8FA39C;
   }
   .wallet-hero-subtitle {
     margin-top: 8px;
-    color: #cbd5e1;
+    color: #D8CDAF;
     font-size: 0.95rem;
     line-height: 1.75;
     max-width: 440px;
   }
   .wallet-hero-owner {
     margin-top: 18px;
-    color: #f8fafc;
+    color: #F4F1EA;
     font-size: 0.95rem;
     font-weight: 700;
   }
@@ -73,9 +76,9 @@
     gap: 10px;
     padding: 10px 14px;
     border-radius: 999px;
-    border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(255,255,255,0.03);
-    color: #cbd5e1;
+    border: 1px solid rgba(214, 178, 110, 0.18);
+    background: rgba(214, 178, 110, 0.06);
+    color: #E9E1C9;
     font-size: 0.88rem;
     font-weight: 600;
     max-width: fit-content;
@@ -111,7 +114,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: #60a5fa;
+    color: #D6B26E;
     font-weight: 700;
     font-size: 0.88rem;
   }
@@ -124,16 +127,16 @@
     padding: 18px 10px;
     font-size: 12px;
     font-weight: 800;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    color: #e2e8f0;
-    box-shadow: 0 20px 40px rgba(6, 15, 32, 0.18);
+    background: rgba(214, 178, 110, 0.05);
+    border: 1px solid rgba(214, 178, 110, 0.14);
+    color: #F4F1EA;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
     transition: transform .16s ease, background .16s ease, border-color .16s ease;
   }
   .wallet-action-btn:hover {
     transform: translateY(-1px);
-    background: rgba(255,255,255,0.08);
-    border-color: rgba(96,165,250,0.22);
+    background: rgba(214, 178, 110, 0.1);
+    border-color: rgba(214, 178, 110, 0.28);
   }
   .wallet-action-btn:active { transform: scale(0.98); }
   .wallet-action-icon {
@@ -149,9 +152,9 @@
     padding: 12px 18px;
     font-size: 14px;
     font-weight: 800;
-    background: linear-gradient(135deg, var(--accent, #1D9BF0), var(--accent-dark, #1a7fc9));
-    color: #ffffff;
-    box-shadow: 0 14px 28px rgba(29,155,240,0.22);
+    background: linear-gradient(135deg, #D6B26E 0%, #E08A4C 100%);
+    color: #0B1210;
+    box-shadow: 0 14px 28px rgba(214, 178, 110, 0.32);
     transition: transform .12s ease, box-shadow .12s ease;
   }
   .wallet-primary-btn:hover { transform: translateY(-1px); }
@@ -167,9 +170,9 @@
     transition: background .16s ease, color .16s ease, border-color .16s ease;
   }
   .filter-chip[aria-pressed="true"] {
-    background: linear-gradient(135deg, var(--accent, #1D9BF0), var(--accent-dark, #1a7fc9));
+    background: linear-gradient(135deg, #D6B26E 0%, #E08A4C 100%);
     border-color: transparent;
-    color: #ffffff;
+    color: #0B1210;
   }
   .wallet-section-head {
     display: flex;
