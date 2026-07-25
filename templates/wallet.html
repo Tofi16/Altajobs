@@ -84,8 +84,17 @@
       <div>
         <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Personal Wallet</div>
         <div class="mt-1 text-[11px] font-medium text-slate-500">Wallet balance overview</div>
-        <div class="mt-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">Balance</div>
-        <div class="mt-1 text-4xl font-black text-slate-50 tabular-nums">{{ current_user.get('wallet_balance', current_user.get('balance', 0)) }} <span class="text-lg font-bold text-slate-400">ETB</span></div>
+        <div class="mt-2 text-sm font-semibold text-slate-100">{{ current_user.get('full_name') or current_user.get('username') or 'Wallet Holder' }}</div>
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <div>
+            <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Balance</div>
+            <div id="walletBalanceValue" class="mt-1 text-4xl font-black text-slate-50 tabular-nums">{{ current_user.get('wallet_balance', current_user.get('balance', 0)) }} <span class="text-lg font-bold text-slate-400">ETB</span></div>
+          </div>
+          <button type="button" id="toggleBalanceVisibility" class="wallet-action-btn wallet-visibility-btn" style="padding:10px 12px; min-width:120px;">
+            <span class="wallet-action-icon bg-slate-800/80 text-slate-200" style="font-size:16px">👁️</span>
+            <span class="text-[11px] font-semibold">Hide balance</span>
+          </button>
+        </div>
       </div>
       <button type="button" id="openReceiveQr" aria-label="Show my QR code" class="shrink-0 grid h-11 w-11 place-items-center rounded-xl border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 active:scale-95 transition">
         <i class='bx bx-qr' style="font-size:20px"></i>
@@ -179,7 +188,11 @@
               </div>
             </div>
             <div class="shrink-0 text-right">
-              <div class="tx-amount {{ 'text-red-400' if is_withdrawal else 'text-emerald-400' }}">{{ '-' if is_withdrawal else '+' }}{{ (r['amount'] if 'amount' in r.keys() else '') }} ETB</div>
+              {% set amount_unit = 'ETB' %}
+              {% if note_val and 'Alta tokens' in note_val %}
+                {% set amount_unit = 'tokens' %}
+              {% endif %}
+              <div class="tx-amount {{ 'text-red-400' if is_withdrawal else 'text-emerald-400' }}">{{ '-' if is_withdrawal else '+' }}{{ (r['amount'] if 'amount' in r.keys() else '') }} {{ amount_unit }}</div>
               <span class="admin-badge tx-status {{ 'admin-badge-success' if status == 'approved' else ('admin-badge-danger' if status in ('rejected','declined') else 'admin-badge-warning') }}">{{ status|capitalize }}</span>
             </div>
           </div>
@@ -272,6 +285,13 @@
           <input name="amount" type="number" step="0.01" min="0.01" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
         <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Currency</label>
+          <select name="currency" class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+            <option value="etb">ETB</option>
+            <option value="tokens">Alta tokens</option>
+          </select>
+        </div>
+        <div>
           <label class="mb-1 block text-[11px] font-semibold text-slate-500">Recipient Wallet ID</label>
           <input name="recipient_wallet_id" id="recipientWalletId" type="text" required autocomplete="off" class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
           <p id="recipientNameHint" class="mt-1 text-xs"></p>
@@ -354,6 +374,33 @@ document.querySelectorAll('#depositModal, #withdrawModal, #sendModal, #receiveQr
       btn.innerHTML = '<i class="bx bx-check"></i> Copied!';
       setTimeout(function () { btn.innerHTML = original; }, 1500);
     });
+  });
+})();
+
+// Balance visibility toggle
+(function () {
+  var toggle = document.getElementById('toggleBalanceVisibility');
+  var balance = document.getElementById('walletBalanceValue');
+  if (!toggle || !balance) return;
+
+  function setHidden(hidden) {
+    var amount = {{ current_user.get('wallet_balance', current_user.get('balance', 0)) }};
+    if (hidden) {
+      balance.innerHTML = '<span class="text-4xl font-black text-slate-50 tabular-nums">••••</span> <span class="text-lg font-bold text-slate-400">ETB</span>';
+      toggle.querySelector('span:last-child').textContent = 'Show balance';
+    } else {
+      balance.innerHTML = amount + ' <span class="text-lg font-bold text-slate-400">ETB</span>';
+      toggle.querySelector('span:last-child').textContent = 'Hide balance';
+    }
+    localStorage.setItem('wallet_balance_hidden', hidden ? '1' : '0');
+  }
+
+  var saved = localStorage.getItem('wallet_balance_hidden');
+  var hidden = saved === '1';
+  setHidden(hidden);
+  toggle.addEventListener('click', function () {
+    hidden = !hidden;
+    setHidden(hidden);
   });
 })();
 

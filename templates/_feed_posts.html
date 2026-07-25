@@ -86,6 +86,8 @@
           <button type="button" class="xpost-menu-btn js-post-menu-btn"
                   data-post-id="{{ post.id }}"
                   data-delete-url="{{ url_for('delete_post', post_id=post.id) }}"
+                  data-can-delete="{{ 'true' if current_user and (post.user_id == current_user['id'] or current_user.get('is_admin')) else 'false' }}"
+                  data-use-ui-post-menu="false"
                   aria-label="More options">
             <i class='bx bx-dots-horizontal-rounded'></i>
           </button>
@@ -134,12 +136,83 @@
 
 <script>
 (function () {
-  // "See more" / "See less" truncation toggle - guarded so this only wires up
-  // once even if this partial is re-inserted (e.g. by the "Load More" AJAX handler).
+  if (window.__xpostMenuBound) return;
+  window.__xpostMenuBound = true;
+
+  var overlay = document.getElementById('bottomSheetOverlay');
+  var sheet = document.getElementById('postActionsSheet');
+  var deleteForm = document.getElementById('sheetDeleteForm');
+  var reportForm = document.getElementById('sheetReportForm');
+  var reportTarget = document.getElementById('sheetReportTargetId');
+  var cancelBtn = document.getElementById('sheetCancelBtn');
+  if (!overlay || !sheet) return;
+
+  function closeSheet() {
+    sheet.classList.remove('open');
+    overlay.classList.remove('open');
+    if (deleteForm) deleteForm.style.display = '';
+    if (reportTarget) reportTarget.value = '';
+  }
+
+  function openSheet(postId, deleteUrl, canDelete) {
+    if (deleteForm) {
+      deleteForm.action = deleteUrl || '';
+      deleteForm.style.display = canDelete ? '' : 'none';
+    }
+    if (reportTarget) {
+      reportTarget.value = postId || '';
+    }
+    sheet.classList.add('open');
+    overlay.classList.add('open');
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.js-post-menu-btn');
+    if (!btn) {
+      if (e.target === overlay && sheet.classList.contains('open')) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        closeSheet();
+      }
+      return;
+    }
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    openSheet(btn.dataset.postId, btn.dataset.deleteUrl, btn.dataset.canDelete === 'true');
+  });
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeSheet();
+    });
+  }
+
+  if (overlay) {
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay && sheet.classList.contains('open')) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeSheet();
+      }
+    });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && sheet.classList.contains('open')) {
+      e.preventDefault();
+      e.stopPropagation();
+      closeSheet();
+    }
+  });
+
   document.querySelectorAll('.js-xpost-content').forEach(function (el) {
     if (el.dataset.xpostBound) return;
     el.dataset.xpostBound = '1';
-    // Only show the "See more" button if the text actually overflows the clamp.
     if (el.scrollHeight > el.clientHeight + 4) {
       var btn = el.parentElement.querySelector('.js-xpost-seemore');
       if (btn) {

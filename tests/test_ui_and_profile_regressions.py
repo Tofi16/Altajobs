@@ -75,6 +75,28 @@ class UiAndProfileRegressionTests(unittest.TestCase):
             app_module.DATABASE = original_db
             shutil.rmtree(tmp_dir, ignore_errors=True)
 
+    def test_settings_page_loads_for_authenticated_user(self):
+        app_module.app.config.update(TESTING=True)
+        client = app_module.app.test_client()
+        with client.session_transaction() as session:
+            session['user_id'] = 1
+            session['lang'] = 'en'
+
+        response = client.get('/settings')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Account Security', response.get_data(as_text=True))
+
+    def test_change_password_page_loads_for_authenticated_user(self):
+        app_module.app.config.update(TESTING=True)
+        client = app_module.app.test_client()
+        with client.session_transaction() as session:
+            session['user_id'] = 1
+            session['lang'] = 'en'
+
+        response = client.get('/settings/change-password')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Change Password', response.get_data(as_text=True))
+
 
 if __name__ == '__main__':
     unittest.main()

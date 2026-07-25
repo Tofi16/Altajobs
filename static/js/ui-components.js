@@ -164,6 +164,9 @@
     // three-dot menu
     var btn = e.target.closest('.js-post-menu-btn');
     if (btn) {
+      if (btn.dataset.useUiPostMenu === 'false') {
+        return;
+      }
       e.preventDefault(); e.stopPropagation();
       var postId = btn.dataset.postId || '';
       var postUrl = btn.dataset.postUrl || (window.location.origin + '/post/' + postId);

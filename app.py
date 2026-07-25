@@ -3645,19 +3645,32 @@ def post_detail(post_id):
 @login_required
 def like_post(post_id):
     db = get_db()
+    post = db.execute("SELECT id FROM posts WHERE id = ?", (post_id,)).fetchone()
+    if not post:
+        abort(404)
+
     existing = db.execute(
         "SELECT id FROM likes WHERE post_id = ? AND user_id = ?",
         (post_id, session["user_id"]),
     ).fetchone()
     if existing:
         db.execute("DELETE FROM likes WHERE id = ?", (existing["id"],))
+        liked = False
     else:
         db.execute(
-            "INSERT INTO likes (post_id, user_id) VALUES (?, ?)",
-            (post_id, session["user_id"]),
+            "INSERT INTO likes (post_id, user_id, created_at) VALUES (?, ?, ?)",
+            (post_id, session["user_id"], datetime.datetime.utcnow().isoformat()),
         )
         _notify_post_owner_on_like(db, post_id, session["user_id"])
+        liked = True
     db.commit()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+        like_count = db.execute(
+            "SELECT COUNT(*) c FROM likes WHERE post_id = ?", (post_id,)
+        ).fetchone()["c"]
+        return jsonify({"liked": liked, "like_count": like_count})
+
     return redirect(request.referrer or url_for("feed"))
 
 
@@ -3688,8 +3701,8 @@ def api_toggle_like(post_id):
         liked = False
     else:
         db.execute(
-            "INSERT INTO likes (post_id, user_id) VALUES (?, ?)",
-            (post_id, session["user_id"]),
+            "INSERT INTO likes (post_id, user_id, created_at) VALUES (?, ?, ?)",
+            (post_id, session["user_id"], datetime.datetime.utcnow().isoformat()),
         )
         db.commit()
         liked = True
@@ -3889,10 +3902,22 @@ def api_send_post_to_follower(post_id):
 def delete_post(post_id):
     db = get_db()
     post = db.execute("SELECT * FROM posts WHERE id = ?", (post_id,)).fetchone()
+    if not post:
+        abort(404)
+
     user = get_current_user()
-    if post and (post["user_id"] == _get_row_value(user, "id") or _get_row_value(user, "is_admin", False)):
-        db.execute("DELETE FROM posts WHERE id = ?", (post_id,))
-        db.commit()
+    can_delete = bool(user and (post["user_id"] == user.get("id") or user.get("is_admin", False)))
+    if not can_delete:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+            return jsonify({"error": "forbidden"}), 403
+        abort(403)
+
+    db.execute("DELETE FROM posts WHERE id = ?", (post_id,))
+    db.commit()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+        return jsonify({"success": True})
+
     return redirect(url_for("feed"))
 
 
@@ -5253,15 +5278,18 @@ def api_wallet_balance():
 @login_required
 def wallet_transfer():
     amount = float(request.form.get("amount", 0) or 0)
+    currency = (request.form.get("currency") or "etb").strip().lower()
     recipient_wallet_id = (request.form.get("recipient_wallet_id") or request.form.get("recipient_identifier") or "").strip()
     if amount <= 0 or not recipient_wallet_id:
-        flash("Please enter a valid token amount and recipient wallet number")
+        flash("Please enter a valid amount and recipient wallet number")
         return redirect(url_for("wallet"))
+
+    if currency not in ("etb", "token", "tokens"):
+        currency = "etb"
 
     db = get_db()
     sender = get_current_user()
     sender_id = _get_row_value(sender, "id", session.get("user_id"))
-    sender_tokens = float(_get_row_value(sender, "alta_tokens", 0) or 0)
 
     recipient = db.execute(
         "SELECT * FROM users WHERE wallet_id = ?",
@@ -5274,39 +5302,47 @@ def wallet_transfer():
     recipient_id = _get_row_value(recipient, "id")
     recipient_wallet_number = _get_row_value(recipient, "wallet_id")
     sender_wallet_number = _get_row_value(sender, "wallet_id")
-    sender_balance = float(_get_row_value(sender, "wallet_balance", 0) or 0)
     recipient_balance = float(_get_row_value(recipient, "wallet_balance", 0) or 0)
 
     if getattr(db, "is_sqlite", False):
         db.execute("BEGIN IMMEDIATE")
     try:
-        if sender_tokens < amount:
-            db.rollback()
-            flash("insufficient_tokens")
-            return redirect(url_for("wallet"))
+        if currency == "etb":
+            sender_balance = float(_get_row_value(sender, "wallet_balance", 0) or 0)
+            if sender_balance < amount:
+                db.rollback()
+                flash("Insufficient wallet balance")
+                return redirect(url_for("wallet"))
 
-        db.execute(
-            "UPDATE users SET alta_tokens = alta_tokens - ? WHERE id = ?",
-            (amount, sender_id),
-        )
-        db.execute(
-            "UPDATE users SET alta_tokens = alta_tokens + ? WHERE id = ?",
-            (amount, recipient_id),
-        )
-
-        if sender_balance >= amount:
             db.execute(
-                "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ?",
-                (amount, sender_id),
+                "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ? AND wallet_balance >= ?",
+                (amount, sender_id, amount),
             )
             db.execute(
                 "UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
                 (amount, recipient_id),
             )
+            send_note = f"Sent {amount} ETB to {recipient_wallet_number or recipient_wallet_id}"
+            receive_note = f"Received {amount} ETB from {sender_wallet_number or 'sender'}"
+        else:
+            sender_tokens = float(_get_row_value(sender, "alta_tokens", 0) or 0)
+            if sender_tokens < amount:
+                db.rollback()
+                flash("Insufficient token balance")
+                return redirect(url_for("wallet"))
+
+            db.execute(
+                "UPDATE users SET alta_tokens = alta_tokens - ? WHERE id = ?",
+                (amount, sender_id),
+            )
+            db.execute(
+                "UPDATE users SET alta_tokens = alta_tokens + ? WHERE id = ?",
+                (amount, recipient_id),
+            )
+            send_note = f"Sent {amount} Alta tokens to {recipient_wallet_number or recipient_wallet_id}"
+            receive_note = f"Received {amount} Alta tokens from {sender_wallet_number or 'sender'}"
 
         wallet_columns = _get_table_columns(db, "wallet_transactions")
-        send_note = f"Sent tokens to {recipient_wallet_number or recipient_wallet_id}"
-        receive_note = f"Received tokens from {sender_wallet_number or 'sender'}"
         tx_columns = ["user_id", "tx_type", "amount", "note", "status", "created_at"]
         tx_values = [sender_id, "transfer", amount, send_note, "approved", datetime.datetime.utcnow().isoformat()]
         if "recipient_wallet_id" in wallet_columns:

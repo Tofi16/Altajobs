@@ -87,6 +87,7 @@ class WalletFlowTests(unittest.TestCase):
         response = self.client.post('/wallet/transfer', data={
             'amount': '20',
             'recipient_wallet_id': 'WAL000000002',
+            'currency': 'tokens',
         }, follow_redirects=True)
 
         self.assertEqual(response.status_code, 200)
@@ -94,6 +95,35 @@ class WalletFlowTests(unittest.TestCase):
         recipient_row = self.db.execute("SELECT alta_tokens FROM users WHERE id = ?", (2,)).fetchone()
         self.assertEqual(sender_row['alta_tokens'], 80)
         self.assertEqual(recipient_row['alta_tokens'], 20)
+
+    def test_send_etb_by_wallet_number_updates_wallet_balance(self):
+        with self.client.session_transaction() as session:
+            session['user_id'] = 1
+
+        self.db.execute("DELETE FROM users WHERE id IN (?, ?)", (1, 2))
+        self.db.execute(
+            "INSERT INTO users (id, username, email, password_hash, full_name, user_type, created_at, wallet_balance, alta_tokens, wallet_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (1, 'sender', 'sender@example.com', 'hash', 'Sender', 'worker', '2024-01-01T00:00:00', 100, 10, 'WAL000000001'),
+        )
+        self.db.execute(
+            "INSERT INTO users (id, username, email, password_hash, full_name, user_type, created_at, wallet_balance, alta_tokens, wallet_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (2, 'recipient', 'recipient@example.com', 'hash', 'Recipient', 'worker', '2024-01-01T00:00:00', 25, 5, 'WAL000000002'),
+        )
+        self.db.commit()
+
+        response = self.client.post('/wallet/transfer', data={
+            'amount': '40',
+            'recipient_wallet_id': 'WAL000000002',
+            'currency': 'etb',
+        }, follow_redirects=True)
+
+        self.assertEqual(response.status_code, 200)
+        sender_row = self.db.execute("SELECT wallet_balance, alta_tokens FROM users WHERE id = ?", (1,)).fetchone()
+        recipient_row = self.db.execute("SELECT wallet_balance, alta_tokens FROM users WHERE id = ?", (2,)).fetchone()
+        self.assertEqual(sender_row['wallet_balance'], 60)
+        self.assertEqual(recipient_row['wallet_balance'], 65)
+        self.assertEqual(sender_row['alta_tokens'], 10)
+        self.assertEqual(recipient_row['alta_tokens'], 5)
 
     def test_approved_deposit_credits_wallet_balance(self):
         with self.client.session_transaction() as session:
