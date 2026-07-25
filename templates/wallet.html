@@ -228,54 +228,44 @@
 <div class="mx-auto max-w-xl px-4 py-5 text-slate-200">
 
   <!-- Balance hero -->
-  <section class="wallet-hero mb-4 rounded-[32px]">
-    <div class="wallet-hero-top">
-      <div>
-        <div class="wallet-hero-label">Personal Wallet</div>
-        <div class="wallet-hero-subtitle">A unified financial hub for your AltaJobs balance, tokens, and secure transfers.</div>
-        <div class="wallet-hero-owner">{{ current_user.get('full_name') or current_user.get('username') or 'Wallet Holder' }}</div>
-      </div>
-      <button type="button" id="openReceiveQr" aria-label="Show my QR code" class="shrink-0 grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10 active:scale-95 transition">
-        <i class='bx bx-qr' style="font-size:20px"></i>
-      </button>
-    </div>
+  {% set balance = current_user.get('wallet_balance', current_user.get('balance', 0)) %}
+  {% set tokens = current_user.get('alta_tokens', 0) %}
+  {% set wallet_id = current_user.get('wallet_id', '') %}
 
-    <div class="wallet-hero-balance-wrap">
-      <div class="wallet-hero-balance" id="walletBalanceValue">{{ current_user.get('wallet_balance', current_user.get('balance', 0)) }} <span>ETB</span></div>
-      <div class="wallet-hero-note"><span>🔒</span> Protected by bank-level security and encrypted transfers</div>
-    </div>
+  <section class="mb-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-[2rem] p-6 shadow-2xl relative overflow-hidden mb-8">
+      <div class="absolute top-0 left-0 w-48 h-48 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-    <div class="wallet-hero-info">
-      <div class="wallet-hero-stat">
-        <div class="wallet-hero-stat-label">Alta Tokens</div>
-        <div class="wallet-hero-stat-value" id="walletTokensCount">{{ current_user.get('alta_tokens', 0) }}</div>
+      <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">AVAILABLE BALANCE</p>
+      <div class="flex items-baseline gap-2">
+        <h1 class="text-5xl font-extrabold text-white">{{ balance }}</h1>
+        <span class="text-xl text-slate-400 font-medium">ETB</span>
       </div>
-      <div class="wallet-hero-stat">
-        <div class="wallet-hero-stat-label">Wallet identifier</div>
-        {% if current_user.get('wallet_id') %}
-          <div class="wallet-hero-stat-value font-mono text-slate-200" id="walletIdValue">{{ current_user.get('wallet_id') }}</div>
-          <div class="wallet-hero-stat-action">Use this ID to receive funds</div>
-        {% else %}
-          <div class="wallet-hero-stat-value text-slate-400">Preparing…</div>
-          <div class="wallet-hero-stat-action">Your wallet ID will appear here soon</div>
-        {% endif %}
+
+      <div class="flex items-center gap-2 mt-4">
+        <span class="text-yellow-500 text-lg">🪙</span>
+        <span class="text-white font-medium">{{ tokens | default('0', true) }} Alta Tokens</span>
+      </div>
+
+      <div class="mt-8 bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex justify-between items-center">
+        <p class="text-slate-400 text-sm">Wallet ID <span class="text-white ml-2 font-mono">{{ wallet_id | default('None', true) }}</span></p>
+        <button type="button" id="copyWalletId" class="bg-slate-800 hover:bg-slate-700 text-white text-sm px-5 py-2 rounded-lg transition-colors font-medium">Copy</button>
       </div>
     </div>
   </section>
 
-  <!-- Actions -->
-  <section class="mb-5 grid grid-cols-3 gap-2.5" aria-label="Wallet actions">
-    <button type="button" data-modal="depositModal" class="wallet-action-btn">
-      <span class="wallet-action-icon bg-emerald-500/15 text-emerald-400"><i class='bx bx-down-arrow-alt'></i></span>
-      <span>Deposit</span>
+  <section class="grid grid-cols-3 gap-4 mb-8" aria-label="Wallet actions">
+    <button type="button" data-modal="depositModal" class="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col items-center justify-center gap-3 hover:bg-slate-800 transition cursor-pointer">
+      <span class="rounded-full bg-teal-400/10 p-3 text-teal-400"><i class='bx bx-down-arrow-alt'></i></span>
+      <span class="text-sm font-semibold text-white">Deposit</span>
     </button>
-    <button type="button" data-modal="withdrawModal" class="wallet-action-btn">
-      <span class="wallet-action-icon bg-red-500/15 text-red-400"><i class='bx bx-up-arrow-alt'></i></span>
-      <span>Withdraw</span>
+    <button type="button" data-modal="withdrawModal" class="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col items-center justify-center gap-3 hover:bg-slate-800 transition cursor-pointer">
+      <span class="rounded-full bg-rose-400/10 p-3 text-rose-400"><i class='bx bx-up-arrow-alt'></i></span>
+      <span class="text-sm font-semibold text-white">Withdraw</span>
     </button>
-    <button type="button" data-modal="sendModal" class="wallet-action-btn">
-      <span class="wallet-action-icon bg-sky-500/15 text-sky-400"><i class='bx bx-paper-plane'></i></span>
-      <span>Send</span>
+    <button type="button" data-modal="sendModal" class="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col items-center justify-center gap-3 hover:bg-slate-800 transition cursor-pointer">
+      <span class="rounded-full bg-blue-400/10 p-3 text-blue-400"><i class='bx bx-paper-plane'></i></span>
+      <span class="text-sm font-semibold text-white">Send</span>
     </button>
   </section>
 
