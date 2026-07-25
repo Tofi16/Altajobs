@@ -1,132 +1,48 @@
 <style>
-  .xpost {
-    border: 1px solid rgba(15, 23, 42, 0.85); border-radius: 24px; padding: 16px 16px 14px; display: flex; gap: 12px;
-    background: #0f172a;
-    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.55), inset 0 1px 0 rgba(255,255,255,0.04);
-    transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
-    margin-bottom: 12px;
-  }
-  .xpost:hover { transform: translateY(-1px); border-color: rgba(59, 130, 246, 0.32); box-shadow: 0 22px 46px rgba(15, 23, 42, 0.65), inset 0 1px 0 rgba(255,255,255,0.05); }
-  .xpost-avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg,#2563eb,#0ea5e9); color: #f8fafc; font-weight: 900; font-size: 1.05rem; text-decoration: none; border: 1px solid rgba(148, 163, 184, 0.12); }
+  .xpost { border-bottom: 1px solid rgba(255,255,255,0.08); padding: 14px 16px; display: flex; gap: 12px; background: transparent; transition: background 0.15s ease; }
+  .xpost:hover { background: rgba(255,255,255,0.025); }
+  .xpost-avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg,#10b981,#047857); color: #05130d; font-weight: 800; font-size: 1.05rem; text-decoration: none; }
   .xpost-avatar img { width: 100%; height: 100%; object-fit: cover; }
   .xpost-body { flex: 1; min-width: 0; }
   .xpost-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-  .xpost-headline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
-  .xpost-name { font-weight: 800; color: #f8fafc; text-decoration: none; font-size: 0.95rem; }
+  .xpost-headline { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; }
+  .xpost-name { font-weight: 800; color: #f1f5f9; text-decoration: none; font-size: 0.95rem; }
   .xpost-badge { display: inline-flex; align-items: center; margin-left: 2px; }
   .xpost-badge .verification-badge {
     width: 18px; height: 18px; display: inline-flex; align-items: center;
     padding: 0; margin: 0; background: none; border: none; border-radius: 0;
   }
   .xpost-badge .verification-badge svg { width: 18px; height: 18px; display: block; }
-  .xpost-meta { color: #94a3b8; font-size: 0.84rem; font-weight: 500; }
-  .xpost-dot::before { content: "·"; margin: 0 4px; color: #94a3b8; }
-  .xpost-menu-btn {
-    border: 1px solid rgba(148, 163, 184, 0.16); background: rgba(15, 23, 42, 0.75);
-    color: #cbd5e1; cursor: pointer; width: 34px; height: 34px; border-radius: 999px;
-    display: flex; align-items: center; justify-content: center; font-size: 1.02rem;
-    flex-shrink: 0; box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
-    transition: transform .16s ease, background .16s ease, color .16s ease, border-color .16s ease;
-  }
-  .xpost-menu-btn:hover {
-    background: rgba(30, 41, 59, 0.95);
-    color: #f8fafc; border-color: rgba(59, 130, 246, 0.35); transform: translateY(-1px);
-  }
-  .xpost-content { color: #e2e8f0; font-size: 0.96rem; line-height: 1.6; margin: 8px 0 10px; white-space: pre-wrap; word-break: break-word; }
-  .xpost-content-link { text-decoration: none; color: inherit; }
+  .xpost-meta { color: #71767b; font-size: 0.87rem; font-weight: 400; }
+  .xpost-dot::before { content: "·"; margin: 0 4px; color: #71767b; }
+  .xpost-menu-btn { border: none; background: transparent; color: #71767b; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+  .xpost-menu-btn:hover { background: rgba(29,155,240,0.1); color: #1d9bf0; }
+  .xpost-content { color: #e7e9ea; font-size: 0.96rem; line-height: 1.45; margin: 2px 0 8px; white-space: pre-wrap; word-break: break-word; }
   .xpost-content.xpost-clamped { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
-  .xpost-seemore { background: none; border: none; color: #60a5fa; font-weight: 800; font-size: 0.84rem; cursor: pointer; padding: 2px 0; margin-bottom: 6px; display: none; }
-  .xpost-photo-wrap { border: 1px solid rgba(148, 163, 184, 0.12); border-radius: 18px; overflow: hidden; margin-bottom: 10px; background: rgba(15, 23, 42, 0.58); }
+  .xpost-seemore { background: none; border: none; color: #1d9bf0; font-weight: 700; font-size: 0.9rem; cursor: pointer; padding: 2px 0; margin-bottom: 6px; display: none; }
+  .xpost-photo-wrap { border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; margin-bottom: 10px; }
   .xpost-photo { width: 100%; max-height: 420px; object-fit: cover; display: block; }
-  .xpost-job-pill { display: inline-flex; align-items: center; gap: 4px; background: rgba(59, 130, 246, 0.12); color: #bfdbfe; border: 1px solid rgba(59, 130, 246, 0.18); font-size: 0.78rem; font-weight: 800; padding: 4px 10px; border-radius: 999px; margin: 6px 0 8px; }
-
-  /* ===== X-style action bar: icon + count pairs, distinct hover colors ===== */
-  .xpost-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; max-width: 425px; gap: 4px; }
-  .xpost-action {
-    display: inline-flex; align-items: center; gap: 6px;
-    border: none; background: transparent; color: #71767b;
-    font-size: 0.82rem; font-weight: 600; cursor: pointer;
-    padding: 6px 10px; margin-left: -10px; border-radius: 999px;
-    text-decoration: none; transition: background .15s ease, color .15s ease;
-  }
-  .xpost-action i { font-size: 1.15rem; transition: transform .15s ease; }
-  .xpost-action:active i { transform: scale(0.88); }
-
-  /* Comment: X blue */
-  .xpost-action.comment:hover { color: #1d9bf0; background: rgba(29, 155, 240, 0.10); }
-
-  /* Repost: X green */
-  .xpost-action.repost:hover { color: #00ba7c; background: rgba(0, 186, 124, 0.10); }
-  .xpost-action.repost.reposted { color: #00ba7c; }
-
-  /* Like: X pink/red */
-  .xpost-action.like:hover { color: #f91880; background: rgba(249, 24, 128, 0.10); }
-  .xpost-action.like.liked { color: #f91880; }
-  .xpost-action.like.liked i { font-weight: 900; }
-
-  /* Share: X blue */
-  .xpost-action.share:hover { color: #1d9bf0; background: rgba(29, 155, 240, 0.10); }
-
-  .xpost-head-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .xpost-job-pill { display: inline-flex; align-items: center; gap: 4px; background: rgba(16,185,129,0.12); color: #34d399; font-size: 0.78rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; margin-bottom: 8px; }
+  .xpost-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; max-width: 380px; }
+  .xpost-action { display: flex; align-items: center; gap: 6px; border: none; background: transparent; color: #71767b; font-size: 0.85rem; font-weight: 500; cursor: pointer; padding: 7px 10px; margin: -7px -10px; border-radius: 999px; text-decoration: none; transition: background 0.15s ease, color 0.15s ease; }
+  .xpost-action i { font-size: 1.15rem; }
+  .xpost-action.like:hover, .xpost-action.like.liked { color: #f91880; background: rgba(249,24,128,0.1); }
+  .xpost-action.comment:hover { color: #1d9bf0; background: rgba(29,155,240,0.1); }
+  .xpost-action.share:hover, .xpost-action.save:hover { color: #10b981; background: rgba(16,185,129,0.1); }
+  .xpost-head-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
   .xpost-follow-chip {
-    border: 1px solid rgba(59, 130, 246, 0.45); border-radius: 999px; padding: 6px 14px;
-    font-weight: 800; font-size: 0.78rem; color: #dbeafe; background: rgba(15, 23, 42, 0.78);
-    cursor: pointer; white-space: nowrap; transition: background .16s ease, color .16s ease, border-color .16s ease;
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 999px; padding: 5px 14px;
+    font-weight: 700; font-size: 0.8rem; color: #e7e9ea; background: #10b981;
+    cursor: pointer; white-space: nowrap; transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   }
-  .xpost-follow-chip:not(.following) { background: rgba(15, 23, 42, 0.78); color: #dbeafe; border-color: rgba(59, 130, 246, 0.45); }
-  .xpost-follow-chip:not(.following):hover { background: rgba(59, 130, 246, 0.16); color: #f8fafc; border-color: rgba(96, 165, 250, 0.45); }
-  .xpost-follow-chip.following { background: rgba(30, 41, 59, 0.88); color: #bfdbfe; border-color: rgba(148, 163, 184, 0.24); }
-  .xpost-follow-chip.following:hover { background: rgba(30, 41, 59, 0.95); color: #f8fafc; border-color: rgba(96, 165, 250, 0.35); }
-
-  /* ===== Inline quick-comment composer (X-style "borderless" input) ===== */
-  .xpost-quick-reply {
-    display: none;
-    align-items: flex-end;
-    gap: 10px;
-    margin-top: 10px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(148, 163, 184, 0.10);
-  }
-  .xpost-quick-reply.open { display: flex; }
-  .xpost-quick-reply-avatar {
-    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
-    display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(135deg,#2563eb,#0ea5e9); color: #f8fafc; font-weight: 800; font-size: 0.85rem;
-  }
-  .xpost-quick-reply-avatar img { width: 100%; height: 100%; object-fit: cover; }
-  .xpost-quick-reply-field {
-    flex: 1; min-width: 0;
-    display: flex; align-items: flex-end; gap: 8px;
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    background: rgba(2, 6, 23, 0.55);
-    border-radius: 20px;
-    padding: 8px 8px 8px 16px;
-    transition: border-color .15s ease, box-shadow .15s ease;
-  }
-  .xpost-quick-reply-field:focus-within {
-    border-color: rgba(59, 130, 246, 0.55);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
-  }
-  .xpost-quick-reply-input {
-    flex: 1; resize: none; border: none; background: transparent; outline: none;
-    color: #e2e8f0; font-size: 0.88rem; line-height: 1.4; max-height: 120px;
-    padding: 6px 0;
-  }
-  .xpost-quick-reply-input::placeholder { color: #64748b; }
-  .xpost-quick-reply-send {
-    flex-shrink: 0; border: none; border-radius: 999px; width: 34px; height: 34px;
-    display: grid; place-items: center; font-size: 1rem;
-    background: #1d9bf0; color: #fff; cursor: pointer;
-    transition: background .15s ease, opacity .15s ease, transform .1s ease;
-  }
-  .xpost-quick-reply-send:disabled { opacity: 0.4; cursor: not-allowed; }
-  .xpost-quick-reply-send:not(:disabled):hover { background: #1a8cd8; }
-  .xpost-quick-reply-send:not(:disabled):active { transform: scale(0.92); }
+  .xpost-follow-chip:not(.following) { background: #10b981; color: #05130d; border-color: transparent; }
+  .xpost-follow-chip.following { background: transparent; color: #e7e9ea; }
+  .xpost-follow-chip.following:hover { border-color: rgba(239,68,68,0.4); color: #f87171; }
 </style>
 
 {% for item in posts_data %}
   {% set post = item.post %}
-  <article class="xpost group" data-post-id="{{ post.id }}" data-post-type="{{ post.post_type }}">
+  <article class="xpost" data-post-type="{{ post.post_type }}">
     <a href="{{ url_for('profile', user_id=post.user_id) }}" class="xpost-avatar">
       {% if post.avatar %}
         <img src="{{ photo_url(post.avatar) }}" loading="lazy" alt="">
@@ -145,19 +61,15 @@
           {% if current_user and post.user_id != current_user['id'] %}
             <button type="button" class="xpost-follow-chip js-follow-btn {{ 'following' if item.following }}"
                     data-user-id="{{ post.user_id }}"
-                    data-follow-label="{{ t.follow }}"
-                    data-following-label="{{ t.following if t.following is defined else (t.unfollow if t.unfollow is defined else 'Following') }}"
-                    aria-pressed="{{ 'true' if item.following else 'false' }}">
-              <span class="follow-label">{{ t.following if item.following and t.following is defined else (t.unfollow if item.following else t.follow) }}</span>
+                    data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
+              {{ t.unfollow if item.following else t.follow }}
             </button>
           {% endif %}
           <button type="button" class="xpost-menu-btn js-post-menu-btn"
                   data-post-id="{{ post.id }}"
-                  data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}"
                   data-delete-url="{{ url_for('delete_post', post_id=post.id) }}"
-                  data-can-delete="{{ 'true' if current_user and (post.user_id == current_user['id'] or current_user.get('is_admin')) else 'false' }}"
-                  data-use-ui-post-menu="false"
-                  aria-label="More options">
+                  aria-label="More options"
+                  onclick="event.preventDefault(); event.stopPropagation(); openPostActionsSheet(this); return false;">
             <i class='bx bx-dots-horizontal-rounded'></i>
           </button>
         </div>
@@ -168,7 +80,7 @@
       {% endif %}
 
       {% if post.content %}
-        <a href="{{ url_for('post_detail', post_id=post.id) }}" class="xpost-content-link">
+        <a href="{{ url_for('post_detail', post_id=post.id) }}" style="text-decoration:none">
           <p class="xpost-content xpost-clamped js-xpost-content">{{ post.content }}</p>
         </a>
         <button type="button" class="xpost-seemore js-xpost-seemore"
@@ -178,50 +90,90 @@
 
       {% if post.photo %}
         <a href="{{ url_for('post_detail', post_id=post.id) }}" class="xpost-photo-wrap">
-          <img class="xpost-photo" src="{{ photo_url(post.photo) }}" loading="lazy" decoding="async" alt="">
+          <img class="xpost-photo" src="{{ photo_url(post.photo) }}" loading="lazy" alt="">
         </a>
       {% endif %}
 
       <div class="xpost-actions">
-        <!-- FIX: was <a href="#">, which jumped the page to top on click.
-             Now a real <button> with no href at all — nothing for the browser
-             to "jump" to even if a handler failed to attach. -->
-        <button type="button" class="xpost-action comment js-comment-toggle-btn" data-post-id="{{ post.id }}">
-          <i class='bx bx-comment'></i><span class="comment-count">{{ item.comment_count }}</span>
-        </button>
-        <button type="button" class="xpost-action repost js-repost-btn" data-post-id="{{ post.id }}" title="Repost">
-          <i class='bx bx-repost'></i><span class="repost-count">{{ post.share_count or 0 }}</span>
-        </button>
         <button type="button" class="xpost-action like js-like-btn {{ 'liked' if item.liked }}"
                 data-post-id="{{ post.id }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}">
           <i class='bx {{ "bxs-heart" if item.liked else "bx-heart" }}'></i>
           <span class="like-count">{{ item.like_count }}</span>
+        </button>
+        <a href="{{ url_for('post_detail', post_id=post.id) }}" class="xpost-action comment">
+          <i class='bx bx-comment'></i><span>{{ item.comment_count }}</span>
+        </a>
+        <button type="button" class="xpost-action repost js-repost-btn" data-post-id="{{ post.id }}" title="Repost">
+          <i class='bx bx-repost'></i><span class="repost-count">{{ post.share_count or 0 }}</span>
         </button>
         <button type="button" class="xpost-action share js-share-btn" data-post-id="{{ post.id }}"
                 data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}" title="Share">
           <i class='bx bx-share-alt'></i>
         </button>
       </div>
-
-      <!-- Inline quick-comment composer: hidden until the comment icon is
-           clicked, then expands + focuses in place. No navigation, no jump. -->
-      <div class="xpost-quick-reply js-quick-reply" id="quickReply-{{ post.id }}">
-        <div class="xpost-quick-reply-avatar">
-          {% if current_user and current_user['avatar'] %}
-            <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="">
-          {% elif current_user %}
-            {{ (current_user['full_name'] or current_user['username'])[0] }}
-          {% endif %}
-        </div>
-        <form class="xpost-quick-reply-field js-quick-reply-form" data-post-id="{{ post.id }}"
-              action="{{ url_for('comment_post', post_id=post.id) }}" method="POST">
-          <textarea class="xpost-quick-reply-input js-quick-reply-input" name="content" rows="1"
-                    placeholder="Post your reply"></textarea>
-          <button type="submit" class="xpost-quick-reply-send" disabled aria-label="Reply">
-            <i class='bx bx-send'></i>
-          </button>
-        </form>
-      </div>
     </div>
   </article>
 {% endfor %}
+
+<script>
+(function () {
+  window.openPostActionsSheet = function (btn) {
+    if (!btn) return;
+    var overlay = document.getElementById('bottomSheetOverlay');
+    var sheet = document.getElementById('postActionsSheet');
+    var deleteForm = document.getElementById('sheetDeleteForm');
+    var reportTargetId = document.getElementById('sheetReportTargetId');
+    if (!overlay || !sheet) return;
+    if (deleteForm) deleteForm.action = btn.getAttribute('data-delete-url') || '#';
+    if (reportTargetId) reportTargetId.value = btn.getAttribute('data-post-id') || '';
+    overlay.classList.add('open');
+    sheet.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  };
+
+  window.closePostActionsSheet = function () {
+    var overlay = document.getElementById('bottomSheetOverlay');
+    var sheet = document.getElementById('postActionsSheet');
+    if (overlay) overlay.classList.remove('open');
+    if (sheet) sheet.classList.remove('open');
+    document.body.style.overflow = '';
+  };
+
+  document.querySelectorAll('.js-xpost-content').forEach(function (el) {
+    if (el.dataset.xpostBound) return;
+    el.dataset.xpostBound = '1';
+    if (el.scrollHeight > el.clientHeight + 4) {
+      var btn = el.parentElement.querySelector('.js-xpost-seemore');
+      if (btn) {
+        btn.style.display = 'inline-block';
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var expanded = el.classList.toggle('xpost-clamped') === false;
+          btn.textContent = expanded ? btn.dataset.seeLess : btn.dataset.seeMore;
+        });
+      }
+    }
+  });
+
+  if (!window.__xpostMenuBound) {
+    window.__xpostMenuBound = true;
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('.js-post-menu-btn');
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      window.openPostActionsSheet(btn);
+    });
+    var cancelBtn = document.getElementById('sheetCancelBtn');
+    var overlayEl = document.getElementById('bottomSheetOverlay');
+    if (cancelBtn) cancelBtn.addEventListener('click', window.closePostActionsSheet);
+    if (overlayEl) overlayEl.addEventListener('click', window.closePostActionsSheet);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        window.closePostActionsSheet();
+      }
+    });
+  }
+})();
+</script>

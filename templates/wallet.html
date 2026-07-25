@@ -1,331 +1,73 @@
 {% extends "base.html" %}
-{% block extra_styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/premium-redesign.css') }}">
-{% endblock %}
 {% block content %}
-
-<style>
-  /* ===== Premium Wallet Card ===== */
-  .pw-card {
-    position: relative;
-    border-radius: 28px;
-    padding: 28px 24px 22px;
-    overflow: hidden;
-    background:
-      radial-gradient(120% 140% at 0% 0%, rgba(56,189,248,0.30) 0%, transparent 45%),
-      radial-gradient(120% 140% at 100% 100%, rgba(99,102,241,0.30) 0%, transparent 50%),
-      linear-gradient(135deg, #0b1220 0%, #0f1a30 45%, #060a14 100%);
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 20px 50px -18px rgba(2,6,23,0.85), inset 0 1px 0 rgba(255,255,255,0.06);
-  }
-  .pw-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background-image: radial-gradient(rgba(255,255,255,0.09) 1px, transparent 1px);
-    background-size: 18px 18px;
-    mask-image: linear-gradient(to bottom, black, transparent 75%);
-    opacity: 0.35;
-  }
-  .pw-card-glow {
-    position: absolute;
-    width: 220px; height: 220px;
-    border-radius: 999px;
-    filter: blur(60px);
-    background: rgba(56,189,248,0.25);
-    top: -60px; right: -40px;
-    pointer-events: none;
-  }
-  .pw-row { position: relative; z-index: 1; }
-  .pw-eyebrow { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: #7dd3fc; }
-  .pw-owner-name { margin-top: 2px; font-size: 1.05rem; font-weight: 800; color: #f8fafc; letter-spacing: 0.01em; }
-  .pw-icon-btn {
-    display: grid; place-items: center;
-    width: 42px; height: 42px;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.14);
-    color: #e2e8f0;
-    transition: background .15s ease, transform .15s ease;
-  }
-  .pw-icon-btn:hover { background: rgba(255,255,255,0.12); transform: translateY(-1px); }
-  .pw-icon-btn:active { transform: translateY(0); }
-  .pw-balance-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #94a3b8; }
-  .pw-balance-value {
-    font-size: clamp(2.1rem, 7vw, 2.85rem);
-    font-weight: 800;
-    color: #ffffff;
-    letter-spacing: -0.02em;
-    line-height: 1.05;
-  }
-  .pw-balance-unit { font-size: 0.95rem; font-weight: 700; color: #7dd3fc; margin-left: 4px; }
-  .pw-token-pill {
-    display: inline-flex; align-items: center; gap: 8px;
-    margin-top: 14px;
-    padding: 7px 12px;
-    border-radius: 999px;
-    background: rgba(250,204,21,0.10);
-    border: 1px solid rgba(250,204,21,0.20);
-    color: #fde68a;
-    font-size: 0.82rem;
-    font-weight: 700;
-  }
-  .pw-footer-strip {
-    margin-top: 20px;
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 12px 14px;
-    border-radius: 16px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-  }
-  .pw-id-text { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86rem; color: #e2e8f0; letter-spacing: 0.03em; }
-  .pw-copy-btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 7px 12px;
-    border-radius: 10px;
-    background: rgba(56,189,248,0.12);
-    border: 1px solid rgba(56,189,248,0.24);
-    color: #7dd3fc;
-    font-size: 0.76rem; font-weight: 700;
-    transition: background .15s ease;
-  }
-  .pw-copy-btn:hover { background: rgba(56,189,248,0.20); }
-  .pw-gen-wallet-btn {
-    width: 100%;
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    padding: 11px 14px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, #38bdf8, #6366f1);
-    color: #04101f;
-    font-size: 0.86rem; font-weight: 800;
-    box-shadow: 0 8px 20px -8px rgba(56,189,248,0.6);
-    transition: transform .15s ease, opacity .15s ease;
-  }
-  .pw-gen-wallet-btn:hover { transform: translateY(-1px); }
-  .pw-gen-wallet-btn:disabled { opacity: 0.65; transform: none; cursor: not-allowed; }
-
-  /* ===== Circular action buttons ===== */
-  .pw-actions-row {
-    display: flex;
-    justify-content: space-around;
-    gap: 10px;
-    margin: 22px 0 26px;
-  }
-  .pw-action {
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
-    background: none; border: none;
-    flex: 1;
-  }
-  .pw-action-circle {
-    width: 56px; height: 56px;
-    display: grid; place-items: center;
-    border-radius: 999px;
-    font-size: 1.3rem;
-    transition: transform .15s ease, box-shadow .15s ease;
-    border: 1px solid rgba(255,255,255,0.10);
-  }
-  .pw-action:hover .pw-action-circle { transform: translateY(-2px); }
-  .pw-action.deposit .pw-action-circle { background: rgba(45,212,191,0.14); color: #2dd4bf; box-shadow: inset 0 0 0 1px rgba(45,212,191,0.18); }
-  .pw-action.withdraw .pw-action-circle { background: rgba(251,113,133,0.14); color: #fb7185; box-shadow: inset 0 0 0 1px rgba(251,113,133,0.18); }
-  .pw-action.send .pw-action-circle { background: rgba(96,165,250,0.14); color: #60a5fa; box-shadow: inset 0 0 0 1px rgba(96,165,250,0.18); }
-  .pw-action-label { font-size: 0.78rem; font-weight: 700; color: #cbd5e1; }
-
-  /* ===== Transaction history ===== */
-  .pw-section-title { font-size: 0.72rem; font-weight: 800; color: #7dd3fc; text-transform: uppercase; letter-spacing: 0.14em; }
-  .pw-section-subtitle { margin-top: 2px; font-size: 0.86rem; color: #94a3b8; }
-  .pw-filter-chip {
-    border-radius: 999px; padding: 8px 16px;
-    border: 1px solid rgba(255,255,255,0.10);
-    background: rgba(255,255,255,0.05);
-    color: #94a3b8; font-weight: 700; font-size: 0.78rem;
-    transition: background .15s ease, color .15s ease;
-  }
-  .pw-filter-chip[aria-pressed='true'] { background: rgba(56,189,248,0.20); color: #fff; border-color: rgba(56,189,248,0.3); }
-  .pw-date-sticky {
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    margin: 18px 0 8px;
-    padding: 6px 0;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #7dd3fc;
-    background: linear-gradient(to bottom, rgba(2,6,23,0.95) 70%, rgba(2,6,23,0));
-    backdrop-filter: blur(6px);
-  }
-  .pw-tx-group { display: flex; flex-direction: column; gap: 8px; }
-  .pw-tx-row {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    padding: 13px 14px;
-    border-radius: 18px;
-    border: 1px solid rgba(255,255,255,0.07);
-    transition: transform .12s ease;
-  }
-  .pw-tx-row:hover { transform: translateX(1px); }
-  .pw-tx-row.is-income { background: rgba(16,185,129,0.07); border-left: 3px solid rgba(52,211,153,0.55); }
-  .pw-tx-row.is-expense { background: rgba(244,63,94,0.07); border-left: 3px solid rgba(251,113,133,0.55); }
-  .pw-tx-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
-  .pw-tx-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 999px; font-size: 1rem; flex-shrink: 0; }
-  .pw-tx-icon.in { background: rgba(52,211,153,0.16); color: #34d399; }
-  .pw-tx-icon.out { background: rgba(251,113,133,0.16); color: #fb7185; }
-  .pw-tx-title { font-size: 0.9rem; font-weight: 800; color: #f8fafc; }
-  .pw-tx-note { font-size: 0.76rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 42vw; }
-  .pw-tx-time { font-size: 0.7rem; color: #64748b; margin-top: 1px; }
-  .pw-tx-amount { font-weight: 800; font-size: 0.92rem; text-align: right; }
-  .pw-tx-amount.in { color: #34d399; }
-  .pw-tx-amount.out { color: #fb7185; }
-  .pw-tx-status { margin-top: 4px; display: inline-flex; padding: 3px 10px; border-radius: 999px; font-size: 0.64rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
-  .pw-tx-status.approved { background: rgba(16,185,129,0.14); color: #a7f3d0; border: 1px solid rgba(16,185,129,0.2); }
-  .pw-tx-status.pending { background: rgba(249,115,22,0.14); color: #fbbf24; border: 1px solid rgba(249,115,22,0.2); }
-  .pw-tx-status.rejected { background: rgba(239,68,68,0.14); color: #fecaca; border: 1px solid rgba(239,68,68,0.2); }
-  #txDateFilter::-webkit-calendar-picker-indicator { filter: invert(0.8); }
-
-  /* ===== Modals ===== */
-  .pw-modal-card { width: 100%; max-width: 24rem; border-radius: 22px; border: 1px solid rgba(255,255,255,0.10); background: #0e1526; padding: 22px; box-shadow: 0 30px 60px -20px rgba(0,0,0,0.7); }
-  .pw-field-label { display: block; margin-bottom: 6px; font-size: 0.72rem; font-weight: 700; color: #64748b; }
-  .pw-field-input { width: 100%; border-radius: 12px; border: 1px solid rgba(255,255,255,0.10); background: rgba(2,6,23,0.6); padding: 10px 12px; font-size: 0.88rem; color: #e2e8f0; }
-  .pw-primary-btn { border-radius: 12px; padding: 10px 18px; background: linear-gradient(135deg, #38bdf8, #6366f1); color: #04101f; font-weight: 800; font-size: 0.84rem; }
-  .pw-ghost-btn { border-radius: 12px; padding: 10px 16px; border: 1px solid rgba(255,255,255,0.10); color: #cbd5e1; font-size: 0.8rem; font-weight: 700; }
-</style>
 
 <div class="mx-auto max-w-xl px-4 py-5 text-slate-200">
 
-  {% set balance = current_user.get('wallet_balance', current_user.get('balance', 0)) %}
-  {% set tokens = current_user.get('alta_tokens', 0) %}
-  {% set wallet_id = current_user.get('wallet_id') %}
-  {% set has_wallet_id = wallet_id and wallet_id|string != 'None' and wallet_id|string.strip() != '' %}
-
-  <!-- Premium balance card -->
-  <section class="pw-card mb-7">
-    <div class="pw-card-glow"></div>
-
-    <div class="pw-row flex items-start justify-between">
-      <div>
-        <p class="pw-eyebrow">Wallet owner</p>
-        <h2 class="pw-owner-name">{{ current_user.full_name | default(current_user.username, true) }}</h2>
-      </div>
-      <!-- QR / Receive button (fixed: now wired to #receiveQrModal via id="openReceiveQr") -->
-      <button type="button" id="openReceiveQr" class="pw-icon-btn" aria-label="Show my wallet QR code" title="Receive funds / show QR">
-        <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="7" height="7" rx="1"></rect>
-          <rect x="14" y="3" width="7" height="7" rx="1"></rect>
-          <rect x="3" y="14" width="7" height="7" rx="1"></rect>
-          <path d="M14 14h3v3h-3z"></path>
-          <path d="M20 14h1v1h-1z"></path>
-          <path d="M14 20h1v1h-1z"></path>
-          <path d="M20 20h1v1h-1z"></path>
-        </svg>
-      </button>
+  <!-- Balance hero -->
+  <section class="wallet-hero mb-4 rounded-2xl border border-white/5 bg-gradient-to-br from-emerald-500/20 via-zinc-900/70 to-zinc-950 p-5 shadow-[0_18px_45px_rgba(16,185,129,0.08)]">
+    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Available Balance</div>
+    <div class="mt-1 text-4xl font-black text-slate-50 tabular-nums">{{ current_user.get('wallet_balance', current_user.get('balance', 0)) }} <span class="text-lg font-bold text-slate-400">ETB</span></div>
+    <div class="mt-1.5 flex items-center gap-1.5 text-xs text-slate-400">
+      <span class="grid h-5 w-5 place-items-center rounded-full bg-amber-400/15 text-amber-300">🪙</span>
+      <strong id="walletTokensCount" class="text-slate-200">{{ current_user.get('alta_tokens', 0) }}</strong> Alta Tokens
     </div>
-
-    <div class="pw-row" style="margin-top:22px">
-      <div class="flex items-center gap-2">
-        <p class="pw-balance-label">Available balance</p>
-        <button id="toggleBalanceBtn" class="text-slate-400 hover:text-white transition-colors" title="Toggle balance visibility" type="button">
-          <svg id="eyeOpen" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-          <svg id="eyeClosed" class="hidden" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-        </button>
-      </div>
-      <div class="flex items-baseline mt-1">
-        <span class="pw-balance-value" id="balanceAmount" data-balance="{{ "{:,.0f}".format(balance | float) }}">{{ "{:,.0f}".format(balance | float) }}</span>
-        <span class="pw-balance-unit" id="balanceCurrency">ETB</span>
-      </div>
-      <div class="pw-token-pill">
-        <span>🪙</span>
-        <span id="tokenAmount" data-token="{{ tokens | default('0', true) }}">{{ tokens | default('0', true) }} Alta Tokens</span>
-      </div>
-    </div>
-
-    <div class="pw-footer-strip">
-      {% if has_wallet_id %}
-        <div class="min-w-0">
-          <p class="pw-eyebrow" style="margin-bottom:2px">Wallet ID</p>
-          <span id="walletIdValue" class="pw-id-text">{{ wallet_id }}</span>
-        </div>
-        <button type="button" class="pw-copy-btn" id="copyWalletId">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-          Copy
-        </button>
-      {% else %}
-        <form method="POST" action="{{ url_for('generate_wallet') }}" id="genWalletForm" class="w-full">
-          <button type="submit" id="genWalletBtn" class="pw-gen-wallet-btn">
-            <i class='bx bx-wallet'></i> Generate Wallet
-          </button>
-        </form>
-      {% endif %}
+    {% if pending_balance and pending_balance > 0 %}
+      <div class="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-400">⏳ {{ pending_balance }} ETB held for a pending withdrawal</div>
+    {% endif %}
+    <div class="mt-3 flex items-center gap-2 rounded-xl border border-white/5 bg-zinc-950/50 px-3 py-2.5">
+      <span class="text-[11px] font-semibold text-slate-500">Wallet ID</span>
+      <span id="walletIdValue" class="flex-1 truncate font-mono text-sm text-slate-200">{{ current_user.get('wallet_id', '') }}</span>
+      <button type="button" id="copyWalletId" class="shrink-0 rounded-lg bg-white/5 px-2.5 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-white/10 active:scale-95 transition">Copy</button>
     </div>
   </section>
 
-  <!-- Circular action buttons -->
-  <section class="pw-actions-row" aria-label="Wallet actions">
-    <button type="button" data-modal="depositModal" class="pw-action deposit">
-      <span class="pw-action-circle"><i class='bx bx-down-arrow-alt'></i></span>
-      <span class="pw-action-label">Deposit</span>
+  <!-- Actions -->
+  <section class="mb-5 grid grid-cols-3 gap-2.5" aria-label="Wallet actions">
+    <button type="button" data-modal="depositModal" class="flex flex-col items-center gap-1.5 rounded-2xl border border-white/5 bg-zinc-900/60 py-3.5 text-xs font-bold text-slate-200 shadow-sm hover:bg-zinc-900 active:scale-95 transition">
+      <span class="grid h-10 w-10 place-items-center rounded-full bg-emerald-500/15 text-emerald-400 text-lg"><i class='bx bx-down-arrow-alt'></i></span>
+      Deposit
     </button>
-    <button type="button" data-modal="withdrawModal" class="pw-action withdraw">
-      <span class="pw-action-circle"><i class='bx bx-up-arrow-alt'></i></span>
-      <span class="pw-action-label">Withdraw</span>
+    <button type="button" data-modal="withdrawModal" class="flex flex-col items-center gap-1.5 rounded-2xl border border-white/5 bg-zinc-900/60 py-3.5 text-xs font-bold text-slate-200 shadow-sm hover:bg-zinc-900 active:scale-95 transition">
+      <span class="grid h-10 w-10 place-items-center rounded-full bg-red-500/15 text-red-400 text-lg"><i class='bx bx-up-arrow-alt'></i></span>
+      Withdraw
     </button>
-    <button type="button" data-modal="sendModal" class="pw-action send">
-      <span class="pw-action-circle"><i class='bx bx-paper-plane'></i></span>
-      <span class="pw-action-label">Send</span>
+    <button type="button" data-modal="sendModal" class="flex flex-col items-center gap-1.5 rounded-2xl border border-dashed border-sky-500/40 bg-transparent py-3.5 text-xs font-bold text-sky-400 hover:bg-sky-500/5 active:scale-95 transition">
+      <span class="grid h-10 w-10 place-items-center rounded-full border border-sky-500/30 text-sky-400 text-lg"><i class='bx bx-paper-plane'></i></span>
+      Send
     </button>
   </section>
 
-  <!-- Wallet activity -->
+  <!-- Recent Activity, grouped by date -->
   <section>
-    <div class="flex items-center justify-between gap-3 mb-3">
-      <div>
-        <div class="pw-section-title">Wallet activity</div>
-        <div class="pw-section-subtitle">Deposits, withdrawals & transfers</div>
-      </div>
-      <div class="flex items-center gap-1.5">
-        <input type="date" id="txDateFilter" class="rounded-lg border border-white/10 bg-zinc-900/60 px-2 py-1 text-[11px] text-slate-300" aria-label="Filter by date">
-        <button type="button" id="txDateClear" class="hidden text-[11px] font-semibold text-sky-400">Clear</button>
-      </div>
-    </div>
-    <div class="mb-4 flex items-center gap-1.5" role="group" aria-label="Filter transactions">
-      <button type="button" class="pw-filter-chip" data-filter="all" aria-pressed="true">All</button>
-      <button type="button" class="pw-filter-chip" data-filter="income" aria-pressed="false">Income</button>
-      <button type="button" class="pw-filter-chip" data-filter="expense" aria-pressed="false">Expense</button>
-    </div>
-
-    <div id="requestsList">
+    <div class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Recent Activity</div>
+    <div id="requestsList" class="space-y-4">
       {% set reqs = requests if requests is defined else history if history is defined else [] %}
       {% if reqs and reqs|length > 0 %}
         {% set ns = namespace(last_date='') %}
         {% for r in reqs %}
           {% set tx_type = (r['tx_type'] if 'tx_type' in r.keys() else '') %}
-          {% set note_val = (r['note'] if 'note' in r.keys() else '') or '' %}
-          {% set is_withdrawal = tx_type in ('withdraw', 'withdrawal') or (tx_type == 'transfer' and note_val.startswith('Sent')) %}
+          {% set is_withdrawal = tx_type in ('withdraw', 'withdrawal') %}
           {% set status = (r['status'] if 'status' in r.keys() else 'pending')|lower %}
-          {% set full_date = (r['created_at'][:10] if 'created_at' in r.keys() and r['created_at'] else '') %}
-          {% if full_date != ns.last_date %}
+          {% set date_str = (r['created_at'][:10] if 'created_at' in r.keys() and r['created_at'] else '') %}
+          {% if date_str != ns.last_date %}
             {% if not loop.first %}</div>{% endif %}
-            {% set ns.last_date = full_date %}
-            <div class="pw-date-sticky">{{ full_date }}</div>
-            <div class="pw-tx-group">
+            {% set ns.last_date = date_str %}
+            <div class="mb-1.5 mt-3 text-[11px] font-bold uppercase tracking-wide text-slate-600">{{ date_str }}</div>
+            <div class="divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/5">
           {% endif %}
-          {% set amount_unit = 'ETB' %}
-          {% if note_val and 'Alta tokens' in note_val %}{% set amount_unit = 'tokens' %}{% endif %}
-          <div class="pw-tx-row {{ 'is-expense' if is_withdrawal else 'is-income' }}"
-               data-tx-flow="{{ 'expense' if is_withdrawal else 'income' }}" data-tx-date="{{ full_date }}">
-            <div class="pw-tx-main">
-              <span class="pw-tx-icon {{ 'out' if is_withdrawal else 'in' }}">
+          <div class="flex items-center justify-between gap-3 bg-zinc-900/40 px-3.5 py-3 hover:bg-zinc-900/60 transition">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-base {{ 'bg-red-500/15 text-red-400' if is_withdrawal else 'bg-emerald-500/15 text-emerald-400' }}">
                 <i class='bx {{ "bx-up-arrow-alt" if is_withdrawal else "bx-down-arrow-alt" }}'></i>
               </span>
-              <div class="min-w-0">
-                <div class="pw-tx-title">{{ tx_type|capitalize }}</div>
-                <div class="pw-tx-note">{{ note_val or 'Wallet activity update' }}</div>
-                <div class="pw-tx-time">{{ (r['created_at'][11:16] if 'created_at' in r.keys() and r['created_at'] else '') }}</div>
+              <div class="min-w-0 text-sm">
+                <div class="truncate font-semibold text-slate-100">{{ tx_type|capitalize }}</div>
+                <div class="text-[11px] text-slate-500">{{ (r['created_at'][11:16] if 'created_at' in r.keys() and r['created_at'] else '') }}</div>
               </div>
             </div>
             <div class="shrink-0 text-right">
-              <div class="pw-tx-amount {{ 'out' if is_withdrawal else 'in' }}">{{ '-' if is_withdrawal else '+' }}{{ "{:,.0f}".format((r['amount'] if 'amount' in r.keys() else 0) | float) }} {{ amount_unit }}</div>
-              <span class="pw-tx-status {{ 'approved' if status == 'approved' else ('rejected' if status in ('rejected','declined') else 'pending') }}">{{ status|capitalize }}</span>
+              <div class="text-sm font-extrabold {{ 'text-red-400' if is_withdrawal else 'text-emerald-400' }}">{{ '-' if is_withdrawal else '+' }}{{ (r['amount'] if 'amount' in r.keys() else '') }} ETB</div>
+              <span class="admin-badge {{ 'admin-badge-success' if status == 'approved' else ('admin-badge-danger' if status in ('rejected','declined') else 'admin-badge-warning') }} mt-1">{{ status|capitalize }}</span>
             </div>
           </div>
         {% endfor %}
@@ -334,22 +76,21 @@
         <div class="rounded-2xl border border-white/5 bg-zinc-900/40 px-3 py-8 text-center text-sm text-slate-500">No requests yet</div>
       {% endif %}
     </div>
-    <div id="txEmptyFiltered" class="hidden rounded-2xl border border-white/5 bg-zinc-900/40 px-3 py-8 text-center text-sm text-slate-500">No transactions match this filter</div>
   </section>
 
-  <!-- Deposit modal -->
+  <!-- Modals -->
   <div id="depositModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm" aria-hidden="true">
-    <div class="pw-modal-card">
+    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
       <h3 class="mb-4 text-sm font-bold text-slate-100">Deposit Funds</h3>
       <form id="depositForm" method="POST" action="{{ url_for('wallet_deposit') }}" enctype="multipart/form-data" class="space-y-3">
         <div>
-          <label class="pw-field-label">Amount</label>
-          <input name="amount" type="number" step="0.01" min="1" required class="pw-field-input">
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Amount</label>
+          <input name="amount" type="number" step="0.01" min="1" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
         <div>
-          <label class="pw-field-label">Bank</label>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Bank</label>
           {% if banks and banks|length > 0 %}
-            <select name="bank_id" required class="pw-field-input">
+            <select name="bank_id" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
               <option value="">Select bank</option>
               {% for bank in banks %}
                 <option value="{{ bank['id'] }}">{{ bank['bank_name'] }} — {{ bank['account_holder_name'] if bank['account_holder_name'] else bank['account_name'] }} / {{ bank['account_number'] }}</option>
@@ -360,118 +101,72 @@
           {% endif %}
         </div>
         <div>
-          <label class="pw-field-label">Transaction Reference ID</label>
-          <input name="transaction_ref" type="text" required class="pw-field-input">
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Transaction Reference ID</label>
+          <input name="transaction_ref" type="text" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
         <div>
-          <label class="pw-field-label">Attach receipt (optional)</label>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Attach receipt (optional)</label>
           <input name="receipt_photo" type="file" accept="image/*" class="w-full text-xs text-slate-400">
         </div>
         <div class="flex justify-end gap-2 pt-1">
-          <button type="button" class="pw-ghost-btn" data-close>Cancel</button>
-          <button type="submit" class="pw-primary-btn">Submit Deposit</button>
+          <button type="button" class="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
+          <button type="submit" class="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-bold text-zinc-950">Submit Deposit</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Withdraw modal -->
   <div id="withdrawModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm" aria-hidden="true">
-    <div class="pw-modal-card">
+    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
       <h3 class="mb-4 text-sm font-bold text-slate-100">Withdraw Funds</h3>
       <form id="withdrawForm" method="POST" action="{{ url_for('withdraw_request') }}" class="space-y-3">
         <div>
-          <label class="pw-field-label">Amount</label>
-          <input name="amount" type="number" step="0.01" min="10" required class="pw-field-input">
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Amount</label>
+          <input name="amount" type="number" step="0.01" min="10" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
         <div>
-          <label class="pw-field-label">Destination Account Name</label>
-          <input name="account_name" type="text" required class="pw-field-input">
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Destination Account Name</label>
+          <input name="account_name" type="text" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
         <div>
-          <label class="pw-field-label">Account Number</label>
-          <input name="account_number" type="text" required class="pw-field-input">
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Account Number</label>
+          <input name="account_number" type="text" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
         <div>
-          <label class="pw-field-label">Bank Name</label>
-          <input name="bank_name_manual" type="text" required class="pw-field-input">
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Bank Name</label>
+          <input name="bank_name_manual" type="text" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
         <div class="flex justify-end gap-2 pt-1">
-          <button type="button" class="pw-ghost-btn" data-close>Cancel</button>
-          <button type="submit" class="pw-primary-btn">Request Withdraw</button>
+          <button type="button" class="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
+          <button type="submit" class="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-bold text-zinc-950">Request Withdraw</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Send modal -->
   <div id="sendModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm" aria-hidden="true">
-    <div class="pw-modal-card">
-      <div class="mb-4 flex items-center justify-between">
-        <h3 class="text-sm font-bold text-slate-100">Send Funds</h3>
-        <button type="button" id="openScanQr" class="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-sky-400 hover:bg-white/10">
-          <i class='bx bx-scan'></i> Scan QR
-        </button>
-      </div>
+    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
+      <h3 class="mb-4 text-sm font-bold text-slate-100">Send Funds</h3>
       <form id="sendForm" method="POST" action="{{ url_for('wallet_transfer') }}" class="space-y-3">
         <div>
-          <label class="pw-field-label">Amount</label>
-          <input name="amount" type="number" step="0.01" min="0.01" required class="pw-field-input">
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Amount</label>
+          <input name="amount" type="number" step="0.01" min="0.01" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
         </div>
         <div>
-          <label class="pw-field-label">Currency</label>
-          <select name="currency" class="pw-field-input">
-            <option value="etb">ETB</option>
-            <option value="tokens">Alta tokens</option>
-          </select>
-        </div>
-        <div>
-          <label class="pw-field-label">Recipient Wallet ID</label>
-          <input name="recipient_wallet_id" id="recipientWalletId" type="text" required autocomplete="off" class="pw-field-input">
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Recipient Wallet ID</label>
+          <input name="recipient_wallet_id" id="recipientWalletId" type="text" required autocomplete="off" class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
           <p id="recipientNameHint" class="mt-1 text-xs"></p>
         </div>
         <div class="flex justify-end gap-2 pt-1">
-          <button type="button" class="pw-ghost-btn" data-close>Cancel</button>
-          <button type="submit" id="sendSubmitBtn" class="pw-primary-btn">Send</button>
+          <button type="button" class="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
+          <button type="submit" id="sendSubmitBtn" class="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-bold text-zinc-950">Send</button>
         </div>
       </form>
-    </div>
-  </div>
-
-  <!-- Receive QR modal -->
-  <div id="receiveQrModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm" aria-hidden="true">
-    <div class="w-full max-w-xs rounded-2xl border border-white/10 bg-zinc-900/95 p-5 text-center shadow-2xl">
-      <h3 class="mb-1 text-sm font-bold text-slate-100">Receive Funds</h3>
-      <p class="mb-4 text-xs text-slate-500">Share this code so others can send you money instantly.</p>
-      {% if has_wallet_id %}
-        <div class="mx-auto grid place-items-center rounded-2xl border border-sky-400/20 bg-white p-3 shadow-inner" style="width:200px;height:200px" id="receiveQrCode">
-          <div class="grid h-full w-full place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-center text-[11px] font-medium text-slate-500">
-            QR placeholder<br/>wallet code ready
-          </div>
-        </div>
-        <div class="mt-4 rounded-xl border border-white/5 bg-zinc-950/50 px-3 py-2 font-mono text-sm text-slate-200">{{ wallet_id }}</div>
-      {% else %}
-        <div class="rounded-xl border border-dashed border-white/10 bg-zinc-950/40 px-4 py-8 text-xs text-slate-500">
-          Generate a wallet first to get your receive code.
-        </div>
-      {% endif %}
-      <button type="button" class="mt-4 w-full rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Close</button>
-    </div>
-  </div>
-
-  <!-- Scan QR modal -->
-  <div id="scanQrModal" class="fixed inset-0 z-[80] hidden items-center justify-center bg-zinc-950/80 p-4 backdrop-blur-sm" aria-hidden="true">
-    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
-      <h3 class="mb-3 text-sm font-bold text-slate-100">Scan a Wallet QR Code</h3>
-      <div id="scanQrReader" class="overflow-hidden rounded-xl bg-black"></div>
-      <p id="scanQrStatus" class="mt-2 text-center text-xs text-slate-500">Point your camera at a wallet QR code</p>
-      <button type="button" class="mt-3 w-full rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
     </div>
   </div>
 
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 document.querySelectorAll('[data-modal]').forEach(function(btn) {
   btn.addEventListener('click', function() {
@@ -479,22 +174,15 @@ document.querySelectorAll('[data-modal]').forEach(function(btn) {
     if (m) { m.classList.remove('hidden'); m.classList.add('flex'); m.setAttribute('aria-hidden', 'false'); }
   });
 });
-
 document.querySelectorAll('[data-close]').forEach(function(b) {
   b.addEventListener('click', function(e) {
     var backdrop = e.target.closest('.fixed.inset-0');
-    if (backdrop) {
-      backdrop.classList.add('hidden'); backdrop.classList.remove('flex'); backdrop.setAttribute('aria-hidden', 'true');
-      if (backdrop.id === 'scanQrModal') stopQrScanner();
-    }
+    if (backdrop) { backdrop.classList.add('hidden'); backdrop.classList.remove('flex'); backdrop.setAttribute('aria-hidden', 'true'); }
   });
 });
-document.querySelectorAll('#depositModal, #withdrawModal, #sendModal, #receiveQrModal, #scanQrModal').forEach(function(back) {
+document.querySelectorAll('#depositModal, #withdrawModal, #sendModal').forEach(function(back) {
   back.addEventListener('click', function(e) {
-    if (e.target === back) {
-      back.classList.add('hidden'); back.classList.remove('flex'); back.setAttribute('aria-hidden', 'true');
-      if (back.id === 'scanQrModal') stopQrScanner();
-    }
+    if (e.target === back) { back.classList.add('hidden'); back.classList.remove('flex'); back.setAttribute('aria-hidden', 'true'); }
   });
 });
 
@@ -505,76 +193,10 @@ document.querySelectorAll('#depositModal, #withdrawModal, #sendModal, #receiveQr
   if (!btn || !val) return;
   btn.addEventListener('click', function () {
     navigator.clipboard.writeText(val.textContent.trim()).then(function () {
-      var original = btn.innerHTML;
-      btn.innerHTML = '<i class="bx bx-check"></i> Copied!';
-      setTimeout(function () { btn.innerHTML = original; }, 1500);
+      var original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(function () { btn.textContent = original; }, 1500);
     });
-  });
-})();
-
-// Balance hide/show toggle
-(function () {
-  var toggle = document.getElementById('toggleBalanceBtn');
-  var balanceEl = document.getElementById('balanceAmount');
-  var tokenEl = document.getElementById('tokenAmount');
-  var eyeOpen = document.getElementById('eyeOpen');
-  var eyeClosed = document.getElementById('eyeClosed');
-  if (!toggle || !balanceEl || !tokenEl || !eyeOpen || !eyeClosed) return;
-
-  var realBalance = balanceEl.dataset.balance || balanceEl.textContent.trim();
-  var realTokens = tokenEl.dataset.token || tokenEl.textContent.trim();
-  var hiddenValue = '••••••';
-  var hiddenToken = '•••••• Alta Tokens';
-  var visible = true;
-
-  function updateDisplay() {
-    if (visible) {
-      balanceEl.textContent = realBalance;
-      tokenEl.textContent = realTokens + ' Alta Tokens';
-      eyeOpen.classList.remove('hidden');
-      eyeClosed.classList.add('hidden');
-    } else {
-      balanceEl.textContent = hiddenValue;
-      tokenEl.textContent = hiddenToken;
-      eyeOpen.classList.add('hidden');
-      eyeClosed.classList.remove('hidden');
-    }
-  }
-
-  toggle.addEventListener('click', function () {
-    visible = !visible;
-    updateDisplay();
-  });
-
-  updateDisplay();
-})();
-
-// --- QR BUG FIX ---
-// Previously the top-right button on the balance card had no id/handler at all,
-// so nothing fired on click. It now has id="openReceiveQr" (see HTML above),
-// which this listener opens, and the block below renders the QR code into it.
-document.getElementById('openReceiveQr')?.addEventListener('click', function() {
-  var m = document.getElementById('receiveQrModal');
-  if (m) {
-    m.classList.remove('hidden');
-    m.classList.add('flex');
-    m.setAttribute('aria-hidden', 'false');
-  }
-});
-
-// Receive QR code render (generated on demand, once)
-(function () {
-  var openBtn = document.getElementById('openReceiveQr');
-  var walletId = {{ (wallet_id if has_wallet_id else '')|tojson }};
-  var rendered = false;
-  if (!openBtn) return;
-  openBtn.addEventListener('click', function () {
-    var target = document.getElementById('receiveQrCode');
-    if (!rendered && target && walletId && window.QRCode) {
-      target.innerHTML = '';
-      new QRCode(target, { text: walletId, width: 176, height: 176, colorDark: '#09090b', colorLight: '#ffffff' });
-      rendered = true;
-    }
   });
 })();
 
@@ -585,7 +207,7 @@ document.getElementById('openReceiveQr')?.addEventListener('click', function() {
   var submitBtn = document.getElementById('sendSubmitBtn');
   if (!input || !hint) return;
   var timer = null;
-  function lookup() {
+  input.addEventListener('input', function () {
     clearTimeout(timer);
     var val = input.value.trim();
     if (!val) { hint.textContent = ''; return; }
@@ -604,99 +226,7 @@ document.getElementById('openReceiveQr')?.addEventListener('click', function() {
           }
         }).catch(function () { hint.textContent = ''; });
     }, 400);
-  }
-  input.addEventListener('input', lookup);
-})();
-
-// Scan QR to auto-fill recipient (lazy-loads scanner library on first use)
-var qrScannerInstance = null;
-function stopQrScanner() {
-  if (qrScannerInstance) {
-    try { qrScannerInstance.stop().then(function () { qrScannerInstance.clear(); }); } catch (e) {}
-    qrScannerInstance = null;
-  }
-}
-(function () {
-  var scanBtn = document.getElementById('openScanQr');
-  var scanModal = document.getElementById('scanQrModal');
-  var statusEl = document.getElementById('scanQrStatus');
-  if (!scanBtn || !scanModal) return;
-  scanBtn.addEventListener('click', function () {
-    document.getElementById('sendModal').classList.add('hidden');
-    document.getElementById('sendModal').classList.remove('flex');
-    scanModal.classList.remove('hidden'); scanModal.classList.add('flex'); scanModal.setAttribute('aria-hidden', 'false');
-
-    function startScanner() {
-      qrScannerInstance = new Html5Qrcode('scanQrReader');
-      qrScannerInstance.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: 220 },
-        function (decodedText) {
-          document.getElementById('recipientWalletId').value = decodedText.trim();
-          document.getElementById('recipientWalletId').dispatchEvent(new Event('input'));
-          stopQrScanner();
-          scanModal.classList.add('hidden'); scanModal.classList.remove('flex'); scanModal.setAttribute('aria-hidden', 'true');
-          document.getElementById('sendModal').classList.remove('hidden');
-          document.getElementById('sendModal').classList.add('flex');
-        },
-        function () { /* per-frame scan errors, ignored */ }
-      ).catch(function () {
-        if (statusEl) statusEl.textContent = 'Camera access denied or unavailable. Enter the wallet ID manually.';
-      });
-    }
-
-    if (window.Html5Qrcode) {
-      startScanner();
-    } else {
-      var s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
-      s.onload = startScanner;
-      s.onerror = function () { if (statusEl) statusEl.textContent = 'Could not load the scanner. Enter the wallet ID manually.'; };
-      document.head.appendChild(s);
-    }
   });
-})();
-
-// Transaction filters (flow + date), operating on already-rendered rows
-(function () {
-  var chips = document.querySelectorAll('.pw-filter-chip');
-  var dateInput = document.getElementById('txDateFilter');
-  var dateClear = document.getElementById('txDateClear');
-  var list = document.getElementById('requestsList');
-  var emptyState = document.getElementById('txEmptyFiltered');
-  var activeFlow = 'all';
-
-  function applyFilters() {
-    var activeDate = dateInput ? dateInput.value : '';
-    dateClear.classList.toggle('hidden', !activeDate);
-    var anyVisible = false;
-    document.querySelectorAll('.pw-tx-row').forEach(function (row) {
-      var flowOk = activeFlow === 'all' || row.getAttribute('data-tx-flow') === activeFlow;
-      var dateOk = !activeDate || row.getAttribute('data-tx-date') === activeDate;
-      var visible = flowOk && dateOk;
-      row.style.display = visible ? '' : 'none';
-      if (visible) anyVisible = true;
-    });
-    document.querySelectorAll('#requestsList > div.pw-tx-group').forEach(function (group) {
-      var hasVisibleRow = Array.prototype.some.call(group.querySelectorAll('.pw-tx-row'), function (r) { return r.style.display !== 'none'; });
-      group.style.display = hasVisibleRow ? '' : 'none';
-      var header = group.previousElementSibling;
-      if (header) header.style.display = hasVisibleRow ? '' : 'none';
-    });
-    if (list) list.classList.toggle('hidden', !anyVisible);
-    if (emptyState) emptyState.classList.toggle('hidden', anyVisible);
-  }
-
-  chips.forEach(function (chip) {
-    chip.addEventListener('click', function () {
-      chips.forEach(function (c) { c.setAttribute('aria-pressed', 'false'); });
-      chip.setAttribute('aria-pressed', 'true');
-      activeFlow = chip.getAttribute('data-filter');
-      applyFilters();
-    });
-  });
-  if (dateInput) dateInput.addEventListener('change', applyFilters);
-  if (dateClear) dateClear.addEventListener('click', function () { dateInput.value = ''; applyFilters(); });
 })();
 </script>
 
