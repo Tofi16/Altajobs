@@ -234,22 +234,46 @@
 
   <section class="mb-4">
     <div class="bg-slate-900 border border-slate-800 rounded-[2rem] p-6 shadow-2xl relative overflow-hidden mb-8">
-      <div class="absolute top-0 left-0 w-48 h-48 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-      <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">AVAILABLE BALANCE</p>
-      <div class="flex items-baseline gap-2">
-        <h1 class="text-5xl font-extrabold text-white">{{ balance }}</h1>
-        <span class="text-xl text-slate-400 font-medium">ETB</span>
+      <!-- Subtle Glow -->
+      <div class="absolute top-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      
+      <div class="flex justify-between items-start relative z-10 mb-6">
+        <div>
+          <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Wallet Owner</p>
+          <h2 class="text-white text-lg font-bold tracking-wide">{{ current_user.full_name | default(current_user.username, true) }}</h2>
+        </div>
+        <button class="bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 p-3 rounded-2xl transition-all duration-300 cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><path d="M3 14h7v7H3z"></path></svg>
+        </button>
       </div>
 
-      <div class="flex items-center gap-2 mt-4">
-        <span class="text-yellow-500 text-lg">🪙</span>
-        <span class="text-white font-medium">{{ tokens | default('0', true) }} Alta Tokens</span>
+      <div class="relative z-10">
+        <div class="flex items-center gap-3 mb-2">
+          <p class="text-slate-400 text-xs font-bold uppercase tracking-wider">Available Balance</p>
+          <button id="toggleBalanceBtn" class="text-slate-400 hover:text-white transition-colors cursor-pointer" title="Toggle Balance Visibility">
+            <!-- Eye Open (Default) -->
+            <svg id="eyeOpen" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <!-- Eye Closed (Hidden by default) -->
+            <svg id="eyeClosed" class="hidden" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+          </button>
+        </div>
+        
+        <div class="flex items-baseline gap-2">
+          <h1 class="text-5xl font-extrabold text-white transition-all duration-300" id="balanceAmount" data-balance="{{ balance }}">{{ balance }}</h1>
+          <span class="text-xl text-slate-400 font-medium" id="balanceCurrency">ETB</span>
+        </div>
+        <div class="flex items-center gap-2 mt-4">
+          <span class="text-yellow-500 text-lg">🪙</span>
+          <span class="text-white font-medium" id="tokenAmount" data-token="{{ tokens | default('0', true) }}">{{ tokens | default('0', true) }} Alta Tokens</span>
+        </div>
       </div>
 
-      <div class="mt-8 bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex justify-between items-center">
-        <p class="text-slate-400 text-sm">Wallet ID <span class="text-white ml-2 font-mono">{{ wallet_id | default('None', true) }}</span></p>
-        <button type="button" id="copyWalletId" class="bg-slate-800 hover:bg-slate-700 text-white text-sm px-5 py-2 rounded-lg transition-colors font-medium">Copy</button>
+      <div class="mt-8 bg-[#0B1121] border border-slate-800/50 rounded-2xl p-4 flex justify-between items-center relative z-10">
+        <p class="text-slate-400 text-sm">Wallet ID <span id="walletIdValue" class="text-white ml-3 font-mono tracking-wide">{{ wallet_id | default('None', true) }}</span></p>
+        <button class="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 text-blue-400 text-sm px-4 py-2 rounded-xl transition-colors font-medium flex items-center gap-2" id="copyWalletId">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          Copy
+        </button>
       </div>
     </div>
   </section>
@@ -507,6 +531,43 @@ document.querySelectorAll('#depositModal, #withdrawModal, #sendModal, #receiveQr
       setTimeout(function () { btn.innerHTML = original; }, 1500);
     });
   });
+})();
+
+// Balance hide/show toggle
+(function () {
+  var toggle = document.getElementById('toggleBalanceBtn');
+  var balanceEl = document.getElementById('balanceAmount');
+  var tokenEl = document.getElementById('tokenAmount');
+  var eyeOpen = document.getElementById('eyeOpen');
+  var eyeClosed = document.getElementById('eyeClosed');
+  if (!toggle || !balanceEl || !tokenEl || !eyeOpen || !eyeClosed) return;
+
+  var realBalance = balanceEl.dataset.balance || balanceEl.textContent.trim();
+  var realTokens = tokenEl.dataset.token || tokenEl.textContent.trim();
+  var hiddenValue = '••••••';
+  var hiddenToken = '•••••• Alta Tokens';
+  var visible = true;
+
+  function updateDisplay() {
+    if (visible) {
+      balanceEl.textContent = realBalance;
+      tokenEl.textContent = realTokens + ' Alta Tokens';
+      eyeOpen.classList.remove('hidden');
+      eyeClosed.classList.add('hidden');
+    } else {
+      balanceEl.textContent = hiddenValue;
+      tokenEl.textContent = hiddenToken;
+      eyeOpen.classList.add('hidden');
+      eyeClosed.classList.remove('hidden');
+    }
+  }
+
+  toggle.addEventListener('click', function () {
+    visible = !visible;
+    updateDisplay();
+  });
+
+  updateDisplay();
 })();
 
 // Receive QR code render (generated on demand, once)

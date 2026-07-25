@@ -108,44 +108,54 @@
   function initCompose() {
     var launcher = document.getElementById('composeLauncher');
     var overlay = document.getElementById('composeModalOverlay');
-    if (!launcher || !overlay) return;
+    var modal = document.getElementById('composeModal');
+    var typeInput = document.getElementById('composePostType');
+    var typeDesc = document.getElementById('composeTypeDesc');
+    if (!launcher || !overlay || !modal || !typeInput) return;
+
+    var typeMessages = {
+      general: 'Share an update or story with your network.',
+      job: 'Highlight a role and attract the right applicants.',
+      skill: 'Showcase a skill or career milestone.',
+    };
+
+    var updateTypeSelection = function (selectedType) {
+      selectedType = selectedType || 'general';
+      document.querySelectorAll('.compose-type-card').forEach(function (card) {
+        if (card.dataset.type === selectedType) {
+          card.classList.add('active');
+        } else {
+          card.classList.remove('active');
+        }
+      });
+      typeInput.value = selectedType;
+      if (typeDesc) {
+        typeDesc.textContent = typeMessages[selectedType] || typeMessages.general;
+      }
+    };
+
+    var openCompose = function () {
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      setTimeout(function () {
+        var textarea = document.getElementById('composeTextarea');
+        if (textarea) textarea.focus();
+      }, 20);
+    };
+
+    var closeCompose = function () {
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    };
+
     launcher.addEventListener('click', function (e) {
       e.preventDefault();
       e.stopPropagation();
-      overlay.classList.remove('hidden');
-      overlay.classList.add('flex');
-    });
-
-    var close = document.getElementById('composeClose');
-    if (close) close.addEventListener('click', function () {
-      overlay.classList.add('hidden');
-      overlay.classList.remove('flex');
-    });
-
-    document.querySelectorAll('.compose-option').forEach(function (opt) {
-      opt.addEventListener('click', function () {
-        document.getElementById('composePostType').value = opt.dataset.type || 'standard';
-        document.querySelectorAll('.compose-option').forEach(function (x) {
-          x.classList.remove('ring', 'ring-sky-400');
-        });
-        opt.classList.add('ring', 'ring-sky-400');
-      });
-    });
-
-    document.querySelectorAll('.compose-launch-action').forEach(function (btn) {
-      btn.addEventListener('click', function (e) {
-        e.preventDefault();
-        var overlay = document.getElementById('composeModalOverlay');
-        if (!overlay) return;
-        document.getElementById('composePostType').value = btn.dataset.type || 'standard';
-        document.querySelectorAll('.compose-option').forEach(function (x) {
-          x.classList.remove('ring', 'ring-sky-400');
-        });
-        var selected = document.querySelector('.compose-option[data-type="' + btn.dataset.type + '"]');
-        if (selected) selected.classList.add('ring', 'ring-sky-400');
-        overlay.classList.remove('hidden');
-        overlay.classList.add('flex');
-      });
+      openCompose();
     });
 
     launcher.addEventListener('keydown', function (e) {
@@ -155,17 +165,39 @@
       }
     });
 
+    var close = document.getElementById('composeModalClose');
+    if (close) {
+      close.addEventListener('click', function (e) {
+        e.preventDefault();
+        closeCompose();
+      });
+    }
+
     overlay.addEventListener('click', function (e) {
       if (e.target === overlay) {
-        overlay.classList.add('hidden');
-        overlay.classList.remove('flex');
+        closeCompose();
       }
     });
 
-    var cancel = document.getElementById('composeCancel');
-    if (cancel) cancel.addEventListener('click', function () {
-      overlay.classList.add('hidden');
-      overlay.classList.remove('flex');
+    document.querySelectorAll('.compose-type-card').forEach(function (card) {
+      card.addEventListener('click', function (e) {
+        e.preventDefault();
+        updateTypeSelection(card.dataset.type);
+      });
+    });
+
+    document.querySelectorAll('.compose-launch-action').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        updateTypeSelection(btn.dataset.type);
+        openCompose();
+      });
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !overlay.classList.contains('hidden')) {
+        closeCompose();
+      }
     });
   }
 

@@ -347,51 +347,6 @@
   </div>
 </div>
 
-<!-- Compose Modal -->
-<div id="composeModalOverlay" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50 p-4">
-  <div class="bg-zinc-900/95 border border-white/5 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
-    <div class="flex justify-between items-center shrink-0 p-6 border-b border-white/10">
-      <div>
-        <h3 class="text-lg font-bold">Create Post</h3>
-        <p class="text-sm text-slate-400">Share your latest job, skill, or experience with AltaJobs.</p>
-      </div>
-      <button id="composeClose" class="text-slate-400">✕</button>
-    </div>
-    <form id="composeForm" method="POST" action="{{ url_for('new_post') }}" class="flex flex-col flex-1 min-h-0">
-      <div class="overflow-y-auto px-6 py-4 space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <button type="button" class="compose-option p-4 rounded-2xl bg-white/3 hover:bg-white/5" data-type="standard">
-            <i class="bx bx-edit text-2xl"></i>
-            <div class="font-bold mt-2">Standard Post</div>
-            <div class="text-xs text-slate-400">Share text & images</div>
-          </button>
-          <button type="button" class="compose-option p-4 rounded-2xl bg-white/3 hover:bg-white/5" data-type="job">
-            <i class="bx bx-briefcase text-2xl"></i>
-            <div class="font-bold mt-2">Post a Job</div>
-            <div class="text-xs text-slate-400">Add job details & apply link</div>
-          </button>
-          <button type="button" class="compose-option p-4 rounded-2xl bg-white/3 hover:bg-white/5" data-type="skills">
-            <i class="bx bx-star text-2xl"></i>
-            <div class="font-bold mt-2">Post Skills</div>
-            <div class="text-xs text-slate-400">Share experience & portfolio</div>
-          </button>
-        </div>
-        <div class="space-y-3">
-          <input type="hidden" name="post_type" id="composePostType" value="standard">
-          <textarea name="content" id="composeContent" class="w-full min-h-[180px] rounded-2xl bg-zinc-950/60 p-4 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Write your post..."></textarea>
-        </div>
-      </div>
-      <div class="shrink-0 px-6 py-4 border-t border-white/10 bg-zinc-950/80" style="padding-bottom: calc(1rem + env(safe-area-inset-bottom));">
-        <div class="flex flex-col gap-3 sm:flex-row sm:justify-end sm:items-center">
-          <button type="button" id="composeCancel" class="rounded-xl border border-white/10 px-4 py-2 text-sm text-slate-300 hover:bg-white/5">Cancel</button>
-          <button type="submit" class="rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-400">Post</button>
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- Admin report drawer -->
 <div id="reportDrawer" class="fixed right-0 top-0 h-full max-w-xl w-full bg-zinc-900/95 border-l border-white/5 transform translate-x-full transition-transform z-60">
   <div class="p-4 flex items-start justify-between">
     <h3 class="text-lg font-bold">Report Details</h3>

@@ -54,6 +54,43 @@
   .filter-pill.active {
     background: linear-gradient(140deg, rgba(14, 165, 233, 0.18), rgba(59, 130, 246, 0.16)); border-color: rgba(96, 165, 250, 0.35); color: #f8fafc;
   }
+
+  #composeModalOverlay {
+    position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.58); backdrop-filter: blur(6px); z-index: 1100;
+  }
+  .compose-modal {
+    display: none; position: fixed; inset: 0; margin: auto; width: min(92vw, 520px); max-width: 520px;
+    max-height: min(82vh, 640px); height: fit-content; background: rgba(15, 23, 42, 0.98);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 28px; padding: 18px;
+    overflow-y: auto; box-shadow: 0 30px 80px rgba(0,0,0,0.45); z-index: 1101;
+  }
+  .compose-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .compose-modal-head h3 { margin: 0; font-size: 1.05rem; font-weight: 800; color: #f8fafc; }
+  .compose-modal-close { border: none; background: transparent; color: #94a3b8; font-size: 1.4rem; cursor: pointer; line-height: 1; }
+  .compose-type-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .compose-type-card {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+    border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02);
+    border-radius: 18px; padding: 14px 12px; cursor: pointer; color: #cbd5e1;
+    font-size: 0.82rem; font-weight: 700; transition: all 0.16s ease;
+  }
+  .compose-type-card i { font-size: 1.35rem; }
+  .compose-type-card:hover { border-color: rgba(255,255,255,0.18); }
+  .compose-type-card.active { background: rgba(96, 165, 250, 0.12); border-color: rgba(96, 165, 250, 0.4); color: #e0f2fe; }
+  .compose-type-card.active[data-type="job"] { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.35); color: #a7f3d0; }
+  .compose-type-card.active[data-type="skill"] { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); color: #fde68a; }
+  .compose-type-desc { margin: 0 0 14px; color: #94a3b8; font-size: 0.9rem; line-height: 1.4; }
+  .compose-textarea { width: 100%; min-height: 132px; resize: none; border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(15, 23, 42, 0.85); color: #e2e8f0; border-radius: 20px; padding: 14px 16px; line-height: 1.6;
+  }
+  .compose-photo-name { display: block; margin: 8px 0 6px; color: #94a3b8; font-size: 0.82rem; }
+  .new-post-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+  .compose-media-icon { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+    border-radius: 16px; border: 1px solid rgba(148, 163, 184, 0.18); background: rgba(255,255,255,0.04); color: #38bdf8;
+    cursor: pointer; transition: background .16s ease, transform .16s ease;
+  }
+  .compose-media-icon:hover { background: rgba(255,255,255,0.08); transform: translateY(-1px); }
 </style>
 
 <div class="feed-create-post-card group" id="composeLauncher" role="button" aria-label="Create a post" tabindex="0">
@@ -68,10 +105,55 @@
     <div class="compose-placeholder">Share a job, skill, or experience...</div>
   </div>
   <div class="compose-shortcuts">
-    <button type="button" class="compose-shortcut compose-launch-action" data-type="standard">Post</button>
+    <button type="button" class="compose-shortcut compose-launch-action" data-type="general">Post</button>
     <button type="button" class="compose-shortcut compose-launch-action" data-type="job">Job</button>
-    <button type="button" class="compose-shortcut compose-launch-action" data-type="skills">Skill</button>
+    <button type="button" class="compose-shortcut compose-launch-action" data-type="skill">Skill</button>
   </div>
+</div>
+
+<div class="modal-overlay hidden" id="composeModalOverlay"></div>
+<div class="modal-card compose-modal hidden" id="composeModal" role="dialog" aria-modal="true" aria-label="Create post">
+  <div class="compose-modal-head">
+    <h3>Create post</h3>
+    <button type="button" class="compose-modal-close" id="composeModalClose" aria-label="Close">&times;</button>
+  </div>
+  <form method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data" id="composeForm">
+    <div class="compose-type-grid">
+      <button type="button" class="compose-type-card active" data-type="general">
+        <i class='bx bx-message-square-detail'></i>
+        <span>Standard Post</span>
+      </button>
+      <button type="button" class="compose-type-card" data-type="job">
+        <i class='bx bxs-briefcase'></i>
+        <span>Post a Job</span>
+      </button>
+      <button type="button" class="compose-type-card" data-type="skill">
+        <i class='bx bxs-magic-wand'></i>
+        <span>Post Skills/Experience</span>
+      </button>
+    </div>
+    <p class="compose-type-desc" id="composeTypeDesc">Share an update or story with your network.</p>
+    <input type="hidden" name="post_type" id="composePostType" value="general">
+    <div class="compose-row" style="display:flex;gap:12px;align-items:flex-start;">
+      <div class="avatar compose-avatar" style="width:40px;height:40px;">
+        {% if current_user['avatar'] %}
+          <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="">
+        {% else %}
+          {{ (current_user['full_name'] or current_user['username'])[0] }}
+        {% endif %}
+      </div>
+      <textarea name="content" id="composeTextarea" class="compose-textarea" rows="4"
+                placeholder="Share an update or story..."></textarea>
+    </div>
+    <span class="compose-photo-name" id="composePhotoName"></span>
+    <div class="new-post-actions" id="composeActions">
+      <label class="compose-media-icon" title="{{ t.add_photo }}">
+        <i class='bx bx-image-add'></i>
+        <input type="file" name="photo" accept="image/*" style="display:none" id="composePhotoInput">
+      </label>
+      <button type="submit" id="composeSubmitButton" class="btn btn-primary btn-disabled" disabled>{{ t.post_button }}</button>
+    </div>
+  </form>
 </div>
 
 <div class="feed-filters" id="feedFilters">

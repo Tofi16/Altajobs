@@ -41,6 +41,20 @@ function syncFollowButtons(userId, isFollowing, followLabel, followingLabel) {
   });
 }
 
+function updateFollowCounters(data) {
+  if (!data) return;
+  if (data.followers_count !== undefined) {
+    document.querySelectorAll('#profileFollowersCount, .js-followers-count').forEach(function (el) {
+      el.textContent = data.followers_count;
+    });
+  }
+  if (data.your_following_count !== undefined) {
+    document.querySelectorAll('#profileFollowingCount, .js-following-count').forEach(function (el) {
+      el.textContent = data.your_following_count;
+    });
+  }
+}
+
 // ---------- AJAX Follow button (instant, no reload) ----------
 document.addEventListener("click", async function (e) {
   const btn = e.target.closest(".js-follow-btn");
@@ -67,6 +81,7 @@ document.addEventListener("click", async function (e) {
     }
     if (data.following !== undefined) {
       syncFollowButtons(userId, !!data.following, followLabel, followingLabel);
+      updateFollowCounters(data);
     }
   } catch (err) {
     console.error("Follow toggle failed", err);
@@ -152,6 +167,41 @@ document.addEventListener("dblclick", function (e) {
   if (!btn) return;
   e.preventDefault();
   togglePostLike(btn, { fromDoubleTap: true });
+});
+
+document.addEventListener("submit", async function (e) {
+  const form = e.target.closest('.js-comment-form');
+  if (!form) return;
+  e.preventDefault();
+
+  const postId = form.dataset.postId;
+  const submitBtn = form.querySelector('button[type="submit"]');
+  if (!postId || !submitBtn) return;
+
+  submitBtn.disabled = true;
+  const formData = new FormData(form);
+  try {
+    const res = await fetch(form.action, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      body: formData,
+    });
+    if (!res.ok) {
+      throw new Error('Comment request failed');
+    }
+    const data = await res.json();
+    if (data.comment_count !== undefined) {
+      const countEl = document.getElementById('postCommentsCount');
+      if (countEl) countEl.textContent = data.comment_count;
+      const commentBadge = form.closest('article, .post-card')?.querySelector('.comment-count');
+      if (commentBadge) commentBadge.textContent = data.comment_count;
+      form.reset();
+    }
+  } catch (err) {
+    console.error('Comment submission failed', err);
+  } finally {
+    submitBtn.disabled = false;
+  }
 });
 
 // ---------- Compact compose box: expand on focus/typing ----------

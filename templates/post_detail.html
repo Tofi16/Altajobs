@@ -109,7 +109,7 @@
     </div>
   {% endfor %}
 
-  <form method="POST" action="{{ url_for('comment_post', post_id=post['id']) }}" class="comment-form">
+  <form method="POST" action="{{ url_for('comment_post', post_id=post['id']) }}" class="comment-form js-comment-form" data-post-id="{{ post['id'] }}">
     <input type="text" name="content" placeholder="{{ t.write_comment }}" required>
     <button type="submit" class="btn btn-small">{{ t.send }}</button>
   </form>

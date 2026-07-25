@@ -3718,23 +3718,34 @@ def api_toggle_like(post_id):
 @login_required
 def comment_post(post_id):
     content = request.form.get("content", "").strip()
-    if content:
-        db = get_db()
-        db.execute(
-            """INSERT INTO comments (post_id, user_id, content, created_at)
+    if not content:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+            return jsonify({"success": False, "error": "empty_comment"}), 400
+        return redirect(url_for("post_detail", post_id=post_id))
+
+    db = get_db()
+    db.execute(
+        """INSERT INTO comments (post_id, user_id, content, created_at)
                VALUES (?, ?, ?, ?)""",
-            (post_id, session["user_id"], content,
-             datetime.datetime.utcnow().isoformat()),
-        )
+        (post_id, session["user_id"], content,
+         datetime.datetime.utcnow().isoformat()),
+    )
+    db.commit()
+    post = db.execute("SELECT user_id FROM posts WHERE id = ?", (post_id,)).fetchone()
+    if post and post["user_id"] != session["user_id"]:
+        commenter = db.execute(
+            "SELECT username, full_name FROM users WHERE id = ?", (session["user_id"],)
+        ).fetchone()
+        commenter_name = (commenter["full_name"] or commenter["username"]) if commenter else "Someone"
+        add_notification(db, post["user_id"], f"{commenter_name} commented on your post.", ntype="comment")
         db.commit()
-        post = db.execute("SELECT user_id FROM posts WHERE id = ?", (post_id,)).fetchone()
-        if post and post["user_id"] != session["user_id"]:
-            commenter = db.execute(
-                "SELECT username, full_name FROM users WHERE id = ?", (session["user_id"],)
-            ).fetchone()
-            commenter_name = (commenter["full_name"] or commenter["username"]) if commenter else "Someone"
-            add_notification(db, post["user_id"], f"{commenter_name} commented on your post.", ntype="comment")
-            db.commit()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+        comment_count = db.execute(
+            "SELECT COUNT(*) c FROM comments WHERE post_id = ?", (post_id,)
+        ).fetchone()["c"]
+        return jsonify({"success": True, "comment_count": comment_count})
+
     return redirect(url_for("post_detail", post_id=post_id))
 
 
@@ -5936,18 +5947,28 @@ def api_toggle_follow(user_id):
     ).fetchone()
     if existing:
         db.execute("DELETE FROM follows WHERE id = ?", (existing["id"],))
-        db.commit()
         following = False
     else:
         db.execute(
             "INSERT INTO follows (follower_id, followed_id, created_at) VALUES (?, ?, ?)",
             (session["user_id"], user_id, datetime.datetime.utcnow().isoformat()),
         )
-        db.commit()
         following = True
         _notify_user_on_new_follower(db, user_id, session["user_id"])
-        db.commit()
-    return jsonify({"following": following})
+    db.commit()
+
+    followers_count = db.execute(
+        "SELECT COUNT(*) c FROM follows WHERE followed_id = ?", (user_id,)
+    ).fetchone()["c"]
+    your_following_count = db.execute(
+        "SELECT COUNT(*) c FROM follows WHERE follower_id = ?", (session["user_id"],)
+    ).fetchone()["c"]
+
+    return jsonify({
+        "following": following,
+        "followers_count": followers_count,
+        "your_following_count": your_following_count,
+    })
 
 
 # ---------------------------------------------------------------------------

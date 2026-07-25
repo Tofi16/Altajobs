@@ -225,11 +225,11 @@
   <!-- ============ HORIZONTAL STATS BAR ============ -->
   <section class="profile-stats">
     <a href="{{ url_for('profile_followers', user_id=profile_user['id']) }}" class="profile-stat-card px-2 py-3 block hover:bg-white/5">
-      <div class="text-lg font-extrabold text-slate-100">{{ followers_count }}</div>
+      <div id="profileFollowersCount" class="text-lg font-extrabold text-slate-100">{{ followers_count }}</div>
       <div class="text-[11px] text-slate-500">{{ t.followers }}</div>
     </a>
     <a href="{{ url_for('profile_following', user_id=profile_user['id']) }}" class="profile-stat-card px-2 py-3 block hover:bg-white/5">
-      <div class="text-lg font-extrabold text-slate-100">{{ following_count }}</div>
+      <div id="profileFollowingCount" class="text-lg font-extrabold text-slate-100">{{ following_count }}</div>
       <div class="text-[11px] text-slate-500">{{ t.follow }}</div>
     </a>
     <div class="profile-stat-card px-2 py-3">
