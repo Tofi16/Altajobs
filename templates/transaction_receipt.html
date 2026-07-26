@@ -1,88 +1,88 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
-  <div class="rounded-[2rem] border border-white/10 bg-zinc-950/80 p-6 shadow-[0_30px_90px_rgba(15,23,42,0.35)] backdrop-blur-xl">
-    <div class="flex flex-col gap-6 rounded-[1.75rem] border border-white/5 bg-zinc-900/80 p-6 shadow-inner shadow-black/10">
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div class="space-y-1">
-          <div class="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-400">AltaJobs</div>
-          <h1 class="text-2xl font-extrabold tracking-tight text-slate-100">Transaction Receipt</h1>
-        </div>
-        <span class="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-300 shadow-sm">Receipt #: {{ transaction.id }}</span>
-      </div>
-
-      <div class="grid gap-4 sm:grid-cols-2">
-        <div class="rounded-3xl border border-white/10 bg-slate-950/70 p-4">
-          <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Date & Time</div>
-          <div class="mt-2 text-sm font-semibold text-slate-100">{{ transaction.created_at }}</div>
-        </div>
-        <div class="rounded-3xl border border-white/10 bg-slate-950/70 p-4">
-          <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Transaction Type</div>
-          <div class="mt-2 text-sm font-semibold text-slate-100">{{ transaction.tx_type }}</div>
-        </div>
-      </div>
-
-      <div class="grid gap-4 rounded-[1.5rem] border border-white/10 bg-zinc-950/80 p-5 sm:grid-cols-2">
-        <div class="space-y-3">
-          <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Sender</div>
-          <div class="rounded-3xl bg-white/5 p-4">
-            <div class="text-sm font-semibold text-slate-100">{{ transaction.sender_name }}</div>
-            <div class="mt-1 text-sm text-slate-400">{{ transaction.sender_wallet }}</div>
+<div class="min-h-screen bg-slate-950 px-4 py-8 text-slate-100">
+  <div class="mx-auto flex w-full max-w-[400px] justify-center">
+    <div id="receiptCard" class="aspect-[9/16] w-full rounded-[2rem] border border-white/10 bg-gradient-to-br from-slate-950 via-zinc-950 to-zinc-900 p-5 shadow-[0_30px_90px_rgba(15,23,42,0.45)]">
+      <div class="flex h-full flex-col justify-between">
+        <div class="space-y-6">
+          <div class="flex items-center justify-between gap-3 rounded-[1.5rem] bg-white/5 px-4 py-3 shadow-inner shadow-black/10">
+            <div>
+              <div class="text-xs font-bold uppercase tracking-[0.28em] text-emerald-400">AltaJobs</div>
+              <div class="text-sm font-semibold text-slate-100">Transaction Receipt</div>
+            </div>
+            <div class="flex h-12 w-12 items-center justify-center rounded-3xl bg-emerald-500/15 text-emerald-300">
+              <i class="bx bx-check text-2xl"></i>
+            </div>
           </div>
-        </div>
-        <div class="space-y-3">
-          <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Receiver</div>
-          <div class="rounded-3xl bg-white/5 p-4">
-            <div class="text-sm font-semibold text-slate-100">{{ transaction.receiver_name }}</div>
-            <div class="mt-1 text-sm text-slate-400">{{ transaction.receiver_wallet }}</div>
-          </div>
-        </div>
-      </div>
 
-      <div class="grid gap-4 lg:grid-cols-[1fr_auto]">
-        <div class="rounded-[1.5rem] border border-white/10 bg-slate-950/70 p-5">
-          <div class="grid gap-3 sm:grid-cols-2">
-            <div>
-              <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Transaction ID</div>
-              <div class="mt-2 text-sm font-semibold text-slate-100">{{ transaction.id }}</div>
+          <div class="rounded-[1.75rem] bg-white/5 p-5 shadow-inner shadow-black/10">
+            <div class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Total Amount</div>
+            <div class="mt-3 flex items-end gap-2">
+              <span class="text-4xl font-extrabold leading-none text-slate-50">{{ transaction.amount }}</span>
+              <span class="mb-1 text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">{{ transaction.currency }}</span>
             </div>
-            <div>
-              <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Reference</div>
-              <div class="mt-2 text-sm font-semibold text-slate-100">{{ transaction.reference or 'N/A' }}</div>
+            <div class="mt-3 rounded-3xl bg-slate-950/80 p-3 text-sm text-slate-400">Receipt #: <span class="font-semibold text-slate-100">{{ transaction.id }}</span></div>
+          </div>
+
+          <div class="space-y-3 rounded-[1.75rem] bg-white/5 p-4 shadow-inner shadow-black/10">
+            <div class="flex items-center justify-between border-b border-slate-700/70 pb-3 text-sm text-slate-400">
+              <span>Date & Time</span>
+              <span class="font-semibold text-slate-100">{{ transaction.created_at }}</span>
             </div>
-            <div>
-              <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Wallet</div>
-              <div class="mt-2 text-sm font-semibold text-slate-100">{{ transaction.wallet_id or '—' }}</div>
+            <div class="flex items-center justify-between border-b border-slate-700/70 pb-3 text-sm text-slate-400">
+              <span>Transaction</span>
+              <span class="font-semibold text-slate-100 capitalize">{{ transaction.tx_type }}</span>
             </div>
-            <div>
-              <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Note</div>
-              <div class="mt-2 text-sm text-slate-400">{{ transaction.note or 'No additional notes' }}</div>
+            <div class="flex items-center justify-between border-b border-slate-700/70 pb-3 text-sm text-slate-400">
+              <span>Sender</span>
+              <span class="ml-3 text-right font-semibold text-slate-100">{{ transaction.sender_name }}</span>
+            </div>
+            <div class="flex items-center justify-between border-b border-slate-700/70 pb-3 text-sm text-slate-400">
+              <span>Receiver</span>
+              <span class="ml-3 text-right font-semibold text-slate-100">{{ transaction.receiver_name }}</span>
+            </div>
+            <div class="flex items-center justify-between pt-3 text-sm text-slate-400">
+              <span>Status</span>
+              <span class="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-emerald-300">{{ transaction.status|capitalize }}</span>
             </div>
           </div>
         </div>
 
-        <div class="flex flex-col justify-between rounded-[1.5rem] border border-white/10 bg-gradient-to-br from-slate-900/90 to-zinc-950/90 p-5 shadow-[0_10px_35px_rgba(15,23,42,0.35)]">
-          <div>
-            <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Total Amount</div>
-            <div class="mt-3 text-4xl font-extrabold tracking-tight text-slate-50">{{ transaction.amount }} <span class="text-xl font-bold text-slate-400">{{ transaction.currency }}</span></div>
-          </div>
-          <div class="mt-5 flex items-center justify-between gap-3 rounded-3xl bg-white/5 px-4 py-3">
-            <div>
-              <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Status</div>
-              <div class="mt-1 text-sm font-semibold text-slate-100">{{ transaction.status }}</div>
-            </div>
-            <span class="inline-flex rounded-full px-3 py-1 text-xs font-bold {{ 'bg-emerald-500/15 text-emerald-300' if transaction.status|lower == 'approved' else ('bg-red-500/15 text-red-300' if transaction.status|lower in ['rejected','declined','refunded'] else 'bg-sky-500/15 text-sky-300') }}">{{ transaction.status|capitalize }}</span>
-          </div>
+        <div class="mt-4 rounded-[1.75rem] bg-white/5 p-4 text-center shadow-inner shadow-black/10">
+          <button id="downloadReceiptButton" type="button" class="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-500 px-4 py-3 font-semibold text-slate-950 transition hover:bg-emerald-400 active:scale-[0.98]">Download Receipt</button>
         </div>
-      </div>
-
-      <div class="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p class="text-sm text-slate-400">This receipt confirms your transaction and can be printed or downloaded for your records.</p>
-        </div>
-        <button onclick="window.print()" class="inline-flex items-center justify-center rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400 active:scale-[0.98]">Print / Download</button>
       </div>
     </div>
   </div>
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaQYlQjg7v8xyPex1GcZjnI9hN6XcGkX0s7nNzuNa4nQ2uLSTwQIgN2x3G9D04ZtqZQjD88OfDmmfb3bbd7Qg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+  document.getElementById('downloadReceiptButton')?.addEventListener('click', function () {
+    var receiptCard = document.getElementById('receiptCard');
+    if (!receiptCard || !window.html2canvas) return;
+
+    html2canvas(receiptCard, {
+      backgroundColor: '#0f172a',
+      scale: 4,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+    }).then(function (canvas) {
+      canvas.toBlob(function (blob) {
+        if (!blob) return;
+        var link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'alta_jobs_receipt_{{ transaction.id }}.jpeg';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+      }, 'image/jpeg', 0.95);
+    }).catch(function (error) {
+      console.error('Receipt export failed', error);
+      alert('Could not export receipt. Please try again.');
+    });
+  });
+</script>
 {% endblock %}
