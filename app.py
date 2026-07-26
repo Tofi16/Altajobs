@@ -358,6 +358,37 @@ def get_db():
                 except Exception:
                     pass
 
+        # Ensure follows and likes tables exist for social features
+        try:
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS follows (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    follower_id INTEGER NOT NULL,
+                    followed_id INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(follower_id, followed_id)
+                )
+                """
+            )
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS likes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    post_id INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, post_id)
+                )
+                """
+            )
+            db.commit()
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
         # Initialize/fill sensible defaults for existing rows (individually)
         try:
             user_cols = _get_table_columns(db, "users")
@@ -2180,6 +2211,75 @@ def get_verification_tier(user):
         # Unparseable date shouldn't silently hide a real badge either.
         return tier
     return tier
+
+
+# ----------------------- Social API endpoints ----------------------------
+
+
+@app.route('/api/follow/<int:user_id>', methods=['POST'])
+@login_required
+def api_toggle_follow(user_id):
+    db = get_db()
+    me = get_current_user()
+    if not me:
+        return jsonify({'error': 'not_authenticated'}), 401
+    try:
+        existing = db.execute(
+            "SELECT id FROM follows WHERE follower_id = ? AND followed_id = ?",
+            (me['id'], user_id),
+        ).fetchone()
+        if existing:
+            db.execute("DELETE FROM follows WHERE id = ?", (existing['id'],))
+            db.commit()
+            return jsonify({'following': False})
+        else:
+            db.execute(
+                "INSERT INTO follows (follower_id, followed_id) VALUES (?, ?)",
+                (me['id'], user_id),
+            )
+            db.commit()
+            return jsonify({'following': True})
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return jsonify({'error': 'db_error'}), 500
+
+
+@app.route('/api/like/<int:post_id>', methods=['POST'])
+@login_required
+def api_toggle_like(post_id):
+    db = get_db()
+    me = get_current_user()
+    if not me:
+        return jsonify({'error': 'not_authenticated'}), 401
+    try:
+        existing = db.execute(
+            "SELECT id FROM likes WHERE user_id = ? AND post_id = ?",
+            (me['id'], post_id),
+        ).fetchone()
+        if existing:
+            db.execute("DELETE FROM likes WHERE id = ?", (existing['id'],))
+            db.execute("UPDATE posts SET like_count = COALESCE(like_count,0) - 1 WHERE id = ? AND like_count > 0", (post_id,))
+            db.commit()
+            row = db.execute("SELECT COALESCE(like_count,0) AS c FROM posts WHERE id = ?", (post_id,)).fetchone()
+            return jsonify({'liked': False, 'like_count': int(row['c'] or 0)})
+        else:
+            db.execute(
+                "INSERT INTO likes (user_id, post_id) VALUES (?, ?)",
+                (me['id'], post_id),
+            )
+            db.execute("UPDATE posts SET like_count = COALESCE(like_count,0) + 1 WHERE id = ?", (post_id,))
+            db.commit()
+            row = db.execute("SELECT COALESCE(like_count,0) AS c FROM posts WHERE id = ?", (post_id,)).fetchone()
+            return jsonify({'liked': True, 'like_count': int(row['c'] or 0)})
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return jsonify({'error': 'db_error'}), 500
 
 
 def set_verification_tier(db, user_id, tier, until):
