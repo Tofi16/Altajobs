@@ -5247,6 +5247,68 @@ def wallet():
     )
 
 
+@app.route('/wallet/receipt/<int:tx_id>')
+@login_required
+def wallet_receipt(tx_id):
+    db = get_db()
+    user = get_current_user()
+    user_id = _get_row_value(user, 'id', session.get('user_id'))
+    tx = db.execute(
+        "SELECT * FROM wallet_transactions WHERE id = ? AND user_id = ?",
+        (tx_id, user_id),
+    ).fetchone()
+
+    if not tx:
+        flash('Receipt not found or unavailable.')
+        return redirect(url_for('wallet'))
+
+    sender_name = _get_row_value(user, 'full_name') or _get_row_value(user, 'username')
+    sender_wallet = _get_row_value(user, 'wallet_id')
+    receiver_name = None
+    receiver_wallet = None
+
+    if 'recipient_id' in tx.keys() and tx['recipient_id']:
+        recipient = db.execute(
+            "SELECT full_name, username, wallet_id FROM users WHERE id = ? LIMIT 1",
+            (tx['recipient_id'],),
+        ).fetchone()
+        if recipient:
+            receiver_name = _get_row_value(recipient, 'full_name') or _get_row_value(recipient, 'username')
+            receiver_wallet = _get_row_value(recipient, 'wallet_id')
+    elif 'recipient_wallet_id' in tx.keys() and tx['recipient_wallet_id']:
+        receiver_wallet = tx['recipient_wallet_id']
+
+    if not receiver_name and receiver_wallet:
+        receiver_name = receiver_wallet
+    if not receiver_name:
+        receiver_name = 'N/A'
+    if not receiver_wallet:
+        receiver_wallet = 'N/A'
+
+    tx_type = _get_row_value(tx, 'tx_type') or ''
+    note = _get_row_value(tx, 'note') or ''
+    currency = 'ETB'
+    if 'Alta token' in note or 'Alta tokens' in note or tx_type in ('token', 'tokens'):
+        currency = 'Alta Tokens'
+
+    transaction = {
+        'id': _get_row_value(tx, 'id'),
+        'created_at': _get_row_value(tx, 'created_at'),
+        'tx_type': tx_type,
+        'amount': _get_row_value(tx, 'amount'),
+        'currency': currency,
+        'status': (_get_row_value(tx, 'status') or 'pending').capitalize(),
+        'reference': _get_row_value(tx, 'transaction_ref') or '',
+        'note': note,
+        'sender_name': sender_name,
+        'sender_wallet': sender_wallet or 'N/A',
+        'receiver_name': receiver_name,
+        'receiver_wallet': receiver_wallet,
+    }
+
+    return render_template('transaction_receipt.html', transaction=transaction)
+
+
 @app.route("/deposit", methods=["GET", "POST"])
 @login_required
 def deposit():
