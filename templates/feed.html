@@ -371,7 +371,7 @@
     currentPostId = null;
   }
 
-  function openFeedSheet(postId, postUrl, deleteUrl, canDelete) {
+  function openFeedSheet(postId, postUrl, deleteUrl, canDelete, canReport) {
     currentPostId = postId || '';
     currentPostUrl = postUrl || window.location.origin + '/post/' + postId;
     if (deleteForm) {
@@ -381,6 +381,7 @@
     if (reportForm && reportTarget) {
       reportForm.action = '{{ url_for('submit_report') }}';
       reportTarget.value = currentPostId;
+      reportForm.style.display = canReport ? '' : 'none';
     }
     sheet.classList.add('open');
     overlay.classList.add('open');
@@ -392,7 +393,13 @@
     e.preventDefault();
     e.stopPropagation();
     e.stopImmediatePropagation();
-    openFeedSheet(btn.dataset.postId, btn.dataset.postUrl, btn.dataset.deleteUrl, btn.dataset.canDelete === 'true');
+    openFeedSheet(
+      btn.dataset.postId,
+      btn.dataset.postUrl,
+      btn.dataset.deleteUrl,
+      btn.dataset.canDelete === '1' || btn.dataset.canDelete === 'true',
+      btn.dataset.canReport === '1' || btn.dataset.canReport === 'true'
+    );
   });
 
   if (copyBtn) {
@@ -422,6 +429,24 @@
       closeFeedSheet();
     });
   }
+
+  // direct inline share button on feed cards (copy link to clipboard)
+  document.addEventListener('click', function (e) {
+    var shareBtnInline = e.target.closest('.js-share-btn');
+    if (shareBtnInline) {
+      e.preventDefault();
+      e.stopPropagation();
+      var url = shareBtnInline.dataset.postUrl;
+      if (!url) return;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(function () {
+          shareBtnInline.classList.add('copied');
+          setTimeout(function () { shareBtnInline.classList.remove('copied'); }, 900);
+        }).catch(function () {});
+      }
+      return;
+    }
+  });
 
   if (cancelBtn) {
     cancelBtn.addEventListener('click', function (e) {
