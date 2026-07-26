@@ -298,6 +298,19 @@ class DatabaseConnection:
         self.conn.close()
 
 
+@app.teardown_appcontext
+def close_db(exc):
+    db = getattr(g, "_database", None)
+    if db is None:
+        return
+    try:
+        db.close()
+    except Exception:
+        pass
+    finally:
+        g.pop("_database", None)
+
+
 def _validate_postgres_url():
     if not DATABASE_URL or DATABASE_URL.startswith("sqlite:///"):
         raise RuntimeError("PostgreSQL DATABASE_URL is not configured or resolves to SQLite.")
@@ -353,6 +366,10 @@ def get_db():
                 "trust_score": "INTEGER DEFAULT 0",
                 "is_suspended": "INTEGER DEFAULT 0",
                 "is_trusted_seller": "INTEGER DEFAULT 0",
+                "avatar": "TEXT DEFAULT NULL",
+                "skills": "TEXT DEFAULT NULL",
+                "experience": "TEXT DEFAULT NULL",
+                "bio": "TEXT DEFAULT NULL",
             }.items():
                 if column_name not in user_cols:
                     db.execute(f"ALTER TABLE users ADD COLUMN {column_name} {definition}")
@@ -851,6 +868,25 @@ def init_postgres_db():
             word TEXT NOT NULL UNIQUE,
             created_at TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS product_photos (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER NOT NULL,
+            photo TEXT NOT NULL,
+            position INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS product_favorites (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(user_id, product_id),
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
+        );
         """
     )
     conn.commit()
@@ -934,6 +970,10 @@ def migrate_db():
             full_name TEXT,
             user_type TEXT DEFAULT 'worker',
             phone TEXT,
+            avatar TEXT,
+            skills TEXT,
+            experience TEXT,
+            bio TEXT,
             created_at TEXT,
             is_admin INTEGER DEFAULT 0,
             balance REAL DEFAULT 0.0,
@@ -1016,6 +1056,79 @@ def migrate_db():
             created_at TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS likes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(post_id, user_id),
+            FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS ratings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            worker_id INTEGER NOT NULL,
+            employer_id INTEGER NOT NULL,
+            stars INTEGER NOT NULL,
+            comment TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(worker_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(employer_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reporter_id INTEGER NOT NULL,
+            target_type TEXT NOT NULL,
+            target_id INTEGER NOT NULL,
+            reason TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(reporter_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS follows (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            follower_id INTEGER NOT NULL,
+            followed_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(follower_id, followed_id),
+            FOREIGN KEY(follower_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(followed_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS conversations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user1_id INTEGER NOT NULL,
+            user2_id INTEGER NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(user1_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(user2_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            conversation_id INTEGER NOT NULL,
+            sender_id INTEGER NOT NULL,
+            content TEXT NOT NULL,
+            seen_at TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+            FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
         CREATE TABLE IF NOT EXISTS notifications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -1079,6 +1192,10 @@ def migrate_db():
         "wallet_balance": "INTEGER DEFAULT 0",
         "balance": "REAL DEFAULT 0.0",
         "wallet_id": "TEXT DEFAULT NULL",
+        "avatar": "TEXT DEFAULT NULL",
+        "skills": "TEXT DEFAULT NULL",
+        "experience": "TEXT DEFAULT NULL",
+        "bio": "TEXT DEFAULT NULL",
         "verified_until": "TEXT DEFAULT NULL",
         "verification_tier": "TEXT DEFAULT 'none'",
         "is_banned": "INTEGER DEFAULT 0",
@@ -1302,6 +1419,25 @@ def migrate_db():
             image_path TEXT DEFAULT NULL,
             created_at TEXT NOT NULL,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS product_photos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            photo TEXT NOT NULL,
+            position INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS product_favorites (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(user_id, product_id),
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE CASCADE
         );
     """)
     db.commit()
@@ -1624,9 +1760,19 @@ def get_current_user():
     uid = session.get("user_id")
     if not uid:
         return None
-    db = get_db()
-    row = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
-    return dict(row) if row is not None else None
+    try:
+        db = get_db()
+        row = db.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+        if row is None:
+            return None
+        user = dict(row) if hasattr(row, "keys") else row
+        if user is None:
+            return None
+        if "is_admin" not in user:
+            user["is_admin"] = bool(user.get("role") == "admin")
+        return user
+    except Exception:
+        return None
 
 
 def backfill_verification_flags(db):
@@ -1798,7 +1944,11 @@ def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         user = get_current_user()
-        if not user or not _get_row_value(user, "is_admin", False):
+        is_admin = _get_row_value(user, "is_admin", False)
+        if not is_admin and user is not None:
+            if _get_row_value(user, "role") == "admin":
+                is_admin = True
+        if not user or not is_admin:
             abort(403)
         return f(*args, **kwargs)
     return wrapper
@@ -2105,6 +2255,28 @@ def inject_gift_catalog():
         "channel_verification_days_left": channel_verification_days_left,
         "channel_verification_expiring_soon": channel_verification_expiring_soon,
     }
+
+
+@app.context_processor
+def inject_admin_nav_counts():
+    """Live badge counts for the admin sidebar (Product Approval, Deposits/
+    Withdrawals, Reports). Computed here (not per-route) so every admin page
+    shows current numbers regardless of which view rendered it."""
+    user = get_current_user()
+    if not user or not _get_row_value(user, "is_admin", False):
+        return {}
+    try:
+        db = get_db()
+        counts = {
+            "products": db.execute("SELECT COUNT(*) c FROM products WHERE status = 'pending'").fetchone()["c"],
+            "wallet": db.execute("SELECT COUNT(*) c FROM wallet_transactions WHERE status = 'pending'").fetchone()["c"],
+            "reports": db.execute("SELECT COUNT(*) c FROM reports WHERE status = 'pending'").fetchone()["c"],
+        }
+        counts["total"] = counts["products"] + counts["wallet"] + counts["reports"]
+        return {"admin_nav_counts": counts}
+    except Exception as exc:
+        print(f"Warning: could not load admin nav counts: {exc}")
+        return {"admin_nav_counts": {"products": 0, "wallet": 0, "reports": 0, "total": 0}}
 
 
 @app.context_processor
@@ -2926,6 +3098,34 @@ def logout():
     return redirect(url_for("login"))
 
 
+@app.route("/settings/change-password", methods=["GET", "POST"])
+@login_required
+def change_password():
+    if request.method == "POST":
+        current_password = request.form.get("current_password", "")
+        new_password = request.form.get("new_password", "")
+        confirm_password = request.form.get("confirm_password", "")
+        user = get_current_user()
+        if not user or not check_password_hash(user["password_hash"], current_password):
+            flash("Current password is incorrect.")
+            return redirect(url_for("change_password"))
+        if new_password != confirm_password:
+            flash("New passwords do not match.")
+            return redirect(url_for("change_password"))
+        if not new_password:
+            flash("Please enter a new password.")
+            return redirect(url_for("change_password"))
+        db = get_db()
+        db.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (generate_password_hash(new_password), session["user_id"]),
+        )
+        db.commit()
+        flash("Password updated successfully.")
+        return redirect(url_for("settings_page"))
+    return render_template("change_password.html")
+
+
 # ---------------------------------------------------------------------------
 # Feed / Posts
 # ---------------------------------------------------------------------------
@@ -3445,19 +3645,42 @@ def post_detail(post_id):
 @login_required
 def like_post(post_id):
     db = get_db()
+    post = db.execute("SELECT id FROM posts WHERE id = ?", (post_id,)).fetchone()
+    if not post:
+        abort(404)
+
     existing = db.execute(
         "SELECT id FROM likes WHERE post_id = ? AND user_id = ?",
         (post_id, session["user_id"]),
     ).fetchone()
     if existing:
         db.execute("DELETE FROM likes WHERE id = ?", (existing["id"],))
+        liked = False
     else:
         db.execute(
-            "INSERT INTO likes (post_id, user_id) VALUES (?, ?)",
-            (post_id, session["user_id"]),
+            "INSERT INTO likes (post_id, user_id, created_at) VALUES (?, ?, ?)",
+            (post_id, session["user_id"], datetime.datetime.utcnow().isoformat()),
         )
+        _notify_post_owner_on_like(db, post_id, session["user_id"])
+        liked = True
     db.commit()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+        like_count = db.execute(
+            "SELECT COUNT(*) c FROM likes WHERE post_id = ?", (post_id,)
+        ).fetchone()["c"]
+        return jsonify({"liked": liked, "like_count": like_count})
+
     return redirect(request.referrer or url_for("feed"))
+
+
+def _notify_post_owner_on_like(db, post_id, liker_id):
+    post = db.execute("SELECT user_id FROM posts WHERE id = ?", (post_id,)).fetchone()
+    if not post or post["user_id"] == liker_id:
+        return
+    liker = db.execute("SELECT username, full_name FROM users WHERE id = ?", (liker_id,)).fetchone()
+    liker_name = (liker["full_name"] or liker["username"]) if liker else "Someone"
+    add_notification(db, post["user_id"], f"{liker_name} liked your post.", ntype="like")
 
 
 @app.route("/api/like/<int:post_id>", methods=["POST"])
@@ -3467,7 +3690,7 @@ def api_toggle_like(post_id):
     db = get_db()
     post = db.execute("SELECT id FROM posts WHERE id = ?", (post_id,)).fetchone()
     if not post:
-        return {"error": "not found"}, 404
+        return jsonify({"error": "not found"}), 404
     existing = db.execute(
         "SELECT id FROM likes WHERE post_id = ? AND user_id = ?",
         (post_id, session["user_id"]),
@@ -3478,30 +3701,51 @@ def api_toggle_like(post_id):
         liked = False
     else:
         db.execute(
-            "INSERT INTO likes (post_id, user_id) VALUES (?, ?)",
-            (post_id, session["user_id"]),
+            "INSERT INTO likes (post_id, user_id, created_at) VALUES (?, ?, ?)",
+            (post_id, session["user_id"], datetime.datetime.utcnow().isoformat()),
         )
         db.commit()
         liked = True
+        _notify_post_owner_on_like(db, post_id, session["user_id"])
+        db.commit()
     like_count = db.execute(
         "SELECT COUNT(*) c FROM likes WHERE post_id = ?", (post_id,)
     ).fetchone()["c"]
-    return {"liked": liked, "like_count": like_count}
+    return jsonify({"liked": liked, "like_count": like_count})
 
 
 @app.route("/post/<int:post_id>/comment", methods=["POST"])
 @login_required
 def comment_post(post_id):
     content = request.form.get("content", "").strip()
-    if content:
-        db = get_db()
-        db.execute(
-            """INSERT INTO comments (post_id, user_id, content, created_at)
+    if not content:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+            return jsonify({"success": False, "error": "empty_comment"}), 400
+        return redirect(url_for("post_detail", post_id=post_id))
+
+    db = get_db()
+    db.execute(
+        """INSERT INTO comments (post_id, user_id, content, created_at)
                VALUES (?, ?, ?, ?)""",
-            (post_id, session["user_id"], content,
-             datetime.datetime.utcnow().isoformat()),
-        )
+        (post_id, session["user_id"], content,
+         datetime.datetime.utcnow().isoformat()),
+    )
+    db.commit()
+    post = db.execute("SELECT user_id FROM posts WHERE id = ?", (post_id,)).fetchone()
+    if post and post["user_id"] != session["user_id"]:
+        commenter = db.execute(
+            "SELECT username, full_name FROM users WHERE id = ?", (session["user_id"],)
+        ).fetchone()
+        commenter_name = (commenter["full_name"] or commenter["username"]) if commenter else "Someone"
+        add_notification(db, post["user_id"], f"{commenter_name} commented on your post.", ntype="comment")
         db.commit()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+        comment_count = db.execute(
+            "SELECT COUNT(*) c FROM comments WHERE post_id = ?", (post_id,)
+        ).fetchone()["c"]
+        return jsonify({"success": True, "comment_count": comment_count})
+
     return redirect(url_for("post_detail", post_id=post_id))
 
 
@@ -3535,6 +3779,66 @@ def api_repost_post(post_id):
         "SELECT share_count FROM posts WHERE id = ?", (post_id,)
     ).fetchone()["share_count"]
     return jsonify({"success": True, "share_count": new_count})
+
+
+@app.route("/api/notifications")
+@login_required
+def api_notifications():
+    """Real notifications for the logged-in user, replacing the old static
+    mock notification text in the header bell popover."""
+    db = get_db()
+    uid = session["user_id"]
+    try:
+        rows = db.execute(
+            """SELECT id, ntype, message, is_read, created_at
+               FROM notifications
+               WHERE user_id = ?
+               ORDER BY created_at DESC
+               LIMIT 20""",
+            (uid,),
+        ).fetchall()
+    except Exception as exc:
+        print(f"Warning: could not load notifications: {exc}")
+        rows = []
+
+    icon_by_type = {
+        "like": "bx-heart",
+        "comment": "bx-comment",
+        "follow": "bx-user-plus",
+        "gift": "bx-gift",
+        "warning": "bx-error-circle",
+        "info": "bx-bell",
+    }
+    notifications = [
+        {
+            "id": r["id"],
+            "ntype": r["ntype"] or "info",
+            "icon": icon_by_type.get(r["ntype"] or "info", "bx-bell"),
+            "message": r["message"],
+            "is_read": bool(r["is_read"]),
+            "created_at": r["created_at"],
+        }
+        for r in rows
+    ]
+    unread_count = sum(1 for n in notifications if not n["is_read"])
+    return jsonify({"notifications": notifications, "unread_count": unread_count})
+
+
+@app.route("/api/notifications/mark-read", methods=["POST"])
+@login_required
+def api_notifications_mark_read():
+    """Marks all of the current user's notifications as read (called when
+    the bell popover is opened)."""
+    db = get_db()
+    try:
+        db.execute(
+            "UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0",
+            (session["user_id"],),
+        )
+        db.commit()
+    except Exception as exc:
+        print(f"Warning: could not mark notifications read: {exc}")
+    return jsonify({"success": True})
 
 
 @app.route("/api/followers-list")
@@ -3609,10 +3913,22 @@ def api_send_post_to_follower(post_id):
 def delete_post(post_id):
     db = get_db()
     post = db.execute("SELECT * FROM posts WHERE id = ?", (post_id,)).fetchone()
+    if not post:
+        abort(404)
+
     user = get_current_user()
-    if post and (post["user_id"] == _get_row_value(user, "id") or _get_row_value(user, "is_admin", False)):
-        db.execute("DELETE FROM posts WHERE id = ?", (post_id,))
-        db.commit()
+    can_delete = bool(user and (post["user_id"] == user.get("id") or user.get("is_admin", False)))
+    if not can_delete:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+            return jsonify({"error": "forbidden"}), 403
+        abort(403)
+
+    db.execute("DELETE FROM posts WHERE id = ?", (post_id,))
+    db.commit()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+        return jsonify({"success": True})
+
     return redirect(url_for("feed"))
 
 
@@ -3974,41 +4290,58 @@ def profile(user_id):
             (user_id,),
         ).fetchall()
 
-    ratings = db.execute(
-        """SELECT ratings.*, users.username as employer_username
-           FROM ratings JOIN users ON ratings.employer_id = users.id
-           WHERE worker_id = ? ORDER BY ratings.created_at DESC""",
-        (user_id,),
-    ).fetchall()
-    avg_row = db.execute(
-        "SELECT AVG(stars) avg_stars, COUNT(*) cnt FROM ratings WHERE worker_id = ?",
-        (user_id,),
-    ).fetchone()
+    has_ratings = _table_exists(db, "ratings")
+    if has_ratings:
+        ratings = db.execute(
+            """SELECT ratings.*, users.username as employer_username
+               FROM ratings JOIN users ON ratings.employer_id = users.id
+               WHERE worker_id = ? ORDER BY ratings.created_at DESC""",
+            (user_id,),
+        ).fetchall()
+        avg_row = db.execute(
+            "SELECT AVG(stars) avg_stars, COUNT(*) cnt FROM ratings WHERE worker_id = ?",
+            (user_id,),
+        ).fetchone()
+        avg_stars = _get_row_value(avg_row, "avg_stars", 0) or 0
+        rating_count = _get_row_value(avg_row, "cnt", 0) or 0
+    else:
+        ratings = []
+        avg_stars = 0
+        rating_count = 0
 
-    followers_count = db.execute(
-        "SELECT COUNT(*) c FROM follows WHERE followed_id = ?", (user_id,)
-    ).fetchone()["c"]
-    following_count = db.execute(
-        "SELECT COUNT(*) c FROM follows WHERE follower_id = ?", (user_id,)
-    ).fetchone()["c"]
+    has_follows = _table_exists(db, "follows")
+    if has_follows:
+        followers_count = db.execute(
+            "SELECT COUNT(*) c FROM follows WHERE followed_id = ?", (user_id,)
+        ).fetchone()["c"]
+        following_count = db.execute(
+            "SELECT COUNT(*) c FROM follows WHERE follower_id = ?", (user_id,)
+        ).fetchone()["c"]
+    else:
+        followers_count = 0
+        following_count = 0
+
     posts_count = db.execute(
         "SELECT COUNT(*) c FROM posts WHERE user_id = ?", (user_id,)
     ).fetchone()["c"]
     is_following = False
-    if current_uid := session.get("user_id"):
+    if current_uid := session.get("user_id") and has_follows:
         is_following = db.execute(
             "SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ?",
             (current_uid, user_id),
         ).fetchone() is not None
 
-    portfolio_items = db.execute(
-        "SELECT * FROM portfolio_items WHERE user_id = ? ORDER BY created_at DESC",
-        (user_id,),
-    ).fetchall()
+    if _table_exists(db, "portfolio_items"):
+        portfolio_items = db.execute(
+            "SELECT * FROM portfolio_items WHERE user_id = ? ORDER BY created_at DESC",
+            (user_id,),
+        ).fetchall()
+    else:
+        portfolio_items = []
 
     return render_template(
         "profile.html", profile_user=profile_user, posts=posts,
-        ratings=ratings, avg_stars=avg_row["avg_stars"], rating_count=avg_row["cnt"],
+        ratings=ratings, avg_stars=avg_stars, rating_count=rating_count,
         portfolio_items=portfolio_items,
         followers_count=followers_count, following_count=following_count,
         posts_count=posts_count, is_following=is_following,
@@ -4058,14 +4391,17 @@ def profile_followers(user_id):
     profile_user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     if not profile_user:
         abort(404)
-    rows = db.execute(
-        """SELECT users.* FROM follows
-           JOIN users ON users.id = follows.follower_id
-           WHERE follows.followed_id = ?
-           ORDER BY follows.created_at DESC""",
-        (user_id,),
-    ).fetchall()
-    entries = _build_follow_list_entries(db, rows, session.get("user_id"))
+    if not _table_exists(db, "follows"):
+        entries = []
+    else:
+        rows = db.execute(
+            """SELECT users.* FROM follows
+               JOIN users ON users.id = follows.follower_id
+               WHERE follows.followed_id = ?
+               ORDER BY follows.created_at DESC""",
+            (user_id,),
+        ).fetchall()
+        entries = _build_follow_list_entries(db, rows, session.get("user_id"))
     return render_template(
         "follow_list.html", profile_user=profile_user, entries=entries,
         list_kind="followers",
@@ -4079,14 +4415,17 @@ def profile_following(user_id):
     profile_user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     if not profile_user:
         abort(404)
-    rows = db.execute(
-        """SELECT users.* FROM follows
-           JOIN users ON users.id = follows.followed_id
-           WHERE follows.follower_id = ?
-           ORDER BY follows.created_at DESC""",
-        (user_id,),
-    ).fetchall()
-    entries = _build_follow_list_entries(db, rows, session.get("user_id"))
+    if not _table_exists(db, "follows"):
+        entries = []
+    else:
+        rows = db.execute(
+            """SELECT users.* FROM follows
+               JOIN users ON users.id = follows.followed_id
+               WHERE follows.follower_id = ?
+               ORDER BY follows.created_at DESC""",
+            (user_id,),
+        ).fetchall()
+        entries = _build_follow_list_entries(db, rows, session.get("user_id"))
     return render_template(
         "follow_list.html", profile_user=profile_user, entries=entries,
         list_kind="following",
@@ -4109,6 +4448,18 @@ def create_menu():
 @login_required
 def privacy_policy():
     return render_template("privacy.html")
+
+
+@app.route("/settings/terms")
+@login_required
+def terms_of_service():
+    return render_template("terms.html")
+
+
+@app.route("/settings/help")
+@login_required
+def help_support():
+    return render_template("help.html")
 
 
 @app.route("/profile/edit", methods=["GET", "POST"])
@@ -4135,12 +4486,15 @@ def edit_profile():
         else:
             username = user["username"]
 
+        columns_to_update = ["username", "full_name", "phone", "skills", "experience", "bio"]
+        update_values = [username, full_name, phone, skills, experience, bio]
         if avatar:
-            db.execute(
-                """UPDATE users SET username=?, full_name=?, phone=?, skills=?, experience=?,
-                   bio=?, avatar=? WHERE id=?""",
-                (username, full_name, phone, skills, experience, bio, avatar, user["id"]),
-            )
+            columns_to_update.append("avatar")
+            update_values.append(avatar)
+        if _table_has_column(db, "users", "avatar"):
+            column_names = ", ".join(f"{col}=?" for col in columns_to_update)
+            update_values.append(user["id"])
+            db.execute(f"UPDATE users SET {column_names} WHERE id=?", tuple(update_values))
         else:
             db.execute(
                 """UPDATE users SET username=?, full_name=?, phone=?, skills=?, experience=?,
@@ -4158,7 +4512,10 @@ def edit_profile():
 def update_profile_skills():
     skills = request.form.get("skills", "").strip()
     db = get_db()
-    db.execute("UPDATE users SET skills = ? WHERE id = ?", (skills, session["user_id"]))
+    if _table_has_column(db, "users", "skills"):
+        db.execute("UPDATE users SET skills = ? WHERE id = ?", (skills, session["user_id"]))
+    else:
+        flash("Profile skills are not supported by this database schema.")
     db.commit()
     return redirect(url_for("profile", user_id=session["user_id"]))
 
@@ -4200,6 +4557,9 @@ def rate_worker(worker_id):
     stars = max(1, min(5, stars))
 
     db = get_db()
+    if not _table_exists(db, "ratings"):
+        flash("Ratings are not enabled for this installation yet.")
+        return redirect(url_for("profile", user_id=worker_id))
     db.execute(
         """INSERT INTO ratings (worker_id, employer_id, stars, comment, created_at)
            VALUES (?, ?, ?, ?, ?)""",
@@ -4650,11 +5010,14 @@ def marketplace():
         description = (request.form.get("description") or "").strip()
         price = request.form.get("price", "0").strip()
         location = (request.form.get("location") or "Addis Ababa").strip()
-        photo_file = request.files.get("photo")
-        if photo_file and photo_file.filename and not allowed_file(photo_file.filename):
-            flash("Unsupported image format. Please upload PNG, JPG, JPEG, GIF, or WEBP.")
-            return redirect(url_for("marketplace"))
-        photo = save_photo(photo_file)
+        photo_files = [f for f in request.files.getlist("photo") if f and f.filename]
+        for f in photo_files:
+            if not allowed_file(f.filename):
+                flash("Unsupported image format. Please upload PNG, JPG, JPEG, GIF, or WEBP.")
+                return redirect(url_for("marketplace"))
+        saved_photos = [save_photo(f) for f in photo_files]
+        saved_photos = [p for p in saved_photos if p]
+        primary_photo = saved_photos[0] if saved_photos else None
         if title and price:
             try:
                 price_value = float(price)
@@ -4662,11 +5025,21 @@ def marketplace():
                 price_value = 0.0
             try:
                 status = review_listing(db, user["id"], title, description)
-                db.execute(
+                cursor = db.execute(
                     """INSERT INTO products (user_id, title, description, price, location, status, photo, created_at)
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (user["id"], title, description, price_value, location, status, photo, datetime.datetime.utcnow().isoformat()),
+                    (user["id"], title, description, price_value, location, status, primary_photo, datetime.datetime.utcnow().isoformat()),
                 )
+                product_id = getattr(cursor, "lastrowid", None)
+                if not product_id:
+                    row = db.execute("SELECT id FROM products WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user["id"],)).fetchone()
+                    product_id = row["id"] if row else None
+                if product_id:
+                    for idx, photo_name in enumerate(saved_photos):
+                        db.execute(
+                            "INSERT INTO product_photos (product_id, photo, position, created_at) VALUES (?, ?, ?, ?)",
+                            (product_id, photo_name, idx, datetime.datetime.utcnow().isoformat()),
+                        )
                 # Award points for creating a marketplace listing
                 try:
                     db.execute("UPDATE users SET points = COALESCE(points,0) + ? WHERE id = ?", (15, user["id"]))
@@ -4681,14 +5054,79 @@ def marketplace():
                 flash("Could not publish your marketplace listing right now. Please try again.")
                 return redirect(url_for("marketplace"))
 
+    sort = request.args.get("sort", "newest")
+    order_clause = {
+        "price_asc": "p.price ASC",
+        "price_desc": "p.price DESC",
+        "rating": "seller_rating DESC, p.created_at DESC",
+    }.get(sort, "p.created_at DESC")
+
+    has_ratings = _table_exists(db, "ratings")
+    has_product_favorites = _table_exists(db, "product_favorites")
+    has_product_photos = _table_exists(db, "product_photos")
+
+    select_fields = ["p.*", "u.username", "u.full_name", "u.verification_tier", "u.verified_until"]
+    if has_ratings:
+        select_fields.append("COALESCE((SELECT AVG(stars) FROM ratings WHERE worker_id = u.id), 0) AS seller_rating")
+        select_fields.append("(SELECT COUNT(*) FROM ratings WHERE worker_id = u.id) AS review_count")
+    if has_product_favorites:
+        select_fields.append("EXISTS(SELECT 1 FROM product_favorites f WHERE f.product_id = p.id AND f.user_id = ?) AS is_favorited")
+    else:
+        select_fields.append("0 AS is_favorited")
+
     listings = db.execute(
-        """SELECT p.*, u.username, u.full_name, u.verification_tier, u.verified_until
+        f"""SELECT {', '.join(select_fields)}
            FROM products p
            JOIN users u ON p.user_id = u.id
            WHERE p.status = 'approved'
-           ORDER BY p.created_at DESC LIMIT 50"""
+           ORDER BY {order_clause} LIMIT 50""",
+        (user["id"],) if has_product_favorites else (),
     ).fetchall()
-    return render_template("marketplace.html", listings=listings, user=user)
+
+    product_ids = [row["id"] for row in listings]
+    photos_by_product = {}
+    if has_product_photos and product_ids:
+        placeholders = ",".join(["?"] * len(product_ids))
+        photo_rows = db.execute(
+            f"""SELECT product_id, photo FROM product_photos
+                WHERE product_id IN ({placeholders}) ORDER BY product_id, position ASC""",
+            tuple(product_ids),
+        ).fetchall()
+        for row in photo_rows:
+            photos_by_product.setdefault(row["product_id"], []).append(row["photo"])
+
+    return render_template(
+        "marketplace.html",
+        listings=listings,
+        user=user,
+        photos_by_product=photos_by_product,
+        current_sort=sort,
+    )
+
+
+@app.route("/marketplace/<int:product_id>/favorite", methods=["POST"])
+@login_required
+def marketplace_toggle_favorite(product_id):
+    db = get_db()
+    user = get_current_user()
+    existing = db.execute(
+        "SELECT id FROM product_favorites WHERE user_id = ? AND product_id = ?",
+        (user["id"], product_id),
+    ).fetchone()
+    if existing:
+        db.execute("DELETE FROM product_favorites WHERE id = ?", (existing["id"],))
+        db.commit()
+        favorited = False
+    else:
+        db.execute(
+            "INSERT INTO product_favorites (user_id, product_id, created_at) VALUES (?, ?, ?)",
+            (user["id"], product_id, datetime.datetime.utcnow().isoformat()),
+        )
+        db.commit()
+        favorited = True
+    if request.headers.get("X-Requested-With") == "fetch" or request.accept_mimetypes.best == "application/json":
+        return jsonify({"favorited": favorited})
+    return redirect(request.referrer or url_for("marketplace"))
 
 
 @app.route("/marketplace/buy/<int:product_id>", methods=["POST"])
@@ -4764,10 +5202,13 @@ def wallet():
     except Exception:
         history = []
 
-    has_pending_withdrawal = bool(db.execute(
-        "SELECT id FROM wallet_transactions WHERE user_id = ? AND tx_type = 'withdrawal' AND status = 'pending' LIMIT 1",
-        (user["id"],),
-    ).fetchone())
+    try:
+        has_pending_withdrawal = bool(db.execute(
+            "SELECT id FROM wallet_transactions WHERE user_id = ? AND tx_type = 'withdrawal' AND status = 'pending' LIMIT 1",
+            (user["id"],),
+        ).fetchone())
+    except Exception:
+        has_pending_withdrawal = False
 
     try:
         gifts_received = db.execute(
@@ -4779,8 +5220,20 @@ def wallet():
 
     challenge_status = _safe_fetch_challenge_status(db, user["id"])
 
+    template_name = None
+    if os.path.exists(os.path.join(app.root_path, "templates", "wallet.html")):
+        template_name = "wallet.html"
+    elif os.path.exists(os.path.join(app.root_path, "templates", "wallet 1.html")):
+        template_name = "wallet 1.html"
+    elif os.path.exists(os.path.join(app.root_path, "templates", "wallet (6).html")):
+        template_name = "wallet (6).html"
+    elif os.path.exists(os.path.join(app.root_path, "templates", "wallet_welcome.html")):
+        template_name = "wallet_welcome.html"
+    else:
+        template_name = "wallet.html"
+
     return render_template(
-        "wallet.html",
+        template_name,
         history=history,
         gifts_received=gifts_received,
         telebirr_number=get_setting("telebirr_wallet_number", TELEBIRR_WALLET_NUMBER),
@@ -4844,15 +5297,18 @@ def api_wallet_balance():
 @login_required
 def wallet_transfer():
     amount = float(request.form.get("amount", 0) or 0)
+    currency = (request.form.get("currency") or "etb").strip().lower()
     recipient_wallet_id = (request.form.get("recipient_wallet_id") or request.form.get("recipient_identifier") or "").strip()
     if amount <= 0 or not recipient_wallet_id:
-        flash("Please enter a valid token amount and recipient wallet number")
+        flash("Please enter a valid amount and recipient wallet number")
         return redirect(url_for("wallet"))
+
+    if currency not in ("etb", "token", "tokens"):
+        currency = "etb"
 
     db = get_db()
     sender = get_current_user()
     sender_id = _get_row_value(sender, "id", session.get("user_id"))
-    sender_tokens = float(_get_row_value(sender, "alta_tokens", 0) or 0)
 
     recipient = db.execute(
         "SELECT * FROM users WHERE wallet_id = ?",
@@ -4865,27 +5321,47 @@ def wallet_transfer():
     recipient_id = _get_row_value(recipient, "id")
     recipient_wallet_number = _get_row_value(recipient, "wallet_id")
     sender_wallet_number = _get_row_value(sender, "wallet_id")
+    recipient_balance = float(_get_row_value(recipient, "wallet_balance", 0) or 0)
 
     if getattr(db, "is_sqlite", False):
         db.execute("BEGIN IMMEDIATE")
     try:
-        if sender_tokens < amount:
-            db.rollback()
-            flash("insufficient_tokens")
-            return redirect(url_for("wallet"))
+        if currency == "etb":
+            sender_balance = float(_get_row_value(sender, "wallet_balance", 0) or 0)
+            if sender_balance < amount:
+                db.rollback()
+                flash("Insufficient wallet balance")
+                return redirect(url_for("wallet"))
 
-        db.execute(
-            "UPDATE users SET alta_tokens = alta_tokens - ? WHERE id = ?",
-            (amount, sender_id),
-        )
-        db.execute(
-            "UPDATE users SET alta_tokens = alta_tokens + ? WHERE id = ?",
-            (amount, recipient_id),
-        )
+            db.execute(
+                "UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ? AND wallet_balance >= ?",
+                (amount, sender_id, amount),
+            )
+            db.execute(
+                "UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?",
+                (amount, recipient_id),
+            )
+            send_note = f"Sent {amount} ETB to {recipient_wallet_number or recipient_wallet_id}"
+            receive_note = f"Received {amount} ETB from {sender_wallet_number or 'sender'}"
+        else:
+            sender_tokens = float(_get_row_value(sender, "alta_tokens", 0) or 0)
+            if sender_tokens < amount:
+                db.rollback()
+                flash("Insufficient token balance")
+                return redirect(url_for("wallet"))
+
+            db.execute(
+                "UPDATE users SET alta_tokens = alta_tokens - ? WHERE id = ?",
+                (amount, sender_id),
+            )
+            db.execute(
+                "UPDATE users SET alta_tokens = alta_tokens + ? WHERE id = ?",
+                (amount, recipient_id),
+            )
+            send_note = f"Sent {amount} Alta tokens to {recipient_wallet_number or recipient_wallet_id}"
+            receive_note = f"Received {amount} Alta tokens from {sender_wallet_number or 'sender'}"
 
         wallet_columns = _get_table_columns(db, "wallet_transactions")
-        send_note = f"Sent tokens to {recipient_wallet_number or recipient_wallet_id}"
-        receive_note = f"Received tokens from {sender_wallet_number or 'sender'}"
         tx_columns = ["user_id", "tx_type", "amount", "note", "status", "created_at"]
         tx_values = [sender_id, "transfer", amount, send_note, "approved", datetime.datetime.utcnow().isoformat()]
         if "recipient_wallet_id" in wallet_columns:
@@ -4921,6 +5397,30 @@ def wallet_transfer():
         db.rollback()
         print(f"Wallet transfer failed: {exc}")
         flash("We couldn't complete that transfer right now.")
+    return redirect(url_for("wallet"))
+
+
+@app.route("/wallet/generate", methods=["POST"])
+@login_required
+def generate_wallet():
+    """Creates a wallet_id for the current user if they don't already have
+    one. Used by the 'Generate Wallet' button shown in place of a raw
+    'None' wallet ID on the wallet page."""
+    db = get_db()
+    user = get_current_user()
+    existing_id = _get_row_value(user, "wallet_id")
+    if not existing_id:
+        try:
+            new_wallet_id = _generate_wallet_id(db)
+            db.execute(
+                "UPDATE users SET wallet_id = ? WHERE id = ?",
+                (new_wallet_id, _get_row_value(user, "id")),
+            )
+            db.commit()
+            flash("Your wallet is ready.")
+        except Exception as exc:
+            print(f"generate_wallet failed: {exc}")
+            flash("Couldn't generate a wallet right now. Please try again.")
     return redirect(url_for("wallet"))
 
 
@@ -5395,6 +5895,12 @@ def send_gift():
              post_id if post_id else None, datetime.datetime.utcnow().isoformat()),
         )
         db.commit()
+        add_notification(
+            db, receiver_id,
+            f"{sender['full_name'] or sender['username']} sent you a {gift.get('emoji','🎁')} gift ({price} ETB).",
+            ntype="gift",
+        )
+        db.commit()
         flash("gift_sent")
     except Exception:
         db.rollback()
@@ -5441,8 +5947,15 @@ def toggle_follow(user_id):
             "INSERT INTO follows (follower_id, followed_id, created_at) VALUES (?, ?, ?)",
             (session["user_id"], user_id, datetime.datetime.utcnow().isoformat()),
         )
+        _notify_user_on_new_follower(db, user_id, session["user_id"])
     db.commit()
     return redirect(request.referrer or url_for("feed"))
+
+
+def _notify_user_on_new_follower(db, followed_id, follower_id):
+    follower = db.execute("SELECT username, full_name FROM users WHERE id = ?", (follower_id,)).fetchone()
+    follower_name = (follower["full_name"] or follower["username"]) if follower else "Someone"
+    add_notification(db, followed_id, f"{follower_name} started following you.", ntype="follow")
 
 
 @app.route("/api/follow/<int:user_id>", methods=["POST"])
@@ -5450,7 +5963,7 @@ def toggle_follow(user_id):
 def api_toggle_follow(user_id):
     """JSON version of toggle_follow for the JS-powered instant Follow button."""
     if user_id == session["user_id"]:
-        return {"error": "cannot follow yourself"}, 400
+        return jsonify({"error": "cannot follow yourself"}), 400
     db = get_db()
     existing = db.execute(
         "SELECT id FROM follows WHERE follower_id = ? AND followed_id = ?",
@@ -5458,16 +5971,28 @@ def api_toggle_follow(user_id):
     ).fetchone()
     if existing:
         db.execute("DELETE FROM follows WHERE id = ?", (existing["id"],))
-        db.commit()
         following = False
     else:
         db.execute(
             "INSERT INTO follows (follower_id, followed_id, created_at) VALUES (?, ?, ?)",
             (session["user_id"], user_id, datetime.datetime.utcnow().isoformat()),
         )
-        db.commit()
         following = True
-    return {"following": following}
+        _notify_user_on_new_follower(db, user_id, session["user_id"])
+    db.commit()
+
+    followers_count = db.execute(
+        "SELECT COUNT(*) c FROM follows WHERE followed_id = ?", (user_id,)
+    ).fetchone()["c"]
+    your_following_count = db.execute(
+        "SELECT COUNT(*) c FROM follows WHERE follower_id = ?", (session["user_id"],)
+    ).fetchone()["c"]
+
+    return jsonify({
+        "following": following,
+        "followers_count": followers_count,
+        "your_following_count": your_following_count,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -5864,10 +6389,25 @@ def forfeit_winner(entry_id):
 @admin_required
 def admin_products():
     db = get_db()
-    listings = db.execute(
-        "SELECT p.*, u.username FROM products p JOIN users u ON p.user_id = u.id WHERE p.status = 'pending' ORDER BY p.created_at DESC"
-    ).fetchall()
-    return render_template("admin_products.html", listings=listings)
+    status_filter = request.args.get("status", "pending")
+    if status_filter not in ("pending", "approved", "rejected", "all"):
+        status_filter = "pending"
+
+    if status_filter == "all":
+        listings = db.execute(
+            "SELECT p.*, u.username FROM products p JOIN users u ON p.user_id = u.id ORDER BY p.created_at DESC LIMIT 200"
+        ).fetchall()
+    else:
+        listings = db.execute(
+            "SELECT p.*, u.username FROM products p JOIN users u ON p.user_id = u.id WHERE p.status = ? ORDER BY p.created_at DESC LIMIT 200",
+            (status_filter,),
+        ).fetchall()
+
+    counts = {}
+    for s in ("pending", "approved", "rejected"):
+        counts[s] = db.execute("SELECT COUNT(*) c FROM products WHERE status = ?", (s,)).fetchone()["c"]
+
+    return render_template("admin_products.html", listings=listings, status_filter=status_filter, counts=counts)
 
 
 @app.route("/admin/products/<int:product_id>/approve", methods=["POST"])
@@ -5881,6 +6421,8 @@ def admin_approve_product(product_id):
     if seller:
         refresh_trust_status(db, seller["user_id"]) if 'refresh_trust_status' in globals() else None
     db.commit()
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"success": True, "product_id": product_id, "action": "approved"})
     return redirect(request.referrer or url_for("admin_products"))
 
 
@@ -5895,6 +6437,52 @@ def admin_reject_product(product_id):
     if row:
         add_strike(db, row["user_id"], reason="product_rejected_by_admin")
     db.commit()
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"success": True, "product_id": product_id, "action": "rejected"})
+    return redirect(request.referrer or url_for("admin_products"))
+
+
+@app.route("/admin/marketplace/delete/<int:item_id>", methods=["POST"])
+@login_required
+@admin_required
+def admin_delete_marketplace_item(item_id):
+    """Permanently removes a marketplace listing. Used for spam/unauthorized
+    items that need to disappear entirely (not just be marked rejected)."""
+    db = get_db()
+    product = db.execute("SELECT id, user_id, title FROM products WHERE id = ?", (item_id,)).fetchone()
+    if not product:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"error": "not_found"}), 404
+        flash("Listing not found.", "danger")
+        return redirect(request.referrer or url_for("admin_products"))
+
+    db.execute("DELETE FROM products WHERE id = ?", (item_id,))
+    db.commit()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"success": True, "product_id": item_id})
+    flash(f"Deleted listing '{product['title']}'.")
+    return redirect(request.referrer or url_for("admin_products"))
+
+
+@app.route("/admin/orders/delete/<int:order_id>", methods=["POST"])
+@login_required
+@admin_required
+def admin_delete_marketplace_order(order_id):
+    db = get_db()
+    order = db.execute("SELECT id, product_id FROM offers WHERE id = ?", (order_id,)).fetchone()
+    if not order:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"error": "not_found"}), 404
+        flash("Order not found.", "danger")
+        return redirect(request.referrer or url_for("admin_products"))
+
+    db.execute("DELETE FROM offers WHERE id = ?", (order_id,))
+    db.commit()
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"success": True, "order_id": order_id})
+    flash("Marketplace order deleted.")
     return redirect(request.referrer or url_for("admin_products"))
 
 
@@ -5950,9 +6538,17 @@ def admin_panel():
             "SELECT COALESCE(SUM(amount), 0) total FROM payments WHERE status = 'approved'"
         ).fetchone()["total"]
         total_revenue = subscription_revenue + gift_earnings
+        pending_products_count = db.execute(
+            "SELECT COUNT(*) c FROM products WHERE status = 'pending'"
+        ).fetchone()["c"]
+        total_pending_actions = pending_deposits_count + pending_withdrawals_count + pending_products_count + len(reports)
 
         verification_price = float(get_setting("verification_price", VERIFICATION_MONTHLY_PRICE) or VERIFICATION_MONTHLY_PRICE)
         vip_price = float(get_setting("vip_price", VIP_MONTHLY_PRICE) or VIP_MONTHLY_PRICE)
+        # NOTE: this route previously computed total_users, pending_unverified_users,
+        # pending_deposits_count and pending_withdrawals_count but never actually
+        # passed them into the template - fixed below so the Overview page shows
+        # real, live numbers instead of a blank/placeholder screen.
         return render_template(
             "admin.html", pending_payments=pending_payments, reports=reports,
             pending_wallet_tx=pending_wallet_tx, gift_earnings=gift_earnings,
@@ -5962,6 +6558,12 @@ def admin_panel():
             total_revenue=total_revenue,
             verification_price=verification_price,
             vip_price=vip_price,
+            total_users=total_users,
+            pending_unverified_users=pending_unverified_users,
+            pending_deposits_count=pending_deposits_count,
+            pending_withdrawals_count=pending_withdrawals_count,
+            pending_products_count=pending_products_count,
+            total_pending_actions=total_pending_actions,
         )
     except Exception as exc:
         print(f"Admin overview page error: {exc}")
@@ -5972,6 +6574,12 @@ def admin_panel():
             subscription_revenue=0, total_revenue=0,
             verification_price=float(get_setting("verification_price", VERIFICATION_MONTHLY_PRICE) or VERIFICATION_MONTHLY_PRICE),
             vip_price=float(get_setting("vip_price", VIP_MONTHLY_PRICE) or VIP_MONTHLY_PRICE),
+            total_users=0,
+            pending_unverified_users=0,
+            pending_deposits_count=0,
+            pending_withdrawals_count=0,
+            pending_products_count=0,
+            total_pending_actions=0,
         )
 
 
@@ -6033,8 +6641,9 @@ def admin_settings():
                 flash("Could not update bank account status.")
                 return redirect(url_for("admin_settings"))
             is_active = request.form.get("is_active") == "1"
+            placeholder = "%s" if not getattr(db, "is_sqlite", False) else "?"
             db.execute(
-                "UPDATE bank_accounts SET is_active = %s WHERE id = %s",
+                f"UPDATE bank_accounts SET is_active = {placeholder} WHERE id = {placeholder}",
                 (True if is_active else False, bank_id),
             )
             db.commit()
@@ -6801,6 +7410,13 @@ def grant_verified(user_id):
             ntype="info",
         )
         db.commit()
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({
+            "success": bool(target),
+            "user_id": user_id,
+            "action": "granted",
+            "until": until.isoformat()[:10] if target else None,
+        })
     return redirect(request.referrer or url_for("admin_verify"))
 
 
@@ -6811,6 +7427,8 @@ def revoke_verified(user_id):
     db = get_db()
     set_verification_tier(db, user_id, "none", datetime.datetime.utcnow())
     db.commit()
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"success": True, "user_id": user_id, "action": "revoked"})
     return redirect(request.referrer or url_for("admin_verify"))
 
 

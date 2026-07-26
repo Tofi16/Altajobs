@@ -1,73 +1,378 @@
 {% extends "base.html" %}
+{% block extra_styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/premium-redesign.css') }}">
+{% endblock %}
 {% block content %}
+
+<style>
+  .wallet-panel {
+    border-radius: 38px;
+    padding: 32px;
+    background: linear-gradient(135deg, #0f172a, #020617 55%, #000000);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.30);
+    backdrop-filter: blur(22px);
+    overflow: hidden;
+  }
+  .wallet-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 28%),
+                radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.10), transparent 34%);
+    pointer-events: none;
+  }
+  .wallet-panel-inner {
+    position: relative;
+    z-index: 1;
+  }
+  .wallet-hero-overline {
+    text-transform: uppercase;
+    letter-spacing: 0.32em;
+    font-size: 0.72rem;
+    color: #7dd3fc;
+    margin-bottom: 0.85rem;
+  }
+  .wallet-hero-title {
+    font-size: clamp(2.4rem, 4vw, 3.6rem);
+    font-weight: 900;
+    line-height: 0.95;
+    color: #ffffff;
+  }
+  .wallet-hero-copy {
+    margin-top: 0.9rem;
+    max-width: 44rem;
+    color: #cbd5e1;
+    line-height: 1.75;
+  }
+  .wallet-balance-panel {
+    border-radius: 32px;
+    padding: 30px;
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 0 18px rgba(255, 255, 255, 0.04);
+  }
+  .wallet-balance-label {
+    font-size: 0.82rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #94a3b8;
+  }
+  .wallet-balance-value {
+    margin-top: 0.9rem;
+    font-size: clamp(2.8rem, 5vw, 4.4rem);
+    font-weight: 900;
+    color: #ffffff;
+  }
+  .wallet-balance-value span {
+    margin-left: 0.6rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #38bdf8;
+  }
+  .wallet-balance-note {
+    margin-top: 1.1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.9rem 1rem;
+    border-radius: 999px;
+    color: #cbd5e1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+  .wallet-quick-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+  .wallet-action-pill {
+    border-radius: 24px;
+    padding: 18px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(18px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.85rem;
+    transition: transform 0.16s ease, background 0.16s ease;
+  }
+  .wallet-action-pill:hover {
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .wallet-action-pill span {
+    color: #f8fafc;
+    font-weight: 700;
+  }
+  .wallet-action-icon {
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    border-radius: 18px;
+    font-size: 1.15rem;
+    background: rgba(59, 130, 246, 0.14);
+    color: #38bdf8;
+  }
+  .wallet-qr-card {
+    border-radius: 28px;
+    padding: 24px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 2px 20px rgba(255, 255, 255, 0.03);
+  }
+  .wallet-qr-label {
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 0.72rem;
+    color: #7dd3fc;
+    margin-bottom: 1rem;
+  }
+  .wallet-qr-frame {
+    display: inline-flex;
+    background: #ffffff;
+    padding: 18px;
+    border-radius: 24px;
+  }
+  .wallet-qr-caption {
+    margin-top: 1rem;
+    color: #cbd5e1;
+    font-size: 0.95rem;
+  }
+  .wallet-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .wallet-stat-surface {
+    border-radius: 24px;
+    padding: 18px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+  }
+  .wallet-stat-label {
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 0.75rem;
+    color: #94a3b8;
+  }
+  .wallet-stat-value {
+    margin-top: 0.75rem;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #f8fafc;
+  }
+  .wallet-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .wallet-section-title {
+    font-size: 0.74rem;
+    font-weight: 800;
+    color: #7dd3fc;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+  }
+  .wallet-section-subtitle {
+    margin-top: 3px;
+    font-size: 0.92rem;
+    color: #cbd5e1;
+  }
+  .filter-chip {
+    border-radius: 999px;
+    padding: 10px 18px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    background: rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+    font-weight: 700;
+    transition: background 0.16s ease, color 0.16s ease;
+  }
+  .filter-chip[aria-pressed='true'] {
+    background: rgba(56, 189, 248, 0.18);
+    color: #ffffff;
+  }
+  /* Sticky date-group headers above each day's transactions. */
+  .wallet-date-group {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    margin: 18px 0 10px;
+    padding: 6px 4px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #7dd3fc;
+    background: linear-gradient(180deg, #0b1220 78%, transparent);
+  }
+  .wallet-date-group:first-of-type { margin-top: 0; }
+
+  .tx-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    margin-bottom: 10px;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  /* Distinct backgrounds for income vs expense, not just icon color,
+     for clearer scanning at a glance. */
+  .tx-row[data-tx-flow="income"] {
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.09), rgba(255, 255, 255, 0.03));
+    border-color: rgba(16, 185, 129, 0.16);
+  }
+  .tx-row[data-tx-flow="expense"] {
+    background: linear-gradient(90deg, rgba(244, 63, 94, 0.09), rgba(255, 255, 255, 0.03));
+    border-color: rgba(244, 63, 94, 0.16);
+  }
+  .tx-main { display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .tx-title { font-size: 0.96rem; font-weight: 800; color: #f8fafc; }
+  .tx-note { color: #94a3b8; font-size: 0.82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tx-time { color: #64748b; font-size: 0.75rem; }
+  .tx-amount { font-weight: 800; text-align: right; }
+  .tx-status { margin-top: 8px; display: inline-flex; align-items: center; justify-content: center; padding: 5px 12px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; }
+  .tx-status.admin-badge-success { background: rgba(16, 185, 129, 0.12); color: #a7f3d0; border: 1px solid rgba(16, 185, 129, 0.18); }
+  .tx-status.admin-badge-warning { background: rgba(249, 115, 22, 0.12); color: #fbbf24; border: 1px solid rgba(249, 115, 22, 0.18); }
+  .tx-status.admin-badge-danger { background: rgba(239, 68, 68, 0.12); color: #fecaca; border: 1px solid rgba(239, 68, 68, 0.18); }
+  #txDateFilter::-webkit-calendar-picker-indicator { filter: invert(0.8); }
+</style>
+
 
 <div class="mx-auto max-w-xl px-4 py-5 text-slate-200">
 
   <!-- Balance hero -->
-  <section class="wallet-hero mb-4 rounded-2xl border border-white/5 bg-gradient-to-br from-emerald-500/20 via-zinc-900/70 to-zinc-950 p-5 shadow-[0_18px_45px_rgba(16,185,129,0.08)]">
-    <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Available Balance</div>
-    <div class="mt-1 text-4xl font-black text-slate-50 tabular-nums">{{ current_user.get('wallet_balance', current_user.get('balance', 0)) }} <span class="text-lg font-bold text-slate-400">ETB</span></div>
-    <div class="mt-1.5 flex items-center gap-1.5 text-xs text-slate-400">
-      <span class="grid h-5 w-5 place-items-center rounded-full bg-amber-400/15 text-amber-300">🪙</span>
-      <strong id="walletTokensCount" class="text-slate-200">{{ current_user.get('alta_tokens', 0) }}</strong> Alta Tokens
-    </div>
-    {% if pending_balance and pending_balance > 0 %}
-      <div class="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-400">⏳ {{ pending_balance }} ETB held for a pending withdrawal</div>
-    {% endif %}
-    <div class="mt-3 flex items-center gap-2 rounded-xl border border-white/5 bg-zinc-950/50 px-3 py-2.5">
-      <span class="text-[11px] font-semibold text-slate-500">Wallet ID</span>
-      <span id="walletIdValue" class="flex-1 truncate font-mono text-sm text-slate-200">{{ current_user.get('wallet_id', '') }}</span>
-      <button type="button" id="copyWalletId" class="shrink-0 rounded-lg bg-white/5 px-2.5 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-white/10 active:scale-95 transition">Copy</button>
+  {% set balance = current_user.get('wallet_balance', current_user.get('balance', 0)) %}
+  {% set tokens = current_user.get('alta_tokens', 0) %}
+  {% set wallet_id = current_user.get('wallet_id', '') %}
+
+  <section class="mb-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-[2rem] p-6 shadow-2xl relative overflow-hidden mb-8">
+      <!-- Subtle Glow -->
+      <div class="absolute top-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      
+      <div class="flex justify-between items-start relative z-10 mb-6">
+        <div>
+          <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Wallet Owner</p>
+          <h2 class="text-white text-lg font-bold tracking-wide">{{ current_user.full_name | default(current_user.username, true) }}</h2>
+        </div>
+        <button type="button" id="openReceiveQr" title="Show my wallet QR code" aria-label="Show my wallet QR code"
+                class="bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 p-3 rounded-2xl transition-all duration-300 cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><path d="M3 14h7v7H3z"></path></svg>
+        </button>
+      </div>
+
+      <div class="relative z-10">
+        <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Alta Tokens</p>
+        <div class="flex items-center gap-2">
+          <span class="text-yellow-500 text-2xl">🪙</span>
+          <span class="text-4xl font-extrabold text-white" id="tokenAmount" data-token="{{ tokens | default('0', true) }}">{{ tokens | default('0', true) }}</span>
+        </div>
+      </div>
+
+      <div class="mt-8 bg-[#0B1121] border border-slate-800/50 rounded-2xl p-4 flex justify-between items-center relative z-10">
+        {% if wallet_id %}
+          <p class="text-slate-400 text-sm">Wallet ID <span id="walletIdValue" class="text-white ml-3 font-mono tracking-wide">{{ wallet_id }}</span></p>
+          <button class="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 text-blue-400 text-sm px-4 py-2 rounded-xl transition-colors font-medium flex items-center gap-2" id="copyWalletId">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            Copy
+          </button>
+        {% else %}
+          <div class="w-full flex items-center justify-between gap-3">
+            <p class="text-slate-400 text-sm">No wallet ID yet</p>
+            <form method="POST" action="{{ url_for('generate_wallet') }}" class="shrink-0">
+              <button type="submit" class="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-sm px-4 py-2 rounded-xl transition-colors font-bold whitespace-nowrap">
+                Generate Wallet
+              </button>
+            </form>
+          </div>
+        {% endif %}
+      </div>
     </div>
   </section>
 
-  <!-- Actions -->
-  <section class="mb-5 grid grid-cols-3 gap-2.5" aria-label="Wallet actions">
-    <button type="button" data-modal="depositModal" class="flex flex-col items-center gap-1.5 rounded-2xl border border-white/5 bg-zinc-900/60 py-3.5 text-xs font-bold text-slate-200 shadow-sm hover:bg-zinc-900 active:scale-95 transition">
-      <span class="grid h-10 w-10 place-items-center rounded-full bg-emerald-500/15 text-emerald-400 text-lg"><i class='bx bx-down-arrow-alt'></i></span>
-      Deposit
+  <section class="grid grid-cols-3 gap-4 mb-8" aria-label="Wallet actions">
+    <button type="button" data-modal="depositModal" class="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col items-center justify-center gap-3 hover:bg-slate-800 transition cursor-pointer">
+      <span class="rounded-full bg-teal-400/10 p-3 text-teal-400"><i class='bx bx-down-arrow-alt'></i></span>
+      <span class="text-sm font-semibold text-white">Deposit</span>
     </button>
-    <button type="button" data-modal="withdrawModal" class="flex flex-col items-center gap-1.5 rounded-2xl border border-white/5 bg-zinc-900/60 py-3.5 text-xs font-bold text-slate-200 shadow-sm hover:bg-zinc-900 active:scale-95 transition">
-      <span class="grid h-10 w-10 place-items-center rounded-full bg-red-500/15 text-red-400 text-lg"><i class='bx bx-up-arrow-alt'></i></span>
-      Withdraw
+    <button type="button" data-modal="withdrawModal" class="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col items-center justify-center gap-3 hover:bg-slate-800 transition cursor-pointer">
+      <span class="rounded-full bg-rose-400/10 p-3 text-rose-400"><i class='bx bx-up-arrow-alt'></i></span>
+      <span class="text-sm font-semibold text-white">Withdraw</span>
     </button>
-    <button type="button" data-modal="sendModal" class="flex flex-col items-center gap-1.5 rounded-2xl border border-dashed border-sky-500/40 bg-transparent py-3.5 text-xs font-bold text-sky-400 hover:bg-sky-500/5 active:scale-95 transition">
-      <span class="grid h-10 w-10 place-items-center rounded-full border border-sky-500/30 text-sky-400 text-lg"><i class='bx bx-paper-plane'></i></span>
-      Send
+    <button type="button" data-modal="sendModal" class="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col items-center justify-center gap-3 hover:bg-slate-800 transition cursor-pointer">
+      <span class="rounded-full bg-blue-400/10 p-3 text-blue-400"><i class='bx bx-paper-plane'></i></span>
+      <span class="text-sm font-semibold text-white">Send</span>
     </button>
   </section>
 
-  <!-- Recent Activity, grouped by date -->
+  <!-- Wallet activity -->
   <section>
-    <div class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">Recent Activity</div>
+    <div class="wallet-section-head">
+      <div>
+        <div class="wallet-section-title">Recent Activity</div>
+        <div class="wallet-section-subtitle">Track your latest deposits, withdrawals, and transfers</div>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <input type="date" id="txDateFilter" class="rounded-lg border border-white/10 bg-zinc-900/60 px-2 py-1 text-[11px] text-slate-300" aria-label="Filter by date">
+        <button type="button" id="txDateClear" class="hidden text-[11px] font-semibold text-sky-400">Clear</button>
+      </div>
+    </div>
+    <div class="mb-3 flex items-center gap-1.5" role="group" aria-label="Filter transactions">
+      <button type="button" class="filter-chip" data-filter="all" aria-pressed="true">All</button>
+      <button type="button" class="filter-chip" data-filter="income" aria-pressed="false">Income</button>
+      <button type="button" class="filter-chip" data-filter="expense" aria-pressed="false">Expense</button>
+    </div>
+
     <div id="requestsList" class="space-y-4">
       {% set reqs = requests if requests is defined else history if history is defined else [] %}
       {% if reqs and reqs|length > 0 %}
         {% set ns = namespace(last_date='') %}
         {% for r in reqs %}
           {% set tx_type = (r['tx_type'] if 'tx_type' in r.keys() else '') %}
-          {% set is_withdrawal = tx_type in ('withdraw', 'withdrawal') %}
+          {% set note_val = (r['note'] if 'note' in r.keys() else '') or '' %}
+          {% set is_withdrawal = tx_type in ('withdraw', 'withdrawal') or (tx_type == 'transfer' and note_val.startswith('Sent')) %}
           {% set status = (r['status'] if 'status' in r.keys() else 'pending')|lower %}
-          {% set date_str = (r['created_at'][:10] if 'created_at' in r.keys() and r['created_at'] else '') %}
-          {% if date_str != ns.last_date %}
+          {% set full_date = (r['created_at'][:10] if 'created_at' in r.keys() and r['created_at'] else '') %}
+          {% if full_date != ns.last_date %}
             {% if not loop.first %}</div>{% endif %}
-            {% set ns.last_date = date_str %}
-            <div class="mb-1.5 mt-3 text-[11px] font-bold uppercase tracking-wide text-slate-600">{{ date_str }}</div>
-            <div class="divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/5">
+            {% set ns.last_date = full_date %}
+            <div class="wallet-date-group">{{ full_date }}</div>
+            <div class="wallet-date-rows">
           {% endif %}
-          <div class="flex items-center justify-between gap-3 bg-zinc-900/40 px-3.5 py-3 hover:bg-zinc-900/60 transition">
-            <div class="flex items-center gap-2.5 min-w-0">
+          <div class="tx-row"
+               data-tx-flow="{{ 'expense' if is_withdrawal else 'income' }}" data-tx-date="{{ full_date }}">
+            <div class="tx-main">
               <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-base {{ 'bg-red-500/15 text-red-400' if is_withdrawal else 'bg-emerald-500/15 text-emerald-400' }}">
                 <i class='bx {{ "bx-up-arrow-alt" if is_withdrawal else "bx-down-arrow-alt" }}'></i>
               </span>
-              <div class="min-w-0 text-sm">
-                <div class="truncate font-semibold text-slate-100">{{ tx_type|capitalize }}</div>
-                <div class="text-[11px] text-slate-500">{{ (r['created_at'][11:16] if 'created_at' in r.keys() and r['created_at'] else '') }}</div>
+              <div class="tx-copy">
+                <div class="tx-title">{{ tx_type|capitalize }}</div>
+                <div class="tx-note">{{ note_val or 'Wallet activity update' }}</div>
+                <div class="tx-time">{{ (r['created_at'][11:16] if 'created_at' in r.keys() and r['created_at'] else '') }}</div>
               </div>
             </div>
             <div class="shrink-0 text-right">
-              <div class="text-sm font-extrabold {{ 'text-red-400' if is_withdrawal else 'text-emerald-400' }}">{{ '-' if is_withdrawal else '+' }}{{ (r['amount'] if 'amount' in r.keys() else '') }} ETB</div>
-              <span class="admin-badge {{ 'admin-badge-success' if status == 'approved' else ('admin-badge-danger' if status in ('rejected','declined') else 'admin-badge-warning') }} mt-1">{{ status|capitalize }}</span>
+              {% set amount_unit = 'ETB' %}
+              {% if note_val and 'Alta tokens' in note_val %}
+                {% set amount_unit = 'tokens' %}
+              {% endif %}
+              <div class="tx-amount {{ 'text-red-400' if is_withdrawal else 'text-emerald-400' }}">{{ '-' if is_withdrawal else '+' }}{{ (r['amount'] if 'amount' in r.keys() else '') }} {{ amount_unit }}</div>
+              <span class="admin-badge tx-status {{ 'admin-badge-success' if status == 'approved' else ('admin-badge-danger' if status in ('rejected','declined') else 'admin-badge-warning') }}">{{ status|capitalize }}</span>
             </div>
           </div>
         {% endfor %}
@@ -76,6 +381,7 @@
         <div class="rounded-2xl border border-white/5 bg-zinc-900/40 px-3 py-8 text-center text-sm text-slate-500">No requests yet</div>
       {% endif %}
     </div>
+    <div id="txEmptyFiltered" class="hidden rounded-2xl border border-white/5 bg-zinc-900/40 px-3 py-8 text-center text-sm text-slate-500">No transactions match this filter</div>
   </section>
 
   <!-- Modals -->
@@ -110,7 +416,7 @@
         </div>
         <div class="flex justify-end gap-2 pt-1">
           <button type="button" class="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
-          <button type="submit" class="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-bold text-zinc-950">Submit Deposit</button>
+          <button type="submit" class="wallet-primary-btn">Submit Deposit</button>
         </div>
       </form>
     </div>
@@ -138,7 +444,7 @@
         </div>
         <div class="flex justify-end gap-2 pt-1">
           <button type="button" class="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
-          <button type="submit" class="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-bold text-zinc-950">Request Withdraw</button>
+          <button type="submit" class="wallet-primary-btn">Request Withdraw</button>
         </div>
       </form>
     </div>
@@ -146,11 +452,23 @@
 
   <div id="sendModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm" aria-hidden="true">
     <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
-      <h3 class="mb-4 text-sm font-bold text-slate-100">Send Funds</h3>
+      <div class="mb-4 flex items-center justify-between">
+        <h3 class="text-sm font-bold text-slate-100">Send Funds</h3>
+        <button type="button" id="openScanQr" class="flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-sky-400 hover:bg-white/10">
+          <i class='bx bx-scan'></i> Scan QR
+        </button>
+      </div>
       <form id="sendForm" method="POST" action="{{ url_for('wallet_transfer') }}" class="space-y-3">
         <div>
           <label class="mb-1 block text-[11px] font-semibold text-slate-500">Amount</label>
           <input name="amount" type="number" step="0.01" min="0.01" required class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+        </div>
+        <div>
+          <label class="mb-1 block text-[11px] font-semibold text-slate-500">Currency</label>
+          <select name="currency" class="w-full rounded-lg border border-white/10 bg-zinc-950/70 px-3 py-2 text-sm text-slate-100">
+            <option value="etb">ETB</option>
+            <option value="tokens">Alta tokens</option>
+          </select>
         </div>
         <div>
           <label class="mb-1 block text-[11px] font-semibold text-slate-500">Recipient Wallet ID</label>
@@ -159,14 +477,44 @@
         </div>
         <div class="flex justify-end gap-2 pt-1">
           <button type="button" class="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
-          <button type="submit" id="sendSubmitBtn" class="rounded-lg bg-emerald-500 px-4 py-2 text-xs font-bold text-zinc-950">Send</button>
+          <button type="submit" id="sendSubmitBtn" class="wallet-primary-btn">Send</button>
         </div>
       </form>
     </div>
   </div>
 
+  <!-- Receive QR modal -->
+  <div id="receiveQrModal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-zinc-950/70 p-4 backdrop-blur-sm" aria-hidden="true">
+    <div class="w-full max-w-xs rounded-2xl border border-white/10 bg-zinc-900/95 p-5 text-center shadow-2xl">
+      <h3 class="mb-1 text-sm font-bold text-slate-100">Receive Funds</h3>
+      {% if wallet_id %}
+        <p class="mb-4 text-xs text-slate-500">Share this code so others can send you money instantly.</p>
+        <div class="mx-auto grid place-items-center rounded-2xl border border-sky-400/20 bg-white p-3 shadow-inner" style="width:200px;height:200px" id="receiveQrCode">
+          <div class="grid h-full w-full place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-center text-[11px] font-medium text-slate-500">
+            QR placeholder<br/>wallet code ready
+          </div>
+        </div>
+        <div class="mt-4 rounded-xl border border-white/5 bg-zinc-950/50 px-3 py-2 font-mono text-sm text-slate-200">{{ wallet_id }}</div>
+      {% else %}
+        <p class="mb-4 text-xs text-slate-500">You don't have a wallet ID yet. Generate one first to receive funds.</p>
+      {% endif %}
+      <button type="button" class="mt-4 w-full rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Close</button>
+    </div>
+  </div>
+
+  <!-- Scan QR modal -->
+  <div id="scanQrModal" class="fixed inset-0 z-[80] hidden items-center justify-center bg-zinc-950/80 p-4 backdrop-blur-sm" aria-hidden="true">
+    <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-5 shadow-2xl">
+      <h3 class="mb-3 text-sm font-bold text-slate-100">Scan a Wallet QR Code</h3>
+      <div id="scanQrReader" class="overflow-hidden rounded-xl bg-black"></div>
+      <p id="scanQrStatus" class="mt-2 text-center text-xs text-slate-500">Point your camera at a wallet QR code</p>
+      <button type="button" class="mt-3 w-full rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-slate-300" data-close>Cancel</button>
+    </div>
+  </div>
+
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 document.querySelectorAll('[data-modal]').forEach(function(btn) {
   btn.addEventListener('click', function() {
@@ -174,15 +522,31 @@ document.querySelectorAll('[data-modal]').forEach(function(btn) {
     if (m) { m.classList.remove('hidden'); m.classList.add('flex'); m.setAttribute('aria-hidden', 'false'); }
   });
 });
+
+document.getElementById('openReceiveQr')?.addEventListener('click', function() {
+  var m = document.getElementById('receiveQrModal');
+  if (m) {
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+    m.setAttribute('aria-hidden', 'false');
+  }
+});
+
 document.querySelectorAll('[data-close]').forEach(function(b) {
   b.addEventListener('click', function(e) {
     var backdrop = e.target.closest('.fixed.inset-0');
-    if (backdrop) { backdrop.classList.add('hidden'); backdrop.classList.remove('flex'); backdrop.setAttribute('aria-hidden', 'true'); }
+    if (backdrop) {
+      backdrop.classList.add('hidden'); backdrop.classList.remove('flex'); backdrop.setAttribute('aria-hidden', 'true');
+      if (backdrop.id === 'scanQrModal') stopQrScanner();
+    }
   });
 });
-document.querySelectorAll('#depositModal, #withdrawModal, #sendModal').forEach(function(back) {
+document.querySelectorAll('#depositModal, #withdrawModal, #sendModal, #receiveQrModal, #scanQrModal').forEach(function(back) {
   back.addEventListener('click', function(e) {
-    if (e.target === back) { back.classList.add('hidden'); back.classList.remove('flex'); back.setAttribute('aria-hidden', 'true'); }
+    if (e.target === back) {
+      back.classList.add('hidden'); back.classList.remove('flex'); back.setAttribute('aria-hidden', 'true');
+      if (back.id === 'scanQrModal') stopQrScanner();
+    }
   });
 });
 
@@ -193,10 +557,26 @@ document.querySelectorAll('#depositModal, #withdrawModal, #sendModal').forEach(f
   if (!btn || !val) return;
   btn.addEventListener('click', function () {
     navigator.clipboard.writeText(val.textContent.trim()).then(function () {
-      var original = btn.textContent;
-      btn.textContent = 'Copied!';
-      setTimeout(function () { btn.textContent = original; }, 1500);
+      var original = btn.innerHTML;
+      btn.innerHTML = '<i class="bx bx-check"></i> Copied!';
+      setTimeout(function () { btn.innerHTML = original; }, 1500);
     });
+  });
+})();
+
+// Receive QR code render (generated on demand, once)
+(function () {
+  var openBtn = document.getElementById('openReceiveQr');
+  var walletId = {{ current_user.get('wallet_id', '')|tojson }};
+  var rendered = false;
+  if (!openBtn) return;
+  openBtn.addEventListener('click', function () {
+    var target = document.getElementById('receiveQrCode');
+    if (!rendered && target && walletId && window.QRCode) {
+      target.innerHTML = '';
+      new QRCode(target, { text: walletId, width: 176, height: 176, colorDark: '#09090b', colorLight: '#ffffff' });
+      rendered = true;
+    }
   });
 })();
 
@@ -207,7 +587,7 @@ document.querySelectorAll('#depositModal, #withdrawModal, #sendModal').forEach(f
   var submitBtn = document.getElementById('sendSubmitBtn');
   if (!input || !hint) return;
   var timer = null;
-  input.addEventListener('input', function () {
+  function lookup() {
     clearTimeout(timer);
     var val = input.value.trim();
     if (!val) { hint.textContent = ''; return; }
@@ -226,7 +606,99 @@ document.querySelectorAll('#depositModal, #withdrawModal, #sendModal').forEach(f
           }
         }).catch(function () { hint.textContent = ''; });
     }, 400);
+  }
+  input.addEventListener('input', lookup);
+})();
+
+// Scan QR to auto-fill recipient (lazy-loads scanner library on first use)
+var qrScannerInstance = null;
+function stopQrScanner() {
+  if (qrScannerInstance) {
+    try { qrScannerInstance.stop().then(function () { qrScannerInstance.clear(); }); } catch (e) {}
+    qrScannerInstance = null;
+  }
+}
+(function () {
+  var scanBtn = document.getElementById('openScanQr');
+  var scanModal = document.getElementById('scanQrModal');
+  var statusEl = document.getElementById('scanQrStatus');
+  if (!scanBtn || !scanModal) return;
+  scanBtn.addEventListener('click', function () {
+    document.getElementById('sendModal').classList.add('hidden');
+    document.getElementById('sendModal').classList.remove('flex');
+    scanModal.classList.remove('hidden'); scanModal.classList.add('flex'); scanModal.setAttribute('aria-hidden', 'false');
+
+    function startScanner() {
+      qrScannerInstance = new Html5Qrcode('scanQrReader');
+      qrScannerInstance.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: 220 },
+        function (decodedText) {
+          document.getElementById('recipientWalletId').value = decodedText.trim();
+          document.getElementById('recipientWalletId').dispatchEvent(new Event('input'));
+          stopQrScanner();
+          scanModal.classList.add('hidden'); scanModal.classList.remove('flex'); scanModal.setAttribute('aria-hidden', 'true');
+          document.getElementById('sendModal').classList.remove('hidden');
+          document.getElementById('sendModal').classList.add('flex');
+        },
+        function () { /* per-frame scan errors, ignored */ }
+      ).catch(function () {
+        if (statusEl) statusEl.textContent = 'Camera access denied or unavailable. Enter the wallet ID manually.';
+      });
+    }
+
+    if (window.Html5Qrcode) {
+      startScanner();
+    } else {
+      var s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
+      s.onload = startScanner;
+      s.onerror = function () { if (statusEl) statusEl.textContent = 'Could not load the scanner. Enter the wallet ID manually.'; };
+      document.head.appendChild(s);
+    }
   });
+})();
+
+// Transaction filters (flow + date), operating on already-rendered rows
+(function () {
+  var chips = document.querySelectorAll('.filter-chip');
+  var dateInput = document.getElementById('txDateFilter');
+  var dateClear = document.getElementById('txDateClear');
+  var list = document.getElementById('requestsList');
+  var emptyState = document.getElementById('txEmptyFiltered');
+  var activeFlow = 'all';
+
+  function applyFilters() {
+    var activeDate = dateInput ? dateInput.value : '';
+    dateClear.classList.toggle('hidden', !activeDate);
+    var anyVisible = false;
+    document.querySelectorAll('.tx-row').forEach(function (row) {
+      var flowOk = activeFlow === 'all' || row.getAttribute('data-tx-flow') === activeFlow;
+      var dateOk = !activeDate || row.getAttribute('data-tx-date') === activeDate;
+      var visible = flowOk && dateOk;
+      row.style.display = visible ? '' : 'none';
+      if (visible) anyVisible = true;
+    });
+    document.querySelectorAll('#requestsList > div.wallet-date-rows').forEach(function (group) {
+      var hasVisibleRow = Array.prototype.some.call(group.querySelectorAll('.tx-row'), function (r) { return r.style.display !== 'none'; });
+      group.style.display = hasVisibleRow ? '' : 'none';
+      var header = group.previousElementSibling;
+      if (header) header.style.display = hasVisibleRow ? '' : 'none';
+    });
+    if (list) list.classList.toggle('hidden', !anyVisible);
+    if (emptyState) emptyState.classList.toggle('hidden', anyVisible);
+  }
+
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      chips.forEach(function (c) { c.setAttribute('aria-pressed', 'false'); });
+      chip.setAttribute('aria-pressed', 'true');
+      activeFlow = chip.getAttribute('data-filter');
+      applyFilters();
+    });
+  });
+  if (dateInput) dateInput.addEventListener('change', applyFilters);
+  if (dateClear) dateClear.addEventListener('click', function () { dateInput.value = ''; applyFilters(); });
 })();
 </script>
 
