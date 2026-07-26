@@ -37,12 +37,12 @@
     <div class="mt-5 text-xs font-medium uppercase tracking-widest text-slate-400">Available Balance</div>
     <div class="mt-2 flex items-center justify-between gap-3">
       <div class="flex min-w-0 items-center gap-3">
-        <div class="flex items-baseline gap-2">
-          <span id="walletBalanceAmount" class="text-4xl font-black text-slate-50 tabular-nums" data-full-value="{{ balance | default(0) }}">{{ balance | default(0) }}</span>
-          <span class="text-lg font-semibold text-slate-400">ETB</span>
+        <div class="min-w-0">
+          <span id="walletBalanceAmount" class="block min-w-0 truncate text-2xl sm:text-3xl font-bold tracking-tight text-white tabular-nums" data-full-value="{{ balance | default(0) }}">{{ balance | default(0) }}</span>
         </div>
+        <span class="shrink-0 text-lg font-semibold text-slate-400">ETB</span>
       </div>
-      <button type="button" id="toggleBalanceVisibility" class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-slate-200 transition hover:bg-white/10 active:scale-95" aria-label="Toggle balance visibility">
+      <button type="button" id="toggleBalanceVisibility" class="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/5 text-slate-200 transition hover:bg-white/10 active:scale-95" aria-label="Toggle balance visibility">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
       </button>
     </div>
@@ -482,13 +482,14 @@ function stopQrScanner() {
   var toggleBtn = document.getElementById('toggleBalanceVisibility');
   if (!balanceAmount || !toggleBtn) return;
   var fullValue = balanceAmount.getAttribute('data-full-value') || balanceAmount.textContent.trim();
-  var hidden = false;
+  var hidden = localStorage.getItem('walletBalanceHidden') === 'true';
   function refresh() {
     balanceAmount.textContent = hidden ? '••••••' : fullValue;
     toggleBtn.innerHTML = hidden ? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.16 21.16 0 0 1 5.06-5.94M9.88 9.88a3 3 0 0 0 4.24 4.24"/><path d="M1 1l22 22"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>';
   }
   toggleBtn.addEventListener('click', function () {
     hidden = !hidden;
+    localStorage.setItem('walletBalanceHidden', hidden ? 'true' : 'false');
     refresh();
   });
   refresh();
