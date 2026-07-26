@@ -106,6 +106,7 @@
         {% for r in reqs %}
           {% set tx_type = (r['tx_type'] if 'tx_type' in r.keys() else '') %}
           {% set note_val = (r['note'] if 'note' in r.keys() else '') or '' %}
+          {% set recipient_name = (r['recipient_name'] if 'recipient_name' in r.keys() else '') or (r['sender_name'] if 'sender_name' in r.keys() else '') %}
           {% set is_withdrawal = tx_type in ('withdraw', 'withdrawal') or (tx_type == 'transfer' and note_val.startswith('Sent')) %}
           {% set status = (r['status'] if 'status' in r.keys() else 'pending')|lower %}
           {% set full_date = (r['created_at'][:10] if 'created_at' in r.keys() and r['created_at'] else '') %}
@@ -115,24 +116,35 @@
             <div class="wallet-date-group mb-1.5 mt-3 text-[11px] font-bold uppercase tracking-wide text-slate-400">{{ full_date }}</div>
             <div class="wallet-date-rows divide-y divide-white/5 overflow-hidden rounded-2xl border border-white/5">
           {% endif %}
-          <div class="tx-row flex items-center justify-between gap-3 bg-zinc-900/40 px-3.5 py-3 hover:bg-zinc-900/60 transition" data-tx-flow="{{ 'expense' if is_withdrawal else 'income' }}" data-tx-date="{{ full_date }}">
-            <div class="flex items-center gap-2.5 min-w-0">
-              <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full text-base {{ 'bg-red-500/15 text-red-400' if is_withdrawal else 'bg-emerald-500/15 text-emerald-400' }}">
-                <i class='bx {{ "bx-up-arrow-alt" if is_withdrawal else "bx-down-arrow-alt" }}'></i>
-              </span>
-              <div class="min-w-0 text-sm">
-                <div class="truncate font-semibold text-slate-100">{{ tx_type|capitalize }}</div>
-                <div class="truncate text-[11px] text-slate-400">{{ note_val or 'Wallet activity update' }}</div>
-                <div class="text-[11px] text-slate-400">{{ (r['created_at'][11:16] if 'created_at' in r.keys() and r['created_at'] else '') }}</div>
+          <div class="tx-row grid grid-cols-[auto_1fr_auto] items-center gap-3 bg-zinc-900/40 px-3.5 py-2.5 hover:bg-zinc-900/60 transition" data-tx-flow="{{ 'expense' if is_withdrawal else 'income' }}" data-tx-date="{{ full_date }}">
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-base {{ 'bg-red-500/15 text-red-400' if is_withdrawal else 'bg-emerald-500/15 text-emerald-400' }}">
+              <i class='bx {{ "bx-up-arrow-alt" if is_withdrawal else "bx-down-arrow-alt" }}'></i>
+            </div>
+            <div class="min-w-0 text-sm">
+              <div class="flex flex-col gap-1">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                  <span class="truncate font-semibold text-slate-100">{{ tx_type|capitalize }}</span>
+                  {% if recipient_name %}<span class="truncate text-[11px] text-slate-400">with {{ recipient_name }}</span>{% endif %}
+                </div>
+                <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
+                  <span class="truncate">{{ note_val or 'Wallet activity update' }}</span>
+                  <span class="hidden sm:inline">·</span>
+                  <span>{{ (r['created_at'][11:16] if 'created_at' in r.keys() and r['created_at'] else '') }}</span>
+                </div>
               </div>
             </div>
-            <div class="shrink-0 text-right">
+            <div class="flex flex-col items-end gap-2">
               {% set amount_unit = 'ETB' %}
               {% if note_val and 'Alta tokens' in note_val %}
                 {% set amount_unit = 'tokens' %}
               {% endif %}
-              <div class="text-sm font-extrabold {{ 'text-red-400' if is_withdrawal else 'text-emerald-400' }}">{{ '-' if is_withdrawal else '+' }}{{ (r['amount'] if 'amount' in r.keys() else '') }} {{ amount_unit }}</div>
-              <span class="admin-badge tx-status {{ 'admin-badge-success' if status == 'approved' else ('admin-badge-danger' if status in ('rejected','declined') else 'admin-badge-warning') }} mt-1">{{ status|capitalize }}</span>
+              <div class="text-sm font-extrabold {{ 'text-red-400' if is_withdrawal else 'text-emerald-400' }} truncate">{{ '-' if is_withdrawal else '+' }}{{ (r['amount'] if 'amount' in r.keys() else '') }} {{ amount_unit }}</div>
+              <div class="flex items-center gap-2">
+                <span class="admin-badge tx-status {{ 'admin-badge-success' if status == 'approved' else ('admin-badge-danger' if status in ('rejected','declined') else 'admin-badge-warning') }}">{{ status|capitalize }}</span>
+                <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-slate-300 transition hover:bg-white/10" aria-label="Download receipt">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
+              </div>
             </div>
           </div>
         {% endfor %}
