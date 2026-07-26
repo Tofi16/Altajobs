@@ -139,7 +139,7 @@
 
       <div class="min-w-0 flex-1">
         <div class="profile-pill-row flex flex-wrap items-center gap-1.5">
-          <h1 class="truncate text-base font-extrabold text-slate-100 lg:text-lg flex items-center gap-2">
+          <h1 class="truncate text-base font-bold text-white lg:text-lg flex items-center gap-2">
             {{ profile_user['full_name'] or profile_user['username'] }}
             {% set v_tier = get_verification_tier(profile_user) %}
             <span class="inline-flex items-center gap-2">
@@ -176,7 +176,7 @@
             </span>
           {% endif %}
         </div>
-        <div class="mt-0.5 text-xs text-slate-500">@{{ profile_user['username'] }} · {{ t.worker if profile_user['user_type'] == 'worker' else t.employer }}</div>
+        <div class="mt-0.5 text-sm text-neutral-400">@{{ profile_user['username'] }} · {{ t.worker if profile_user['user_type'] == 'worker' else t.employer }}</div>
 
         {% if profile_user['bio'] %}
           <p class="mt-2 text-sm text-slate-300">{{ profile_user['bio'] }}</p>
@@ -208,16 +208,12 @@
     <!-- Action row -->
     <div class="mt-3 flex gap-2">
       {% if current_user and current_user['id'] != profile_user['id'] %}
-        <button type="button" class="js-follow-btn flex-1 rounded-xl {{ 'bg-white/10 text-slate-200' if is_following else 'profile-primary-btn' }} py-2 text-sm font-bold"
-          data-user-id="{{ profile_user['id'] }}"
-          data-follow-label="{{ t.follow }}"
-          data-following-label="{{ t.unfollow }}"
-          aria-pressed="{{ 'true' if is_following else 'false' }}">
+        <button type="button" class="js-follow-btn rounded-full bg-blue-600 text-white font-semibold px-4 py-1.5" data-user-id="{{ profile_user['id'] }}" data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}" aria-pressed="{{ 'true' if is_following else 'false' }}">
           <span class="follow-label">{{ t.unfollow if is_following else t.follow }}</span>
         </button>
-        <a href="{{ url_for('chat_start', user_id=profile_user['id']) }}" class="flex-1 rounded-xl border border-white/10 py-2 text-center text-sm font-bold text-slate-200">💬 {{ t.messages }}</a>
+        <a href="{{ url_for('chat_start', user_id=profile_user['id']) }}" class="rounded-full border border-white/10 px-4 py-1.5 text-sm font-semibold text-neutral-200">💬 {{ t.messages }}</a>
       {% elif current_user and current_user['id'] == profile_user['id'] %}
-        <a href="{{ url_for('edit_profile') }}" class="flex-1 rounded-xl profile-primary-btn py-2 text-center text-sm font-bold"><i class='bx bx-edit'></i> {{ t.edit_profile }}</a>
+        <a href="{{ url_for('edit_profile') }}" class="rounded-full bg-blue-600 text-white px-4 py-1.5 text-sm font-semibold"><i class='bx bx-edit'></i> {{ t.edit_profile }}</a>
       {% endif %}
     </div>
   </section>

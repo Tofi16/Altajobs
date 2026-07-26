@@ -225,7 +225,7 @@
 
 {% for item in posts_data %}
   {% set post = item.post %}
-  <article class="xpost" data-post-type="{{ post.post_type }}">
+  <article class="xpost bg-neutral-900 rounded-xl border border-neutral-800 p-4 mb-6" data-post-type="{{ post.post_type }}">
     <div class="xpost-card">
       <div class="xpost-head">
         <div class="xpost-headline">
@@ -250,8 +250,7 @@
         </div>
         <div class="xpost-head-actions">
           {% if current_user and post.user_id != current_user['id'] %}
-            <button type="button" class="xpost-follow-chip js-follow-btn {{ 'following' if item.following }}"
-                    data-user-id="{{ post.user_id }}"
+            <button type="button" class="js-follow-btn rounded-full bg-blue-600 text-white font-semibold px-4 py-1.5" data-user-id="{{ post.user_id }}"
                     data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
               {{ t.unfollow if item.following else t.follow }}
             </button>
@@ -287,28 +286,32 @@
         </a>
       {% endif %}
 
-      <div class="xpost-actions">
-        <button type="button" class="xpost-action like js-like-btn {{ 'liked' if item.liked }}"
-                data-post-id="{{ post.id }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}">
-          <i class='bx {{ "bxs-heart" if item.liked else "bx-heart" }}'></i>
-          <span class="like-count">{{ item.like_count }}</span>
+      <div class="xpost-actions flex items-center gap-6 mt-3">
+        <button type="button" class="js-like-btn flex items-center gap-2 text-neutral-400 hover:text-pink-400 {{ 'liked' if item.liked }}" data-post-id="{{ post.id }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}">
+          <!-- Heart outline / filled -->
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <span class="like-count text-sm text-neutral-400">{{ item.like_count }}</span>
         </button>
-        <button type="button" class="xpost-action comment js-comment-toggle" data-post-id="{{ post.id }}" aria-expanded="false">
-          <i class='bx bx-comment'></i><span class="comment-count">{{ item.comment_count }}</span>
+
+        <button type="button" class="js-comment-toggle flex items-center gap-2 text-neutral-400 hover:text-sky-400" data-post-id="{{ post.id }}" aria-expanded="false">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8-1.198 0-2.337-.172-3.376-.486L3 21l1.486-5.624C3.677 13.996 3 12.06 3 10c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+          <span class="comment-count text-sm text-neutral-400">{{ item.comment_count }}</span>
         </button>
-        <button type="button" class="xpost-action repost js-repost-btn" data-post-id="{{ post.id }}" title="Repost">
-          <i class='bx bx-repost'></i><span class="repost-count">{{ post.share_count or 0 }}</span>
+
+        <button type="button" class="js-repost-btn flex items-center gap-2 text-neutral-400 hover:text-sky-400" data-post-id="{{ post.id }}" title="Repost">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v6a4 4 0 0 0 4 4h4m10-10v6a4 4 0 0 1-4 4h-4"/></svg>
+          <span class="repost-count text-sm text-neutral-400">{{ post.share_count or 0 }}</span>
         </button>
-        <button type="button" class="xpost-action share js-share-btn" data-post-id="{{ post.id }}"
-                data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}" title="Share">
-          <i class='bx bx-share-alt'></i>
+
+        <button type="button" class="js-share-btn flex items-center gap-2 text-neutral-400 hover:text-green-400" data-post-id="{{ post.id }}" data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}" title="Share">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 12v.01M20 12v.01M12 20v.01M12 4v.01M4 12h16M12 4c4.418 0 8 3.582 8 8M12 20c-4.418 0-8-3.582-8-8"/></svg>
         </button>
       </div>
-      <div class="xpost-comment-panel" aria-hidden="true">
-        <div class="xpost-comment-summary">{{ item.comment_count }} {{ t.comments if t.comments is defined else 'comments' }}</div>
-        <div class="xpost-comment-row">
-          <input type="text" class="xpost-comment-input" placeholder="Write a comment..." aria-label="Write a comment">
-          <button type="button" class="xpost-comment-submit" data-post-id="{{ post.id }}">Comment</button>
+      <div class="xpost-comment-panel mt-4" aria-hidden="true">
+        <div class="xpost-comment-summary text-neutral-400 text-sm">{{ item.comment_count }} {{ t.comments if t.comments is defined else 'comments' }}</div>
+        <div class="xpost-comment-row flex items-center gap-3 mt-2">
+          <input type="text" class="xpost-comment-input flex-1 rounded-full bg-neutral-800/60 px-4 py-2 text-neutral-200" placeholder="Write a comment..." aria-label="Write a comment">
+          <button type="button" class="xpost-comment-submit bg-blue-600 text-white rounded-full px-4 py-1.5" data-post-id="{{ post.id }}">Send</button>
         </div>
       </div>
     </div>

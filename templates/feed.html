@@ -85,53 +85,30 @@
 </style>
 
 <div class="mx-auto max-w-4xl px-4 py-6 text-slate-200">
-  <section class="feed-create-post-card" id="feedCreateCard">
-    <form id="composeForm" method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data">
-      <div class="feed-creator-top">
-        <div class="feed-creator-user">
-          <div class="feed-creator-avatar">
-            {% if current_user['avatar'] %}
-              <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}">
-            {% else %}
-              {{ (current_user['full_name'] or current_user['username'])[0] }}
-            {% endif %}
-          </div>
-          <div class="feed-creator-copy">
-            <span class="feed-creator-label">Create post</span>
-            <span class="feed-creator-title">Share a job, skill, or experience</span>
-          </div>
+  <section id="feedCreateCard" class="max-w-3xl mx-auto w-full mb-6">
+    <form id="composeForm" method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data" class="bg-neutral-900 rounded-xl border border-neutral-800 p-4">
+      <div class="flex items-center gap-4">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-sky-500 to-green-400 flex items-center justify-center text-black font-bold overflow-hidden">
+          {% if current_user['avatar'] %}
+            <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}" class="w-full h-full object-cover rounded-full">
+          {% else %}
+            <span class="text-sm">{{ (current_user['full_name'] or current_user['username'])[0] }}</span>
+          {% endif %}
         </div>
-        <div class="hidden sm:flex items-center gap-2">
-          <span class="feed-creator-pill">Photo</span>
-          <span class="feed-creator-pill">Job</span>
-          <span class="feed-creator-pill">Skill</span>
+        <div class="flex-1">
+          <label for="composeTextarea" class="sr-only">What's on your mind?</label>
+          <input id="composeTextarea" name="content" placeholder="What's on your mind?" aria-label="What's on your mind?" class="w-full rounded-full bg-neutral-800 border-transparent px-4 py-2 text-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input type="hidden" name="post_type" id="composePostType" value="general">
+          <input type="hidden" name="current_filter" id="composeCurrentFilter" value="{{ active_filter or 'all' }}">
         </div>
-      </div>
-
-      <div class="feed-creator-area">
-        <label class="sr-only" for="composeTextarea">Create post</label>
-        <textarea id="composeTextarea" name="content" rows="4" class="feed-creator-textarea" placeholder="Share a job, skill, or experience..." aria-label="Write a new post"></textarea>
-      </div>
-
-      <input type="hidden" name="post_type" id="composePostType" value="general">
-      <input type="hidden" name="current_filter" id="composeCurrentFilter" value="{{ active_filter or 'all' }}">
-
-      <div id="composeActions" class="feed-creator-controls">
-        <div class="flex flex-wrap gap-2">
-          <button type="button" class="feed-creator-pill" data-post-type="photo">Photo</button>
-          <button type="button" class="feed-creator-pill" data-post-type="job">Job</button>
-          <button type="button" class="feed-creator-pill" data-post-type="skill">Skill</button>
+        <div class="flex items-center gap-3">
+          <label for="composePhotoInput" class="flex items-center gap-2 cursor-pointer text-neutral-400 hover:text-neutral-100">
+            <!-- media SVG -->
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7M16 3v4M8 3v4M3 11h18"/></svg>
+            <input type="file" name="photo" accept="image/*" id="composePhotoInput" class="hidden">
+          </label>
+          <button type="submit" id="composeSubmitButton" class="bg-blue-600 text-white rounded-full font-semibold px-4 py-1.5 hover:bg-blue-700">Post</button>
         </div>
-        <button type="submit" id="composeSubmitButton" class="feed-creator-post btn-disabled" disabled>Post</button>
-      </div>
-
-      <div class="feed-create-footer">
-        <label for="composePhotoInput" class="feed-compose-media-label" tabindex="0">
-          <i class='bx bx-image-add'></i>
-          <span>Upload photo</span>
-        </label>
-        <input type="file" name="photo" accept="image/*" id="composePhotoInput" class="hidden">
-        <span class="feed-photo-name" id="composePhotoName" aria-live="polite"></span>
       </div>
     </form>
   </section>
@@ -142,21 +119,7 @@
     <button type="button" class="filter-pill {{ 'active' if active_filter == 'experience' }}" data-filter="experience">Experiences 💬</button>
   </section>
 
-  <div id="feedSkeletonShell" class="feed-shell space-y-4">
-    <div class="feed-skeleton-card">
-      <div class="feed-skeleton-row"></div>
-      <div class="feed-skeleton-row short"></div>
-      <div class="feed-skeleton-media"></div>
-      <div class="feed-skeleton-row"></div>
-      <div class="feed-skeleton-row short"></div>
-    </div>
-    <div class="feed-skeleton-card">
-      <div class="feed-skeleton-row"></div>
-      <div class="feed-skeleton-row short"></div>
-      <div class="feed-skeleton-media"></div>
-      <div class="feed-skeleton-row"></div>
-    </div>
-  </div>
+  <!-- Removed two empty skeleton boxes that cluttered the top of the feed -->
 
   {% if active_announcement %}
   <div class="announcement-banner" id="announcementBanner">
