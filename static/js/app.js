@@ -27,22 +27,20 @@ document.addEventListener("click", async function (e) {
   const userId = btn.dataset.userId;
   const followLabel = btn.dataset.followLabel || "Follow";
   const followingLabel = btn.dataset.followingLabel || "Following";
+  const buttons = Array.from(document.querySelectorAll(`.js-follow-btn[data-user-id="${userId}"]`));
 
-  btn.disabled = true;
+  buttons.forEach((followBtn) => { followBtn.disabled = true; });
   try {
     const res = await fetch(`/api/follow/${userId}`, { method: "POST" });
     const data = await res.json();
-    if (data.following) {
-      btn.classList.add("following");
-      btn.textContent = followingLabel;
-    } else {
-      btn.classList.remove("following");
-      btn.textContent = followLabel;
-    }
+    buttons.forEach((followBtn) => {
+      followBtn.classList.toggle("following", !!data.following);
+      followBtn.textContent = data.following ? followingLabel : followLabel;
+    });
   } catch (err) {
     console.error("Follow toggle failed", err);
   } finally {
-    btn.disabled = false;
+    buttons.forEach((followBtn) => { followBtn.disabled = false; });
   }
 });
 
@@ -55,26 +53,34 @@ async function togglePostLike(btn, options) {
   const icon = btn.querySelector(".bx");
   const countEl = btn.querySelector(".like-count");
   const textEl = btn.querySelector(".like-text");
-  const card = btn.closest(".post-card");
+  const card = btn.closest(".xpost");
   const socialCount = card ? card.querySelector(".social-proof-count") : null;
 
   btn.disabled = true;
   try {
-    const res = await fetch(`/api/like/${postId}`, { method: "POST" });
+    const res = await fetch(`/api/like/${postId}`, { method: "POST", headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const data = await res.json();
-    if (countEl) countEl.textContent = data.like_count;
+    const likeButtons = Array.from(document.querySelectorAll(`.js-like-btn[data-post-id="${postId}"]`));
+    likeButtons.forEach((likeBtn) => {
+      const iconEl = likeBtn.querySelector(".bx");
+      const textEl = likeBtn.querySelector(".like-text");
+      const countElLocal = likeBtn.querySelector(".like-count");
+      if (countElLocal) countElLocal.textContent = data.like_count;
+      likeBtn.classList.toggle("liked", !!data.liked);
+      if (data.liked) {
+        if (iconEl) { iconEl.classList.remove("bx-heart"); iconEl.classList.add("bxs-heart"); }
+        if (textEl) textEl.textContent = likedLabel;
+      } else {
+        if (iconEl) { iconEl.classList.remove("bxs-heart"); iconEl.classList.add("bx-heart"); }
+        if (textEl) textEl.textContent = likeLabel;
+      }
+    });
     if (socialCount && typeof data.like_count === "number") {
       socialCount.textContent = `${Math.max(data.like_count - 1, 0)} others`;
     }
     if (data.liked) {
-      btn.classList.add("liked", "just-liked");
-      if (icon) { icon.classList.remove("bx-heart"); icon.classList.add("bxs-heart"); }
-      if (textEl) textEl.textContent = likedLabel;
+      btn.classList.add("just-liked");
       setTimeout(() => btn.classList.remove("just-liked"), 400);
-    } else {
-      btn.classList.remove("liked");
-      if (icon) { icon.classList.remove("bxs-heart"); icon.classList.add("bx-heart"); }
-      if (textEl) textEl.textContent = likeLabel;
     }
     if (options && options.fromDoubleTap) {
       const overlay = card ? card.querySelector(".double-tap-heart") : null;
@@ -94,15 +100,100 @@ async function togglePostLike(btn, options) {
 
 document.addEventListener("click", function (e) {
   const btn = e.target.closest(".js-like-btn");
-  if (!btn) return;
+  if (btn) {
+    e.preventDefault();
+    togglePostLike(btn);
+    return;
+  }
+
+  const commentToggle = e.target.closest('.js-comment-toggle');
+  if (commentToggle) {
+    e.preventDefault();
+    const card = commentToggle.closest('.xpost');
+    const panel = card ? card.querySelector('.xpost-comment-panel') : null;
+    if (!panel) return;
+    const isOpen = panel.classList.toggle('open');
+    panel.setAttribute('aria-hidden', String(!isOpen));
+    commentToggle.setAttribute('aria-expanded', String(isOpen));
+    if (isOpen) {
+      const input = panel.querySelector('.xpost-comment-input');
+      if (input) input.focus();
+    }
+    return;
+  }
+
+  const commentSubmit = e.target.closest('.xpost-comment-submit');
+  if (commentSubmit) {
+    e.preventDefault();
+    const postId = commentSubmit.dataset.postId;
+    const card = commentSubmit.closest('.xpost');
+    const input = card ? card.querySelector('.xpost-comment-input') : null;
+    if (!input || !postId) return;
+    const body = input.value.trim();
+    if (!body) {
+      input.focus();
+      return;
+    }
+    commentSubmit.disabled = true;
+    fetch('/post/' + postId + '/comment', {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ content: body }),
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (data && data.success) {
+          const countEls = card.querySelectorAll('.comment-count');
+          countEls.forEach(function (el) { el.textContent = data.comment_count; });
+          const summary = card.querySelector('.xpost-comment-summary');
+          if (summary) {
+            summary.textContent = data.comment_count + ' ' + (data.comment_count === 1 ? 'comment' : 'comments');
+          }
+          input.value = '';
+        }
+      })
+      .catch(function (err) {
+        console.error('Post comment failed', err);
+      })
+      .finally(function () {
+        commentSubmit.disabled = false;
+      });
+    return;
+  }
+
+  const toggle = e.target.closest('.js-xpost-seemore');
+  if (!toggle) return;
   e.preventDefault();
-  togglePostLike(btn);
+  const post = toggle.closest('.xpost');
+  const content = post ? post.querySelector('.js-xpost-content') : null;
+  if (!content) return;
+  const expanded = content.classList.toggle('xpost-clamped') === false;
+  toggle.textContent = expanded ? toggle.dataset.seeLess || 'See less' : toggle.dataset.seeMore || 'See more';
 });
 
+function refreshPostSeeMoreButtons() {
+  document.querySelectorAll('.js-xpost-content').forEach(function (content) {
+    var card = content.closest('.xpost');
+    var toggle = card ? card.querySelector('.js-xpost-seemore') : null;
+    if (!toggle) return;
+    var computed = window.getComputedStyle(content);
+    var lineHeight = parseFloat(computed.lineHeight) || 20;
+    var maxHeight = lineHeight * 5 + 2;
+    var isOverflowing = content.scrollHeight > maxHeight;
+    if (isOverflowing) {
+      toggle.classList.remove('hidden');
+      toggle.textContent = content.classList.contains('xpost-clamped') ? (toggle.dataset.seeMore || 'See more') : (toggle.dataset.seeLess || 'See less');
+    } else {
+      toggle.classList.add('hidden');
+    }
+  });
+}
+window.refreshPostSeeMoreButtons = refreshPostSeeMoreButtons;
+
 document.addEventListener("dblclick", function (e) {
-  const media = e.target.closest(".post-media");
+  const media = e.target.closest(".xpost-photo-wrap, .xpost-photo, .post-media");
   if (!media) return;
-  const card = media.closest(".post-card");
+  const card = media.closest(".xpost");
   const btn = card ? card.querySelector(".js-like-btn") : null;
   if (!btn) return;
   e.preventDefault();
@@ -124,6 +215,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const photoName = document.getElementById("composePhotoName");
   const composeForm = document.getElementById("composeForm");
   const composeSubmit = document.getElementById("composeSubmitButton");
+  const composePostType = document.getElementById("composePostType");
+  const composeCurrentFilter = document.getElementById("composeCurrentFilter");
+  const typeButtons = document.querySelectorAll('.feed-creator-pill[data-post-type]');
   if (!textarea || !actions) return;
 
   const updateComposeSubmitState = function () {
@@ -153,13 +247,76 @@ document.addEventListener("DOMContentLoaded", function () {
     updateComposeSubmitState();
   });
 
+  typeButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      typeButtons.forEach(function (btn) { btn.classList.remove('active'); });
+      this.classList.add('active');
+      if (composePostType) composePostType.value = this.dataset.postType || 'general';
+    });
+  });
+
   if (composeForm) {
     composeForm.addEventListener('submit', function (e) {
-      var hasPhoto = photoInput && photoInput.files && photoInput.files.length > 0;
-      if (textarea.value.trim().length === 0 && !hasPhoto) {
+      if (!composeSubmit) return;
+      const hasPhoto = photoInput && photoInput.files && photoInput.files.length > 0;
+      const hasText = textarea.value.trim().length > 0;
+      if (!hasText && !hasPhoto) {
         e.preventDefault();
         textarea.focus();
+        return;
       }
+      e.preventDefault();
+      const filterValue = composeCurrentFilter ? composeCurrentFilter.value : 'all';
+      const currentScroll = window.scrollY || window.pageYOffset || 0;
+      composeSubmit.disabled = true;
+      composeSubmit.textContent = 'Posting...';
+      const formData = new FormData(composeForm);
+      if (composeCurrentFilter) formData.set('current_filter', filterValue);
+
+      fetch(composeForm.action, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData,
+      })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          if (data && data.success && data.html) {
+            var container = document.getElementById('feedPostsContainer');
+            if (container) {
+              container.insertAdjacentHTML('afterbegin', data.html);
+              if (window.refreshPostSeeMoreButtons) {
+                window.refreshPostSeeMoreButtons();
+              }
+              var firstPost = container.firstElementChild;
+              if (firstPost) {
+                var addedHeight = firstPost.getBoundingClientRect().height;
+                window.scrollTo(0, currentScroll + addedHeight);
+              }
+            }
+            textarea.value = '';
+            if (photoInput) { photoInput.value = ''; }
+            if (photoName) { photoName.textContent = ''; }
+            updateComposeSubmitState();
+            composeSubmit.textContent = 'Posted';
+            setTimeout(function () { composeSubmit.textContent = 'Post'; }, 1200);
+          } else if (data && data.success && !data.html) {
+            textarea.value = '';
+            if (photoInput) { photoInput.value = ''; }
+            if (photoName) { photoName.textContent = ''; }
+            updateComposeSubmitState();
+            composeSubmit.textContent = 'Posted';
+            setTimeout(function () { composeSubmit.textContent = 'Post'; }, 1200);
+          } else {
+            composeSubmit.textContent = 'Post';
+          }
+        })
+        .catch(function (err) {
+          console.error('Post submission failed', err);
+          composeSubmit.textContent = 'Post';
+        })
+        .finally(function () {
+          updateComposeSubmitState();
+        });
     });
   }
 
@@ -171,6 +328,9 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  if (window.refreshPostSeeMoreButtons) {
+    window.refreshPostSeeMoreButtons();
+  }
   updateComposeSubmitState();
 });
 
@@ -457,7 +617,7 @@ document.addEventListener("DOMContentLoaded", function () {
     let debounceTimer = null;
     const filterFeedCards = function () {
       const query = (searchInput.value || "").trim().toLowerCase();
-      const cards = document.querySelectorAll(".post-card[data-post-type]");
+      const cards = document.querySelectorAll(".xpost[data-post-type]");
       let visibleCount = 0;
       cards.forEach(function (card) {
         const text = (card.textContent || "").toLowerCase();

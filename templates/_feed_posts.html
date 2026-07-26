@@ -1,61 +1,249 @@
 <style>
-  .xpost { border-bottom: 1px solid rgba(255,255,255,0.08); padding: 14px 16px; display: flex; gap: 12px; background: transparent; transition: background 0.15s ease; }
-  .xpost:hover { background: rgba(255,255,255,0.025); }
-  .xpost-avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg,#10b981,#047857); color: #05130d; font-weight: 800; font-size: 1.05rem; text-decoration: none; }
-  .xpost-avatar img { width: 100%; height: 100%; object-fit: cover; }
-  .xpost-body { flex: 1; min-width: 0; }
-  .xpost-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-  .xpost-headline { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; }
-  .xpost-name { font-weight: 800; color: #f1f5f9; text-decoration: none; font-size: 0.95rem; }
-  .xpost-badge { display: inline-flex; align-items: center; margin-left: 2px; }
+  .xpost {
+    border-radius: 26px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    box-shadow: 0 24px 40px rgba(15, 23, 42, 0.18);
+    padding: 20px;
+    display: block;
+    transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    overflow: hidden;
+  }
+  .xpost:hover {
+    transform: translateY(-1px);
+    background: rgba(15, 23, 42, 0.94);
+    border-color: rgba(96, 165, 250, 0.22);
+  }
+  .xpost-card {
+    display: grid;
+    gap: 16px;
+  }
+  .xpost-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .xpost-headline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .xpost-avatar {
+    width: 54px;
+    height: 54px;
+    border-radius: 18px;
+    flex-shrink: 0;
+    overflow: hidden;
+    background: linear-gradient(135deg, #0ea5e9, #22c55e);
+    color: #0f172a;
+    font-weight: 800;
+    font-size: 1.1rem;
+    text-decoration: none;
+    display: grid;
+    place-items: center;
+  }
+  .xpost-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .xpost-author {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+  .xpost-name {
+    font-weight: 800;
+    color: #f8fafc;
+    text-decoration: none;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .xpost-meta {
+    color: #94a3b8;
+    font-size: 0.84rem;
+    line-height: 1.4;
+  }
+  .xpost-dot::before {
+    content: "·";
+    margin: 0 6px;
+    color: #94a3b8;
+  }
+  .xpost-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
   .xpost-badge .verification-badge {
-    width: 18px; height: 18px; display: inline-flex; align-items: center;
-    padding: 0; margin: 0; background: none; border: none; border-radius: 0;
+    width: 18px;
+    height: 18px;
   }
-  .xpost-badge .verification-badge svg { width: 18px; height: 18px; display: block; }
-  .xpost-meta { color: #71767b; font-size: 0.87rem; font-weight: 400; }
-  .xpost-dot::before { content: "·"; margin: 0 4px; color: #71767b; }
-  .xpost-menu-btn { border: none; background: transparent; color: #71767b; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
-  .xpost-menu-btn:hover { background: rgba(29,155,240,0.1); color: #1d9bf0; }
-  .xpost-content { color: #e7e9ea; font-size: 0.96rem; line-height: 1.45; margin: 2px 0 8px; white-space: pre-wrap; word-break: break-word; }
-  .xpost-content.xpost-clamped { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
-  .xpost-seemore { background: none; border: none; color: #1d9bf0; font-weight: 700; font-size: 0.9rem; cursor: pointer; padding: 2px 0; margin-bottom: 6px; display: none; }
-  .xpost-photo-wrap { border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; overflow: hidden; margin-bottom: 10px; }
-  .xpost-photo { width: 100%; max-height: 420px; object-fit: cover; display: block; }
-  .xpost-job-pill { display: inline-flex; align-items: center; gap: 4px; background: rgba(16,185,129,0.12); color: #34d399; font-size: 0.78rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; margin-bottom: 8px; }
-  .xpost-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; max-width: 380px; }
-  .xpost-action { display: flex; align-items: center; gap: 6px; border: none; background: transparent; color: #71767b; font-size: 0.85rem; font-weight: 500; cursor: pointer; padding: 7px 10px; margin: -7px -10px; border-radius: 999px; text-decoration: none; transition: background 0.15s ease, color 0.15s ease; }
-  .xpost-action i { font-size: 1.15rem; }
-  .xpost-action.like:hover, .xpost-action.like.liked { color: #f91880; background: rgba(249,24,128,0.1); }
-  .xpost-action.comment:hover { color: #1d9bf0; background: rgba(29,155,240,0.1); }
-  .xpost-action.share:hover, .xpost-action.save:hover { color: #10b981; background: rgba(16,185,129,0.1); }
-  .xpost-head-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .xpost-badge .verification-badge svg {
+    width: 100%;
+    height: 100%;
+  }
+  .xpost-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
   .xpost-follow-chip {
-    border: 1px solid rgba(255,255,255,0.15); border-radius: 999px; padding: 5px 14px;
-    font-weight: 700; font-size: 0.8rem; color: #e7e9ea; background: #10b981;
-    cursor: pointer; white-space: nowrap; transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    background: rgba(16, 185, 129, 0.12);
+    color: #a7f3d0;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    white-space: nowrap;
   }
-  .xpost-follow-chip:not(.following) { background: #10b981; color: #05130d; border-color: transparent; }
-  .xpost-follow-chip.following { background: transparent; color: #e7e9ea; }
-  .xpost-follow-chip.following:hover { border-color: rgba(239,68,68,0.4); color: #f87171; }
+  .xpost-follow-chip.following {
+    background: rgba(255,255,255,0.05);
+    color: #f8fafc;
+    border-color: rgba(148,163,184,0.22);
+  }
+  .xpost-menu-btn {
+    border: none;
+    background: rgba(255,255,255,0.05);
+    color: #cbd5e1;
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .xpost-menu-btn:hover {
+    background: rgba(29, 155, 240, 0.14);
+    color: #f8fafc;
+  }
+  .xpost-job-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(56, 189, 248, 0.12);
+    color: #7dd3fc;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 6px 12px;
+    border-radius: 999px;
+    width: fit-content;
+  }
+  .xpost-content {
+    color: #e2e8f0;
+    font-size: 0.96rem;
+    line-height: 1.7;
+    margin: 4px 0 10px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .xpost-content.xpost-clamped {
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .xpost-seemore {
+    background: none;
+    border: none;
+    color: #38bdf8;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 10px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .xpost-seemore.hidden {
+    display: none;
+  }
+  .xpost-photo-wrap {
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  .xpost-photo {
+    width: 100%;
+    height: auto;
+    max-height: 420px;
+    object-fit: cover;
+    display: block;
+  }
+  .xpost-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: flex-start;
+    margin-top: 8px;
+  }
+  .xpost-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    color: #94a3b8;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 9px 14px;
+    border-radius: 999px;
+    text-decoration: none;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  }
+  .xpost-action:hover {
+    background: rgba(255,255,255,0.1);
+    color: #f8fafc;
+    transform: translateY(-1px);
+  }
+  .xpost-action i {
+    font-size: 1.1rem;
+  }
+  .xpost-action.like.liked {
+    color: #f472b6;
+    background: rgba(249,24,128,0.14);
+  }
+  .xpost-action.comment:hover { color: #38bdf8; }
+  .xpost-action.share:hover { color: #22c55e; }
 </style>
 
 {% for item in posts_data %}
   {% set post = item.post %}
   <article class="xpost" data-post-type="{{ post.post_type }}">
-    <a href="{{ url_for('profile', user_id=post.user_id) }}" class="xpost-avatar">
-      {% if post.avatar %}
-        <img src="{{ photo_url(post.avatar) }}" loading="lazy" alt="">
-      {% else %}
-        {{ (post.full_name or post.username)[0]|upper }}
-      {% endif %}
-    </a>
-    <div class="xpost-body">
+    <div class="xpost-card">
       <div class="xpost-head">
         <div class="xpost-headline">
-          <a href="{{ url_for('profile', user_id=post.user_id) }}" class="xpost-name">{{ item.author_name }}</a>
-          <span class="xpost-badge">{{ verification_badge_svg(post) }}</span>
-          <span class="xpost-meta xpost-dot">@{{ post.username }} · {{ post.created_at[:16].replace('T',' ') if post.created_at else '' }}</span>
+          <a href="{{ url_for('profile', user_id=post.user_id) }}" class="xpost-avatar">
+            {% if post.avatar %}
+              <img src="{{ photo_url(post.avatar) }}" loading="lazy" alt="">
+            {% else %}
+              {{ (post.full_name or post.username)[0]|upper }}
+            {% endif %}
+          </a>
+          <div class="xpost-author">
+            <div class="xpost-name-wrap">
+              <a href="{{ url_for('profile', user_id=post.user_id) }}" class="xpost-name">{{ item.author_name }}</a>
+            </div>
+            <div class="xpost-meta">
+              @{{ post.username }}<span class="xpost-dot"></span>{{ post.created_at[:16].replace('T',' ') if post.created_at else '' }}
+            </div>
+          </div>
         </div>
         <div class="xpost-head-actions">
           {% if current_user and post.user_id != current_user['id'] %}
@@ -80,10 +268,10 @@
       {% endif %}
 
       {% if post.content %}
-        <a href="{{ url_for('post_detail', post_id=post.id) }}" style="text-decoration:none">
+        <a href="{{ url_for('post_detail', post_id=post.id) }}" style="text-decoration: none; color: inherit;">
           <p class="xpost-content xpost-clamped js-xpost-content">{{ post.content }}</p>
         </a>
-        <button type="button" class="xpost-seemore js-xpost-seemore"
+        <button type="button" class="xpost-seemore js-xpost-seemore hidden"
                 data-see-more="{{ t.see_more if t.see_more is defined else 'See more' }}"
                 data-see-less="{{ t.see_less if t.see_less is defined else 'See less' }}">{{ t.see_more if t.see_more is defined else 'See more' }}</button>
       {% endif %}
@@ -100,9 +288,9 @@
           <i class='bx {{ "bxs-heart" if item.liked else "bx-heart" }}'></i>
           <span class="like-count">{{ item.like_count }}</span>
         </button>
-        <a href="{{ url_for('post_detail', post_id=post.id) }}" class="xpost-action comment">
-          <i class='bx bx-comment'></i><span>{{ item.comment_count }}</span>
-        </a>
+        <button type="button" class="xpost-action comment js-comment-toggle" data-post-id="{{ post.id }}" aria-expanded="false">
+          <i class='bx bx-comment'></i><span class="comment-count">{{ item.comment_count }}</span>
+        </button>
         <button type="button" class="xpost-action repost js-repost-btn" data-post-id="{{ post.id }}" title="Repost">
           <i class='bx bx-repost'></i><span class="repost-count">{{ post.share_count or 0 }}</span>
         </button>
@@ -110,6 +298,13 @@
                 data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}" title="Share">
           <i class='bx bx-share-alt'></i>
         </button>
+      </div>
+      <div class="xpost-comment-panel" aria-hidden="true">
+        <div class="xpost-comment-summary">{{ item.comment_count }} {{ t.comments if t.comments is defined else 'comments' }}</div>
+        <div class="xpost-comment-row">
+          <input type="text" class="xpost-comment-input" placeholder="Write a comment..." aria-label="Write a comment">
+          <button type="button" class="xpost-comment-submit" data-post-id="{{ post.id }}">Comment</button>
+        </div>
       </div>
     </div>
   </article>

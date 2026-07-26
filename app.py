@@ -3345,6 +3345,88 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE, post_type_filter=N
     return posts_data, has_next
 
 
+def _build_single_post_payload(db, user, p):
+    if not hasattr(p, "keys") and not isinstance(p, dict):
+        return None
+    row = dict(p) if hasattr(p, "keys") else dict(p)
+    row.setdefault("id", None)
+    row.setdefault("user_id", None)
+    row.setdefault("content", "")
+    row.setdefault("photo", None)
+    row.setdefault("post_type", "general")
+    row.setdefault("created_at", "")
+    row.setdefault("view_count", 0)
+    row.setdefault("full_name", row.get("username") or "Unknown")
+    row.setdefault("username", "unknown")
+    row.setdefault("avatar", None)
+    row.setdefault("like_count", 0)
+    row.setdefault("comment_count", 0)
+    row.setdefault("verification_tier", "none")
+    if "photo" not in row:
+        row["photo"] = None
+    if row.get("photo") in (None, ""):
+        for alt_key in ("post_photo", "image", "media_url"):
+            if alt_key in row and row.get(alt_key):
+                row["photo"] = row.get(alt_key)
+                break
+    row["is_verified"] = row.get("verification_tier") in ("blue", "gold")
+    row["is_vip"] = row.get("verification_tier") == "gold"
+
+    if _table_exists(db, "likes") and row.get("id") is not None:
+        row["like_count"] = db.execute(
+            "SELECT COUNT(*) c FROM likes WHERE post_id = ?", (row["id"],)
+        ).fetchone()["c"]
+        row["liked"] = db.execute(
+            "SELECT 1 FROM likes WHERE post_id = ? AND user_id = ?",
+            (row["id"], user["id"] if user else None),
+        ).fetchone() is not None if user else False
+    else:
+        row["like_count"] = row.get("like_count", 0)
+        row["liked"] = False
+
+    if _table_exists(db, "comments") and row.get("id") is not None:
+        row["comment_count"] = db.execute(
+            "SELECT COUNT(*) c FROM comments WHERE post_id = ?", (row["id"],)
+        ).fetchone()["c"]
+    else:
+        row["comment_count"] = row.get("comment_count", 0)
+
+    if _table_exists(db, "follows") and row.get("user_id") is not None and user:
+        row["following"] = db.execute(
+            "SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ?",
+            (user["id"], row["user_id"]),
+        ).fetchone() is not None
+    else:
+        row["following"] = False
+
+    if _table_exists(db, "saved_posts") and row.get("id") is not None and user:
+        row["saved"] = db.execute(
+            "SELECT 1 FROM saved_posts WHERE user_id = ? AND post_id = ?",
+            (user["id"], row["id"]),
+        ).fetchone() is not None
+    else:
+        row["saved"] = False
+
+    if _table_exists(db, "job_applications") and row.get("id") is not None and user:
+        row["applied"] = db.execute(
+            "SELECT 1 FROM job_applications WHERE applicant_id = ? AND post_id = ?",
+            (user["id"], row["id"]),
+        ).fetchone() is not None
+    else:
+        row["applied"] = False
+
+    return {
+        "post": row,
+        "author_name": row.get("full_name") or row.get("username") or "Unknown",
+        "like_count": row.get("like_count", 0),
+        "comment_count": row.get("comment_count", 0),
+        "liked": row.get("liked", False),
+        "saved": row.get("saved", False),
+        "following": row.get("following", False),
+        "applied": row.get("applied", False),
+    }
+
+
 @app.route("/")
 @login_required
 def feed():
@@ -3564,7 +3646,8 @@ def new_post():
         insert_sql += ", created_at) VALUES ("
         insert_sql += ", ".join(["?"] * len(insert_values))
         insert_sql += ", ?)"
-        insert_values.append(datetime.datetime.utcnow().isoformat())
+        created_at = datetime.datetime.utcnow().isoformat()
+        insert_values.append(created_at)
         # Temporary diagnostic logging for Render: record DB type and the insert payload (sanitized)
         try:
             short_vals = [str(v)[:200] for v in insert_values]
@@ -3593,10 +3676,29 @@ def new_post():
             pass
         refresh_trust_status(db, user["id"])
         db.commit()
+        created_post = None
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+            created_post = db.execute(
+                "SELECT posts.*, users.username, users.full_name, users.avatar, users.verification_tier, users.verified_until "
+                "FROM posts JOIN users ON posts.user_id = users.id "
+                "WHERE posts.user_id = ? AND posts.created_at = ? ORDER BY posts.id DESC LIMIT 1",
+                (session["user_id"], created_at),
+            ).fetchone()
     except Exception as exc:
         db.rollback()
         print(f"New post submission failed: {exc}")
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+            return jsonify({"success": False, "error": "publish_failed"}), 500
         flash("Could not publish your post right now. Please try again.")
+        return redirect(url_for("feed"))
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
+        html = ''
+        if created_post:
+            post_payload = _build_single_post_payload(db, user, created_post)
+            if post_payload:
+                html = render_template("_feed_posts.html", posts_data=[post_payload])
+        return jsonify({"success": True, "html": html})
     return redirect(url_for("feed"))
 
 
