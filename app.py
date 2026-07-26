@@ -2218,7 +2218,7 @@ def get_verification_tier(user):
 
 @app.route('/api/follow/<int:user_id>', methods=['POST'])
 @login_required
-def api_toggle_follow(user_id):
+def api_toggle_follow_basic(user_id):
     db = get_db()
     me = get_current_user()
     if not me:
@@ -2249,7 +2249,7 @@ def api_toggle_follow(user_id):
 
 @app.route('/api/like/<int:post_id>', methods=['POST'])
 @login_required
-def api_toggle_like(post_id):
+def api_toggle_like_basic(post_id):
     db = get_db()
     me = get_current_user()
     if not me:
