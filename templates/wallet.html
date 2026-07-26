@@ -107,6 +107,8 @@
           {% set tx_type = (r['tx_type'] if 'tx_type' in r.keys() else '') %}
           {% set note_val = (r['note'] if 'note' in r.keys() else '') or '' %}
           {% set recipient_name = (r['recipient_name'] if 'recipient_name' in r.keys() else '') or (r['sender_name'] if 'sender_name' in r.keys() else '') %}
+          {% set receipt_path = (r['receipt_photo'] if 'receipt_photo' in r.keys() else (r['receipt_image_path'] if 'receipt_image_path' in r.keys() else None)) %}
+          {% set receipt_url = photo_url(receipt_path) if receipt_path else None %}
           {% set is_withdrawal = tx_type in ('withdraw', 'withdrawal') or (tx_type == 'transfer' and note_val.startswith('Sent')) %}
           {% set status = (r['status'] if 'status' in r.keys() else 'pending')|lower %}
           {% set full_date = (r['created_at'][:10] if 'created_at' in r.keys() and r['created_at'] else '') %}
@@ -141,9 +143,15 @@
               <div class="text-sm font-extrabold {{ 'text-red-400' if is_withdrawal else 'text-emerald-400' }} truncate">{{ '-' if is_withdrawal else '+' }}{{ (r['amount'] if 'amount' in r.keys() else '') }} {{ amount_unit }}</div>
               <div class="flex items-center gap-2">
                 <span class="admin-badge tx-status {{ 'admin-badge-success' if status == 'approved' else ('admin-badge-danger' if status in ('rejected','declined') else 'admin-badge-warning') }}">{{ status|capitalize }}</span>
-                <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-slate-300 transition hover:bg-white/10" aria-label="Download receipt">
+                {% if receipt_url %}
+                <a href="{{ receipt_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-slate-300 transition hover:bg-white/10" aria-label="Download receipt">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                </button>
+                </a>
+                {% else %}
+                <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 text-slate-500 opacity-50" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </span>
+                {% endif %}
               </div>
             </div>
           </div>
