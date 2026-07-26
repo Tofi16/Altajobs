@@ -45,6 +45,16 @@ document.addEventListener("click", async function (e) {
 });
 
 // ---------- AJAX Like button (instant, no reload, no scroll jump) ----------
+function refreshLucideIcons(parent) {
+  if (window.lucide && typeof lucide.createIcons === 'function') {
+    try {
+      lucide.createIcons({ parent: parent || document });
+    } catch (err) {
+      console.warn('Lucide icon refresh failed', err);
+    }
+  }
+}
+
 async function togglePostLike(btn, options) {
   if (!btn) return;
   const postId = btn.dataset.postId;
@@ -287,6 +297,7 @@ document.addEventListener("DOMContentLoaded", function () {
               if (window.refreshPostSeeMoreButtons) {
                 window.refreshPostSeeMoreButtons();
               }
+              refreshLucideIcons(container);
               var firstPost = container.firstElementChild;
               if (firstPost) {
                 var addedHeight = firstPost.getBoundingClientRect().height;

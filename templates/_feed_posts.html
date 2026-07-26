@@ -192,35 +192,67 @@
     justify-content: flex-start;
     margin-top: 8px;
   }
-  .xpost-action {
+  .xpost-action,
+  .xpost-follow-btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     border: 1px solid rgba(255,255,255,0.08);
     background: rgba(255,255,255,0.04);
-    color: #94a3b8;
-    font-size: 0.9rem;
+    color: #cbd5e1;
+    font-size: 0.92rem;
     font-weight: 700;
     cursor: pointer;
-    padding: 9px 14px;
+    padding: 10px 14px;
     border-radius: 999px;
     text-decoration: none;
-    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    min-height: 44px;
+    line-height: 1;
+    white-space: nowrap;
   }
-  .xpost-action:hover {
-    background: rgba(255,255,255,0.1);
+  .xpost-action:hover,
+  .xpost-follow-btn:hover {
+    background: rgba(15, 23, 42, 0.98);
     color: #f8fafc;
     transform: translateY(-1px);
+    border-color: rgba(96, 165, 250, 0.28);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
   }
-  .xpost-action i {
-    font-size: 1.1rem;
+  .xpost-action svg,
+  .xpost-action i,
+  .xpost-follow-btn svg,
+  .xpost-follow-btn i {
+    width: 1.15rem;
+    height: 1.15rem;
+    flex-shrink: 0;
+  }
+  .xpost-action .like-count,
+  .xpost-action .comment-count,
+  .xpost-action .repost-count {
+    color: #94a3b8;
+    font-size: 0.92rem;
+    font-weight: 800;
   }
   .xpost-action.like.liked {
-    color: #f472b6;
-    background: rgba(249,24,128,0.14);
+    color: #f9a8d4;
+    background: rgba(249, 168, 212, 0.14);
+    border-color: rgba(249, 168, 212, 0.35);
   }
+  .xpost-action.like:hover { color: #f472b6; }
   .xpost-action.comment:hover { color: #38bdf8; }
-  .xpost-action.share:hover { color: #22c55e; }
+  .xpost-action.repost:hover { color: #a78bfa; }
+  .xpost-action.share:hover { color: #4ade80; }
+  .xpost-follow-btn {
+    border-color: rgba(56, 189, 248, 0.24);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(16, 185, 129, 0.14));
+    color: #eff6ff;
+  }
+  .xpost-follow-btn.following {
+    background: rgba(255,255,255,0.08);
+    color: #f8fafc;
+    border-color: rgba(148, 163, 184, 0.24);
+  }
 </style>
 
 {% for item in posts_data %}
@@ -250,7 +282,7 @@
         </div>
         <div class="xpost-head-actions">
           {% if current_user and post.user_id != current_user['id'] %}
-                <button type="button" data-action="follow" class="js-follow-btn rounded-full bg-blue-600 text-white font-semibold px-4 py-1.5" data-user-id="{{ post.user_id }}"
+                <button type="button" data-action="follow" class="js-follow-btn xpost-follow-btn" data-user-id="{{ post.user_id }}"
                   data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
               {{ t.unfollow if item.following else t.follow }}
             </button>
@@ -300,23 +332,22 @@
       {% endif %}
 
       <div class="xpost-actions flex items-center gap-6 mt-3">
-        <button type="button" data-action="like" class="js-like-btn flex items-center gap-2 text-neutral-400 hover:text-pink-400 {{ 'liked' if item.liked }}" data-post-id="{{ post.id }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}">
-          <!-- Heart outline / filled -->
+        <button type="button" data-action="like" class="js-like-btn xpost-action like {{ 'liked' if item.liked }}" data-post-id="{{ post.id }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
-          <span class="like-count text-sm text-neutral-400">{{ item.like_count }}</span>
+          <span class="like-count">{{ item.like_count }}</span>
         </button>
 
-        <button type="button" class="js-comment-toggle flex items-center gap-2 text-neutral-400 hover:text-sky-400" data-post-id="{{ post.id }}" aria-expanded="false">
+        <button type="button" class="js-comment-toggle xpost-action comment" data-post-id="{{ post.id }}" aria-expanded="false">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8-1.198 0-2.337-.172-3.376-.486L3 21l1.486-5.624C3.677 13.996 3 12.06 3 10c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-          <span class="comment-count text-sm text-neutral-400">{{ item.comment_count }}</span>
+          <span class="comment-count">{{ item.comment_count }}</span>
         </button>
 
-        <button type="button" class="js-repost-btn flex items-center gap-2 text-neutral-400 hover:text-sky-400" data-post-id="{{ post.id }}" title="Repost">
+        <button type="button" class="js-repost-btn xpost-action repost" data-post-id="{{ post.id }}" title="Repost">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v6a4 4 0 0 0 4 4h4m10-10v6a4 4 0 0 1-4 4h-4"/></svg>
-          <span class="repost-count text-sm text-neutral-400">{{ post.share_count or 0 }}</span>
+          <span class="repost-count">{{ post.share_count or 0 }}</span>
         </button>
 
-        <button type="button" class="js-share-btn flex items-center gap-2 text-neutral-400 hover:text-green-400" data-post-id="{{ post.id }}" data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}" title="Share">
+        <button type="button" class="js-share-btn xpost-action share" data-post-id="{{ post.id }}" data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}" title="Share">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 12v.01M20 12v.01M12 20v.01M12 4v.01M4 12h16M12 4c4.418 0 8 3.582 8 8M12 20c-4.418 0-8-3.582-8-8"/></svg>
         </button>
       </div>
