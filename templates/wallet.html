@@ -261,46 +261,43 @@
   {% set wallet_id = current_user.get('wallet_id', '') %}
 
   <section class="mb-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-[2rem] p-6 shadow-2xl relative overflow-hidden mb-8">
-      <!-- Subtle Glow -->
-      <div class="absolute top-0 left-0 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
-      
-      <div class="flex justify-between items-start relative z-10 mb-6">
-        <div>
-          <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Wallet Owner</p>
-          <h2 class="text-white text-lg font-bold tracking-wide">{{ current_user.full_name | default(current_user.username, true) }}</h2>
-        </div>
-        <button type="button" id="openReceiveQr" title="Show my wallet QR code" aria-label="Show my wallet QR code"
-                class="bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-300 p-3 rounded-2xl transition-all duration-300 cursor-pointer">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><path d="M3 14h7v7H3z"></path></svg>
-        </button>
-      </div>
-
-      <div class="relative z-10">
-        <p class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Alta Tokens</p>
-        <div class="flex items-center gap-2">
-          <span class="text-yellow-500 text-2xl">🪙</span>
-          <span class="text-4xl font-extrabold text-white" id="tokenAmount" data-token="{{ tokens | default('0', true) }}">{{ tokens | default('0', true) }}</span>
-        </div>
-      </div>
-
-      <div class="mt-8 bg-[#0B1121] border border-slate-800/50 rounded-2xl p-4 flex justify-between items-center relative z-10">
-        {% if wallet_id %}
-          <p class="text-slate-400 text-sm">Wallet ID <span id="walletIdValue" class="text-white ml-3 font-mono tracking-wide">{{ wallet_id }}</span></p>
-          <button class="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 text-blue-400 text-sm px-4 py-2 rounded-xl transition-colors font-medium flex items-center gap-2" id="copyWalletId">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-            Copy
-          </button>
-        {% else %}
-          <div class="w-full flex items-center justify-between gap-3">
-            <p class="text-slate-400 text-sm">No wallet ID yet</p>
-            <form method="POST" action="{{ url_for('generate_wallet') }}" class="shrink-0">
-              <button type="submit" class="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-sm px-4 py-2 rounded-xl transition-colors font-bold whitespace-nowrap">
-                Generate Wallet
-              </button>
-            </form>
+    <div class="wallet-panel mx-auto relative mb-8">
+      <div class="wallet-panel-inner">
+        <div class="flex justify-between items-start mb-6">
+          <div>
+            <p class="wallet-hero-overline">Available Balance</p>
+            <div class="wallet-balance-panel mt-2">
+              <div class="wallet-balance-value">{{ balance | default(0) }} <span>ETB</span></div>
+              <div class="wallet-balance-note">
+                <span style="font-size:1.1rem;">🪙</span>
+                <span style="margin-left:6px;">{{ tokens|default(0) }} Alta Tokens</span>
+              </div>
+            </div>
           </div>
-        {% endif %}
+          <button type="button" id="openReceiveQr" title="Show my wallet QR code" aria-label="Show my wallet QR code"
+                  class="bg-slate-800/60 hover:bg-slate-700/70 border border-slate-700 text-slate-300 p-3 rounded-2xl transition-all duration-300">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect><path d="M3 14h7v7H3z"></path></svg>
+          </button>
+        </div>
+
+        <div class="mt-6 wallet-qr-card flex items-center justify-between">
+          {% if wallet_id %}
+            <p class="text-slate-400 text-sm">Wallet ID <span id="walletIdValue" class="text-white ml-3 font-mono tracking-wide">{{ wallet_id }}</span></p>
+            <button class="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 text-sky-400 text-sm px-4 py-2 rounded-xl transition-colors font-medium flex items-center gap-2" id="copyWalletId">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              Copy
+            </button>
+          {% else %}
+            <div class="w-full flex items-center justify-between gap-3">
+              <p class="text-slate-400 text-sm">No wallet ID yet</p>
+              <form method="POST" action="{{ url_for('generate_wallet') }}" class="shrink-0">
+                <button type="submit" class="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-sm px-4 py-2 rounded-xl transition-colors font-bold whitespace-nowrap">
+                  Generate Wallet
+                </button>
+              </form>
+            </div>
+          {% endif %}
+        </div>
       </div>
     </div>
   </section>
