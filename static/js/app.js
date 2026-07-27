@@ -510,6 +510,17 @@ document.addEventListener("DOMContentLoaded", function () {
     syncScrollLock();
   }
 
+  // Bottom-sheet global closer for shared bottom sheets
+  window.closeAllBottomSheets = function(){
+    document.querySelectorAll('.bottom-sheet.bottom-sheet-active').forEach(function(s){ s.classList.remove('bottom-sheet-active'); });
+    var ui = document.getElementById('uiOverlay'); if (ui) ui.classList.remove('open');
+    var b = document.querySelectorAll('.bottom-sheet.open'); if (b) b.forEach(function(bb){ bb.classList.remove('open'); });
+  }
+
+  // Ensure all modals / bottom-sheets are closed on initial load
+  try { if (typeof window.closeAllModals === 'function') window.closeAllModals(); } catch(e){}
+  try { if (typeof window.closeAllBottomSheets === 'function') window.closeAllBottomSheets(); } catch(e){}
+
   const modalBackdrop = document.getElementById('modalBackdrop');
   if (modalBackdrop) {
     modalBackdrop.addEventListener('click', function (e) {

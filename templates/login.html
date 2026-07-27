@@ -6,6 +6,7 @@
       <div class="text-4xl font-black tracking-tight text-white">AltaJobs <span class="text-cyan-300">.</span></div>
     </div>
     <form method="POST" action="{{ url_for('login') }}" class="space-y-5">
+      <input type="hidden" name="next" value="{{ next or request.args.get('next','') }}" />
       <div>
         <label for="username" class="block text-sm font-semibold text-slate-300 mb-2">{{ t.username }}</label>
         <input id="username" name="username" type="text" autocomplete="username" required

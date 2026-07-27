@@ -1,0 +1,12 @@
+/* Profile page styles */
+.profile-page { color: var(--text-primary); }
+.avatar-large img { width:100%; height:100%; object-fit:cover; display:block }
+.profile-main { background: transparent; }
+.profile-tabs .tab { background: rgba(255,255,255,0.02); padding:8px 12px; border-radius:999px; cursor:pointer }
+.profile-tabs .tab.active { background: linear-gradient(90deg,var(--accent-blue),var(--accent-purple)); color:#061025 }
+.stat-btn { background:transparent;border:none;color:var(--text-secondary);cursor:pointer;padding:6px 8px }
+.profile-banner #coverImage { filter:brightness(0.9); }
+.portfolio-grid { display:grid; grid-gap:12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.portfolio-card { background:var(--card-bg); border-radius:12px; padding:12px; border:1px solid var(--border-color) }
+.timeline { border-left: 2px solid var(--accent-blue); padding-left:12px }
+.skill-pill { display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.03);margin:4px;margin-right:6px }

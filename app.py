@@ -446,6 +446,38 @@ def get_db():
                 except Exception:
                     pass
 
+        # Ensure extended profile columns and tables exist
+        try:
+            extra_stmts = [
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS cover_image_url TEXT DEFAULT NULL",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS headline TEXT DEFAULT NULL",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number TEXT DEFAULT NULL",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS show_phone_publicly BOOLEAN DEFAULT 0",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS social_links TEXT DEFAULT NULL",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS cv_url TEXT DEFAULT NULL",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_views INTEGER DEFAULT 0",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS cover_image TEXT DEFAULT NULL",
+                "CREATE TABLE IF NOT EXISTS experiences (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, company_name TEXT NOT NULL, role TEXT NOT NULL, start_date TEXT NOT NULL, end_date TEXT DEFAULT NULL, is_current INTEGER DEFAULT 0, description TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE)",
+                "CREATE TABLE IF NOT EXISTS education (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, institution TEXT NOT NULL, degree TEXT NOT NULL, field_of_study TEXT DEFAULT NULL, start_year TEXT DEFAULT NULL, end_year TEXT DEFAULT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE)",
+                "CREATE TABLE IF NOT EXISTS skill_endorsements (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, endorser_id INTEGER NOT NULL, skill_name TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, endorser_id, skill_name), FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY(endorser_id) REFERENCES users(id) ON DELETE CASCADE)",
+                # portfolio_items table may already exist; ensure columns exist
+                "CREATE TABLE IF NOT EXISTS portfolio_items (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, title TEXT NOT NULL, description TEXT, project_url TEXT DEFAULT NULL, image_path TEXT DEFAULT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE)"
+            ]
+            for s in extra_stmts:
+                try:
+                    db.execute(s)
+                    db.commit()
+                except Exception:
+                    try:
+                        db.rollback()
+                    except Exception:
+                        pass
+        except Exception:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+
         # Ensure follows and likes tables exist for social features
         try:
             db.execute(
@@ -2070,7 +2102,7 @@ def login_required(f):
     def wrapper(*args, **kwargs):
         uid = session.get("user_id")
         if not uid:
-            return redirect(url_for("login"))
+            return redirect(url_for("login", next=request.path))
 
         db = get_db()
         placeholder = "%s" if not getattr(db, "is_sqlite", False) else "?"
@@ -2081,12 +2113,12 @@ def login_required(f):
         if not user:
             # session points at an account that no longer exists
             session.pop("user_id", None)
-            return redirect(url_for("login"))
+            return redirect(url_for("login", next=request.path))
 
         if is_currently_banned(user):
             session.pop("user_id", None)
             flash("account_banned")
-            return redirect(url_for("login"))
+            return redirect(url_for("login", next=request.path))
 
         return f(*args, **kwargs)
     return wrapper
@@ -2605,6 +2637,503 @@ def _upload_to_cloudinary(file_storage, folder="altajobs"):
         except Exception:
             pass
         return None
+
+
+# ----------------- Profile API endpoints -----------------
+@app.route('/api/v1/users/<username>', methods=['GET'])
+def api_get_user_profile(username):
+    db = get_db()
+    try:
+        user_row = db.execute("SELECT * FROM users WHERE username = ? LIMIT 1", (username,)).fetchone()
+    except Exception:
+        return jsonify({"error": "user_not_found"}), 404
+    if not user_row:
+        return jsonify({"error": "user_not_found"}), 404
+
+    # assemble profile
+    user = dict(user_row) if hasattr(user_row, 'keys') else dict(user_row)
+    user_id = user.get('id')
+
+    # increment view count for non-owner viewers
+    viewer_id = session.get('user_id')
+    is_owner = (viewer_id == user_id)
+    if not is_owner:
+        try:
+            db.execute("UPDATE users SET profile_views = COALESCE(profile_views,0) + 1 WHERE id = ?", (user_id,))
+            db.commit()
+            user['profile_views'] = (user.get('profile_views') or 0) + 1
+        except Exception:
+            pass
+
+    # secondary data
+    experiences = db.execute("SELECT * FROM experiences WHERE user_id = ? ORDER BY is_current DESC, start_date DESC", (user_id,)).fetchall()
+    education = db.execute("SELECT * FROM education WHERE user_id = ? ORDER BY start_year DESC", (user_id,)).fetchall()
+    portfolio = db.execute("SELECT * FROM portfolio_items WHERE user_id = ? ORDER BY created_at DESC", (user_id,)).fetchall()
+
+    followers_count = db.execute("SELECT COUNT(*) FROM follows WHERE followed_id = ?", (user_id,)).fetchone()[0]
+    following_count = db.execute("SELECT COUNT(*) FROM follows WHERE follower_id = ?", (user_id,)).fetchone()[0]
+    is_following = False
+    if viewer_id:
+        r = db.execute("SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ? LIMIT 1", (viewer_id, user_id)).fetchone()
+        is_following = bool(r)
+
+    def _row_to_dicts(rows):
+        return [dict(r) for r in rows] if rows else []
+
+    # normalize JSON fields
+    try:
+        social_links = json.loads(user.get('social_links') or '{}')
+    except Exception:
+        social_links = {}
+    try:
+        skills = json.loads(user.get('skills') or '[]')
+    except Exception:
+        skills = []
+
+    result = {
+        'user': {
+            'id': user_id,
+            'username': user.get('username'),
+            'full_name': user.get('full_name'),
+            'avatar': user.get('avatar') or user.get('avatar_url'),
+            'cover_image_url': user.get('cover_image_url') or user.get('cover_image') or None,
+            'headline': user.get('headline'),
+            'bio': user.get('bio'),
+            'phone_number': user.get('phone_number') if _coerce_bool(user.get('show_phone_publicly')) else None,
+            'show_phone_publicly': _coerce_bool(user.get('show_phone_publicly')),
+            'social_links': social_links,
+            'cv_url': user.get('cv_url'),
+            'skills': skills,
+            'profile_views': user.get('profile_views') or 0,
+        },
+        'experiences': _row_to_dicts(experiences),
+        'education': _row_to_dicts(education),
+        'portfolio': _row_to_dicts(portfolio),
+        'followers_count': int(followers_count or 0),
+        'following_count': int(following_count or 0),
+        'is_owner': is_owner,
+        'is_following': is_following,
+    }
+    return jsonify({'success': True, 'data': result})
+
+
+@app.route('/api/v1/profile/update', methods=['PUT'])
+def api_profile_update():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'auth_required'}), 401
+    data = request.get_json() or {}
+    headline = _sanitize_text(data.get('headline'))
+    bio = _sanitize_text(data.get('bio'))
+    phone = _sanitize_text(data.get('phone_number'))
+    show_phone = _coerce_bool(data.get('show_phone_publicly'), False)
+    social_links = data.get('social_links') or {}
+    skills = data.get('skills') or []
+    try:
+        social_text = json.dumps(social_links)
+    except Exception:
+        social_text = None
+    try:
+        skills_text = json.dumps(skills)
+    except Exception:
+        skills_text = None
+
+    db = get_db()
+    try:
+        db.execute("UPDATE users SET headline = ?, bio = ?, phone_number = ?, show_phone_publicly = ?, social_links = ?, skills = ? WHERE id = ?",
+                   (headline, bio, phone, int(show_phone), social_text, skills_text, user_id))
+        db.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return jsonify({'error': 'update_failed', 'message': str(e)}), 500
+
+
+@app.route('/api/v1/profile/upload-cover', methods=['POST'])
+def api_profile_upload_cover():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'auth_required'}), 401
+    file = request.files.get('cover')
+    if not file:
+        return jsonify({'error': 'no_file'}), 400
+    url = _upload_to_cloudinary(file, folder=f'altajobs/covers')
+    if not url:
+        return jsonify({'error': 'upload_failed'}), 500
+    db = get_db()
+    try:
+        db.execute("UPDATE users SET cover_image_url = ? WHERE id = ?", (url, user_id))
+        db.commit()
+        return jsonify({'success': True, 'url': url})
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return jsonify({'error': 'db_update_failed'}), 500
+
+
+@app.route('/api/v1/profile/upload-cv', methods=['POST'])
+def api_profile_upload_cv():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'auth_required'}), 401
+    file = request.files.get('cv')
+    if not file:
+        return jsonify({'error': 'no_file'}), 400
+    # Cloudinary raw upload
+    if _cloudinary_enabled:
+        try:
+            file.stream.seek(0)
+            result = cloudinary.uploader.upload(file, resource_type='auto', folder=f'altajobs/cvs')
+            url = result.get('secure_url')
+        except Exception as e:
+            print('CV upload error', e)
+            return jsonify({'error': 'upload_failed'}), 500
+    else:
+        return jsonify({'error': 'storage_not_configured'}), 500
+
+    db = get_db()
+    try:
+        db.execute("UPDATE users SET cv_url = ? WHERE id = ?", (url, user_id))
+        db.commit()
+        return jsonify({'success': True, 'url': url})
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return jsonify({'error': 'db_update_failed'}), 500
+
+
+@app.route('/api/v1/portfolio', methods=['POST'])
+def api_portfolio_create():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'auth_required'}), 401
+    title = _sanitize_text(request.form.get('title'))
+    description = _sanitize_text(request.form.get('description'))
+    project_url = _sanitize_text(request.form.get('project_url'))
+    image = request.files.get('image')
+    image_url = None
+    if image:
+        image_url = _upload_to_cloudinary(image, folder=f'altajobs/portfolio')
+    db = get_db()
+    try:
+        db.execute("INSERT INTO portfolio_items (user_id, title, description, project_url, image_path, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
+                   (user_id, title, description, project_url, image_url))
+        db.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return jsonify({'error': 'create_failed', 'message': str(e)}), 500
+
+
+@app.route('/api/v1/portfolio/<int:item_id>', methods=['PUT', 'DELETE'])
+def api_portfolio_modify(item_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'auth_required'}), 401
+    db = get_db()
+    item = db.execute("SELECT * FROM portfolio_items WHERE id = ?", (item_id,)).fetchone()
+    if not item:
+        return jsonify({'error': 'not_found'}), 404
+    if item['user_id'] != user_id:
+        return jsonify({'error': 'forbidden'}), 403
+    if request.method == 'DELETE':
+        try:
+            db.execute("DELETE FROM portfolio_items WHERE id = ?", (item_id,))
+            db.commit()
+            return jsonify({'success': True})
+        except Exception:
+            try: db.rollback()
+            except Exception: pass
+            return jsonify({'error': 'delete_failed'}), 500
+    # PUT: update
+    title = _sanitize_text(request.form.get('title'))
+    description = _sanitize_text(request.form.get('description'))
+    project_url = _sanitize_text(request.form.get('project_url'))
+    image = request.files.get('image')
+    image_url = item.get('image_path')
+    if image:
+        new_url = _upload_to_cloudinary(image, folder=f'altajobs/portfolio')
+        if new_url: image_url = new_url
+    try:
+        db.execute("UPDATE portfolio_items SET title = ?, description = ?, project_url = ?, image_path = ? WHERE id = ?",
+                   (title or item.get('title'), description or item.get('description'), project_url or item.get('project_url'), image_url, item_id))
+        db.commit()
+        return jsonify({'success': True})
+    except Exception:
+        try: db.rollback()
+        except Exception: pass
+        return jsonify({'error': 'update_failed'}), 500
+
+
+@app.route('/api/v1/experience', methods=['POST'])
+def api_experience_add():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'auth_required'}), 401
+    company = _sanitize_text(request.form.get('company_name'))
+    role = _sanitize_text(request.form.get('role'))
+    start_date = _sanitize_text(request.form.get('start_date'))
+    end_date = _sanitize_text(request.form.get('end_date'))
+    is_current = _coerce_bool(request.form.get('is_current'))
+    description = _sanitize_text(request.form.get('description'))
+    db = get_db()
+    try:
+        db.execute("INSERT INTO experiences (user_id, company_name, role, start_date, end_date, is_current, description, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))",
+                   (user_id, company, role, start_date, end_date, int(is_current), description))
+        db.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        try: db.rollback()
+        except Exception: pass
+        return jsonify({'error': 'create_failed', 'message': str(e)}), 500
+
+
+@app.route('/api/v1/experience/<int:exp_id>', methods=['DELETE'])
+def api_experience_delete(exp_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'auth_required'}), 401
+    db = get_db()
+    row = db.execute("SELECT * FROM experiences WHERE id = ?", (exp_id,)).fetchone()
+    if not row:
+        return jsonify({'error': 'not_found'}), 404
+    if row['user_id'] != user_id:
+        return jsonify({'error': 'forbidden'}), 403
+    try:
+        db.execute("DELETE FROM experiences WHERE id = ?", (exp_id,))
+        db.commit()
+        return jsonify({'success': True})
+    except Exception:
+        try: db.rollback()
+        except Exception: pass
+        return jsonify({'error': 'delete_failed'}), 500
+
+
+@app.route('/api/v1/education', methods=['POST'])
+def api_education_add():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'auth_required'}), 401
+    inst = _sanitize_text(request.form.get('institution'))
+    degree = _sanitize_text(request.form.get('degree'))
+    field = _sanitize_text(request.form.get('field_of_study'))
+    start_year = _sanitize_text(request.form.get('start_year'))
+    end_year = _sanitize_text(request.form.get('end_year'))
+    db = get_db()
+    try:
+        db.execute("INSERT INTO education (user_id, institution, degree, field_of_study, start_year, end_year, created_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'))",
+                   (user_id, inst, degree, field, start_year, end_year))
+        db.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        try: db.rollback()
+        except Exception: pass
+        return jsonify({'error': 'create_failed', 'message': str(e)}), 500
+
+
+@app.route('/api/v1/skills/endorse', methods=['POST'])
+def api_skill_endorse():
+    endorser_id = session.get('user_id')
+    if not endorser_id:
+        return jsonify({'error': 'auth_required'}), 401
+    data = request.get_json() or {}
+    user_id = data.get('user_id')
+    skill_name = (data.get('skill_name') or '').strip()
+    if not user_id or not skill_name:
+        return jsonify({'error': 'invalid'}), 400
+    db = get_db()
+    existing = db.execute("SELECT * FROM skill_endorsements WHERE user_id = ? AND endorser_id = ? AND skill_name = ?", (user_id, endorser_id, skill_name)).fetchone()
+    try:
+        if existing:
+            db.execute("DELETE FROM skill_endorsements WHERE id = ?", (existing['id'],))
+            db.commit()
+            action = 'removed'
+        else:
+            db.execute("INSERT INTO skill_endorsements (user_id, endorser_id, skill_name, created_at) VALUES (?, ?, ?, datetime('now'))", (user_id, endorser_id, skill_name))
+            db.commit()
+            action = 'added'
+        count = db.execute("SELECT COUNT(*) FROM skill_endorsements WHERE user_id = ? AND skill_name = ?", (user_id, skill_name)).fetchone()[0]
+        return jsonify({'success': True, 'action': action, 'count': int(count)})
+    except Exception as e:
+        try: db.rollback()
+        except Exception: pass
+        return jsonify({'error': 'fail', 'message': str(e)}), 500
+
+
+@app.route('/api/v1/users/<int:user_id>/followers', methods=['GET'])
+def api_user_followers(user_id):
+    db = get_db()
+    rows = db.execute("SELECT u.* FROM follows f JOIN users u ON f.follower_id = u.id WHERE f.followed_id = ? ORDER BY f.created_at DESC LIMIT 200", (user_id,)).fetchall()
+    viewer = session.get('user_id')
+    out = []
+    for r in rows:
+        u = dict(r)
+        is_following = False
+        if viewer:
+            is_following = bool(db.execute("SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ? LIMIT 1", (viewer, u['id'])).fetchone())
+        out.append({'id': u['id'], 'username': u.get('username'), 'full_name': u.get('full_name'), 'avatar': u.get('avatar') or u.get('avatar_url'), 'is_following': is_following})
+    return jsonify({'success': True, 'followers': out})
+
+
+@app.route('/api/v1/users/<int:user_id>/following', methods=['GET'])
+def api_user_following(user_id):
+    db = get_db()
+    rows = db.execute("SELECT u.* FROM follows f JOIN users u ON f.followed_id = u.id WHERE f.follower_id = ? ORDER BY f.created_at DESC LIMIT 200", (user_id,)).fetchall()
+    viewer = session.get('user_id')
+    out = []
+    for r in rows:
+        u = dict(r)
+        is_following = False
+        if viewer:
+            is_following = bool(db.execute("SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ? LIMIT 1", (viewer, u['id'])).fetchone())
+        out.append({'id': u['id'], 'username': u.get('username'), 'full_name': u.get('full_name'), 'avatar': u.get('avatar') or u.get('avatar_url'), 'is_following': is_following})
+    return jsonify({'success': True, 'following': out})
+
+
+# Settings API
+@app.route('/api/v1/settings', methods=['GET'])
+def api_get_settings():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'auth_required'}), 401
+    # ensure columns exist (idempotent)
+    db = get_db()
+    try:
+        if not _table_has_column(db, 'users', 'language'):
+            db.execute("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'")
+        if not _table_has_column(db, 'users', 'theme_mode'):
+            db.execute("ALTER TABLE users ADD COLUMN theme_mode TEXT DEFAULT 'dark'")
+        if not _table_has_column(db, 'users', 'notifications_job_alerts'):
+            db.execute("ALTER TABLE users ADD COLUMN notifications_job_alerts INTEGER DEFAULT 1")
+        if not _table_has_column(db, 'users', 'notifications_messages'):
+            db.execute("ALTER TABLE users ADD COLUMN notifications_messages INTEGER DEFAULT 1")
+        if not _table_has_column(db, 'users', 'profile_visibility'):
+            db.execute("ALTER TABLE users ADD COLUMN profile_visibility TEXT DEFAULT 'public'")
+        db.commit()
+    except Exception:
+        try: db.rollback()
+        except Exception: pass
+
+    settings = {
+        'language': user.get('language') or 'en',
+        'theme_mode': user.get('theme_mode') or 'dark',
+        'notifications_job_alerts': bool(user.get('notifications_job_alerts') or 1),
+        'notifications_messages': bool(user.get('notifications_messages') or 1),
+        'profile_visibility': user.get('profile_visibility') or 'public'
+    }
+    return jsonify({'success': True, 'settings': settings})
+
+
+@app.route('/api/v1/settings/preferences', methods=['PUT'])
+def api_put_settings_preferences():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'auth_required'}), 401
+    data = request.get_json() or {}
+    language = data.get('language')
+    theme_mode = data.get('theme_mode')
+    job_alerts = data.get('notifications_job_alerts')
+    messages = data.get('notifications_messages')
+    profile_visibility = data.get('profile_visibility')
+    db = get_db()
+    try:
+        # ensure columns
+        if not _table_has_column(db, 'users', 'language'):
+            db.execute("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'")
+        if not _table_has_column(db, 'users', 'theme_mode'):
+            db.execute("ALTER TABLE users ADD COLUMN theme_mode TEXT DEFAULT 'dark'")
+        if not _table_has_column(db, 'users', 'notifications_job_alerts'):
+            db.execute("ALTER TABLE users ADD COLUMN notifications_job_alerts INTEGER DEFAULT 1")
+        if not _table_has_column(db, 'users', 'notifications_messages'):
+            db.execute("ALTER TABLE users ADD COLUMN notifications_messages INTEGER DEFAULT 1")
+        if not _table_has_column(db, 'users', 'profile_visibility'):
+            db.execute("ALTER TABLE users ADD COLUMN profile_visibility TEXT DEFAULT 'public'")
+        db.commit()
+    except Exception:
+        try: db.rollback()
+        except Exception: pass
+
+    updates = []
+    params = []
+    if language is not None:
+        updates.append('language = ?'); params.append(language)
+    if theme_mode is not None:
+        updates.append('theme_mode = ?'); params.append(theme_mode)
+    if job_alerts is not None:
+        updates.append('notifications_job_alerts = ?'); params.append(1 if _coerce_bool(job_alerts) else 0)
+    if messages is not None:
+        updates.append('notifications_messages = ?'); params.append(1 if _coerce_bool(messages) else 0)
+    if profile_visibility is not None:
+        updates.append('profile_visibility = ?'); params.append(profile_visibility)
+    if updates:
+        params.append(user['id'])
+        try:
+            db.execute('UPDATE users SET ' + ', '.join(updates) + ' WHERE id = ?', params)
+            db.commit()
+        except Exception as e:
+            try: db.rollback()
+            except Exception: pass
+            return jsonify({'error': 'update_failed', 'message': str(e)}), 500
+    return jsonify({'success': True})
+
+
+# Auth endpoints
+@app.route('/api/v1/auth/change-password', methods=['POST'])
+def api_change_password():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'auth_required'}), 401
+    data = request.get_json() or {}
+    old = data.get('old_password')
+    new = data.get('new_password')
+    if not old or not new:
+        return jsonify({'error': 'invalid'}), 400
+    try:
+        if not check_password_hash(user.get('password_hash',''), old):
+            return jsonify({'error': 'wrong_password'}), 400
+    except Exception:
+        return jsonify({'error': 'validation_failed'}), 400
+    hashed = generate_password_hash(new)
+    db = get_db()
+    try:
+        db.execute('UPDATE users SET password_hash = ? WHERE id = ?', (hashed, user['id']))
+        db.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        try: db.rollback()
+        except Exception: pass
+        return jsonify({'error': 'update_failed', 'message': str(e)}), 500
+
+
+@app.route('/api/v1/auth/logout-all-devices', methods=['POST'])
+def api_logout_all_devices():
+    user = get_current_user()
+    if not user:
+        return jsonify({'error': 'auth_required'}), 401
+    db = get_db()
+    try:
+        # store revocation timestamp; enforcement requires session checking elsewhere
+        db.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS session_revoked_at TEXT DEFAULT NULL")
+        db.execute("UPDATE users SET session_revoked_at = datetime('now') WHERE id = ?", (user['id'],))
+        db.commit()
+    except Exception:
+        try: db.rollback()
+        except Exception: pass
+    # Clear current session
+    session.pop('user_id', None)
+    session.clear()
+    return jsonify({'success': True})
+
 
 
 # --- Optional Cloud Storage (Supabase) --------------------------------
@@ -3317,6 +3846,7 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
+        next_url = request.form.get('next') or request.args.get('next') or ''
         db = get_db()
         user = db.execute(
             "SELECT * FROM users WHERE lower(username) = ?", (_normalize_username(username),)
@@ -3326,6 +3856,12 @@ def login():
                 flash("account_banned")
                 return redirect(url_for("login"))
             session["user_id"] = user["id"]
+            # validate next_url to avoid open redirect
+            try:
+                if next_url and next_url.startswith('/') and not next_url.startswith('//'):
+                    return redirect(next_url)
+            except Exception:
+                pass
             return redirect(url_for("feed"))
         flash(get_translator(session.get("lang", DEFAULT_LANG))["login_failed"])
         return redirect(url_for("login"))
@@ -3337,6 +3873,7 @@ def login():
         ref_code=request.args.get("ref", ""),
         social_links=get_social_links(),
         social_auth_enabled=social_auth_enabled(),
+        next=request.args.get('next','')
     )
 
 

@@ -1,0 +1,12 @@
+/* Settings page specific styles */
+.settings-shell { --gap:18px }
+.settings-card { padding:18px; border-radius:14px; background:var(--card-bg); border:1px solid var(--border-color); }
+.settings-row { display:flex; align-items:center; justify-content:space-between; padding:12px; border-radius:10px }
+.settings-row-left { display:flex; align-items:center; gap:12px }
+.settings-icon { width:44px;height:44px;display:grid;place-items:center;border-radius:10px;background:rgba(255,255,255,0.02) }
+.btn { padding:8px 12px;border-radius:10px;background:linear-gradient(90deg,var(--accent-blue),var(--accent-purple));color:#061025;font-weight:700;border:none }
+.toggle { width:46px;height:26px;background:rgba(255,255,255,0.06);border-radius:999px;position:relative }
+.toggle-thumb { position:absolute; left:3px; top:3px; width:20px;height:20px;background:white;border-radius:999px; transition: transform .16s ease }
+.toggle.on { background:linear-gradient(90deg,var(--accent-blue),var(--accent-purple)) }
+.toggle.on .toggle-thumb { transform: translateX(20px) }
+.danger-link { color:#F87171; font-weight:700; cursor:pointer }

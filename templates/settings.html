@@ -23,31 +23,6 @@
   .settings-subtitle {
     font-size: 0.9rem; color: #94a3b8;
   }
-  .settings-menu-wrap {
-    position: relative;
-  }
-  .settings-menu-btn {
-    width: 46px; height: 46px; border-radius: 14px;
-    border: 1px solid rgba(214, 178, 110, 0.18); background: rgba(214, 178, 110, 0.08);
-    color: #e2e8f0; display: grid; place-items: center;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
-    transition: transform .16s ease, background .16s ease, border-color .16s ease;
-  }
-  .settings-menu-btn:hover { background: rgba(214, 178, 110, 0.12); transform: translateY(-1px); }
-  .settings-menu-panel {
-    position: absolute; top: calc(100% + 10px); right: 0; min-width: 240px;
-    padding: 10px; border-radius: 18px; background: rgba(7, 11, 20, 0.98);
-    border: 1px solid rgba(214, 178, 110, 0.18); backdrop-filter: blur(18px);
-    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.35); display: none;
-    z-index: 30;
-  }
-  .settings-menu-panel.open { display: block; }
-  .settings-menu-link {
-    display: flex; align-items: center; gap: 12px; padding: 12px 14px;
-    border-radius: 14px; color: #e2e8f0; font-size: 0.92rem; font-weight: 700;
-  }
-  .settings-menu-link:hover { background: rgba(214, 178, 110, 0.06); }
-  .settings-menu-link i { font-size: 1.05rem; color: #D6B26E; }
   .settings-card {
     background: rgba(10, 16, 32, 0.92);
     border: 1px solid rgba(255,255,255,0.06); border-radius: 24px; padding: 20px;
@@ -75,38 +50,7 @@
   .settings-row-subtitle {
     margin-top: 2px; font-size: 0.78rem; color: #8FA39C;
   }
-  .settings-quick-actions {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 14px;
-    margin-bottom: 22px;
-  }
-  .settings-quick-action {
-    display: flex; align-items: center; gap: 16px;
-    padding: 20px 22px;
-    border-radius: 24px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    transition: transform .16s ease, background .16s ease, border-color .16s ease;
-    text-decoration: none;
-    color: #e2e8f0;
-    backdrop-filter: blur(14px);
-  }
-  .settings-quick-action:hover {
-    transform: translateY(-1px);
-    background: rgba(214, 178, 110, 0.08);
-    border-color: rgba(214, 178, 110, 0.18);
-  }
-  .settings-quick-action-icon {
-    width: 50px; height: 50px; display: grid; place-items: center;
-    border-radius: 18px; background: rgba(214, 178, 110, 0.16); color: #D6B26E; font-size: 1.4rem;
-  }
-  .settings-quick-action-title {
-    font-size: 1rem; font-weight: 900; color: #f8fafc;
-  }
-  .settings-quick-action-copy {
-    margin-top: 2px; font-size: 0.78rem; color: #8FA39C;
-  }
+  /* Quick menu and quick-action cards removed */
 </style>
 
 <div class="settings-shell">
@@ -116,44 +60,10 @@
       <div class="settings-subtitle">Manage preferences, security, and support</div>
     </div>
 
-    <div class="settings-menu-wrap">
-      <button type="button" class="settings-menu-btn" id="settingsMenuToggle" aria-label="Open settings quick menu">
-        <i class='bx bx-dots-vertical-rounded'></i>
-      </button>
-      <div class="settings-menu-panel" id="settingsMenuPanel" aria-label="Settings quick actions">
-        <a href="#preferences" class="settings-menu-link"><i class='bx bx-slider-alt'></i> Preferences</a>
-        <a href="#security" class="settings-menu-link"><i class='bx bx-shield-quarter'></i> Security</a>
-        <a href="{{ url_for('help_support') }}" class="settings-menu-link"><i class='bx bx-support'></i> Help</a>
-        <a href="{{ url_for('privacy_policy') }}" class="settings-menu-link"><i class='bx bx-lock-alt'></i> Privacy</a>
-      </div>
-    </div>
+    <!-- (Quick menu removed — settings actions are listed inline below) -->
   </div>
 
-  <div class="settings-quick-actions">
-    <a href="{{ url_for('wallet') }}" class="settings-quick-action">
-      <div class="settings-quick-action-icon"><i class='bx bx-wallet'></i></div>
-      <div>
-        <div class="settings-quick-action-title">{{ t.wallet }}</div>
-        <div class="settings-quick-action-copy">View balance, payouts, and transaction history</div>
-      </div>
-    </a>
-    <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="settings-quick-action">
-      <div class="settings-quick-action-icon"><i class='bx bx-user-circle'></i></div>
-      <div>
-        <div class="settings-quick-action-title">{{ t.tab_profile }}</div>
-        <div class="settings-quick-action-copy">Update your profile and socials</div>
-      </div>
-    </a>
-    {% if current_user and current_user['is_admin'] %}
-    <a href="{{ url_for('admin_dashboard') }}" class="settings-quick-action">
-      <div class="settings-quick-action-icon"><i class='bx bx-shield-quarter'></i></div>
-      <div>
-        <div class="settings-quick-action-title">Admin Dashboard</div>
-        <div class="settings-quick-action-copy">Approve deposits and withdrawals</div>
-      </div>
-    </a>
-    {% endif %}
-  </div>
+  <!-- Top quick action cards removed to avoid duplication with global drawer -->
 
   <div class="space-y-6">
     <!-- Preferences -->
@@ -259,42 +169,7 @@
   </div>
 </div>
 
-<script>
-  function toggleTheme(checkbox) {
-    var dark = checkbox.checked;
-    document.documentElement.classList.toggle('light-mode', !dark);
-    document.cookie = 'theme=' + (dark ? 'dark' : 'light') + ';path=/;max-age=31536000';
-    var thumb = document.getElementById('themeThumb');
-    if (thumb) thumb.style.transform = dark ? 'translateX(0)' : 'translateX(20px)';
-  }
-
-  (function () {
-    var toggle = document.getElementById('settingsMenuToggle');
-    var panel = document.getElementById('settingsMenuPanel');
-    if (toggle && panel) {
-      toggle.addEventListener('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        panel.classList.toggle('open');
-      });
-    }
-
-    document.addEventListener('click', function (e) {
-      if (panel && !panel.contains(e.target) && !e.target.closest('#settingsMenuToggle')) {
-        panel.classList.remove('open');
-      }
-    });
-
-    var match = document.cookie.match(/(?:^|; )theme=([^;]+)/);
-    var saved = match ? match[1] : 'dark';
-    var themeToggle = document.getElementById('themeToggle');
-    if (themeToggle) {
-      themeToggle.checked = saved !== 'light';
-      document.documentElement.classList.toggle('light-mode', saved === 'light');
-      var thumb = document.getElementById('themeThumb');
-      if (thumb) thumb.style.transform = themeToggle.checked ? 'translateX(0)' : 'translateX(20px)';
-    }
-  })();
-</script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+<script src="{{ url_for('static', filename='js/settings.js') }}" defer></script>
 
 {% endblock %}

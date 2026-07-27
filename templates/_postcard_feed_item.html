@@ -56,21 +56,31 @@
   {% endif %}
 
   <div class="pc-actions">
-    <button type="button" class="pc-action-btn js-like-btn {{ 'liked' if post['liked'] else '' }}" data-post-id="{{ post['id'] }}">
-      <i class='bx {{ "bxs-heart" if post['liked'] else "bx-heart" }}'></i>
-      <span>{{ post['like_count'] if post['like_count'] is defined else 0 }}</span>
-    </button>
-    <button type="button" class="pc-action-btn js-comment-btn" data-post-id="{{ post['id'] }}">
-      <i class='bx bx-comment'></i>
-      <span>{{ post['comment_count'] if post['comment_count'] is defined else 0 }}</span>
-    </button>
-    <button type="button" class="pc-action-btn js-repost-btn" data-post-id="{{ post['id'] }}">
-      <i class='bx bx-repost'></i>
-      <span>Repost</span>
-    </button>
-    <button type="button" class="pc-action-btn js-share-btn" data-post-id="{{ post['id'] }}">
-      <i class='bx bx-share-alt'></i>
-    </button>
+    <div class="pc-actions-left">
+      <button type="button" class="pc-action-btn js-like-btn {{ 'liked' if post['liked'] else '' }}" data-post-id="{{ post['id'] }}">
+        <i data-lucide="heart"></i>
+        <span class="count">{{ post['like_count'] if post['like_count'] is defined else 0 }}</span>
+      </button>
+
+      <button type="button" class="pc-action-btn js-comment-btn" data-post-id="{{ post['id'] }}">
+        <i data-lucide="message-circle"></i>
+        <span class="count">{{ post['comment_count'] if post['comment_count'] is defined else 0 }}</span>
+      </button>
+
+      <button type="button" class="pc-action-btn js-repost-btn" data-post-id="{{ post['id'] }}">
+        <i data-lucide="repeat"></i>
+        <span class="count">Repost</span>
+      </button>
+    </div>
+
+    <div class="pc-actions-right">
+      <button type="button" class="pc-action-btn js-share-btn" data-post-id="{{ post['id'] }}">
+        <i data-lucide="share-2"></i>
+      </button>
+      <button type="button" class="pc-action-btn js-save-btn" data-post-id="{{ post['id'] }}">
+        <i data-lucide="bookmark"></i>
+      </button>
+    </div>
   </div>
 
 </article>

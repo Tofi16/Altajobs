@@ -378,33 +378,42 @@
       {% endif %}
 
       <div class="xpost-actions flex items-center gap-6 mt-3">
-        <button type="button" data-action="like" class="js-like-btn xpost-action like {{ 'liked' if item.liked }}" data-post-id="{{ post.id }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
-          <span class="like-count">{{ item.like_count }}</span>
-        </button>
+        <div class="actions-left" style="display:flex;gap:8px;align-items:center;">
+          <button type="button" data-action="like" class="js-like-btn xpost-action like {{ 'liked' if item.liked }}" data-post-id="{{ post.id }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}">
+            <i data-lucide="heart"></i>
+            <span class="like-count count">{{ item.like_count }}</span>
+          </button>
 
-        <button type="button" class="js-comment-toggle xpost-action comment" data-post-id="{{ post.id }}" aria-expanded="false">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8-1.198 0-2.337-.172-3.376-.486L3 21l1.486-5.624C3.677 13.996 3 12.06 3 10c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-          <span class="comment-count">{{ item.comment_count }}</span>
-        </button>
+          <button type="button" class="js-comment-toggle xpost-action comment" data-post-id="{{ post.id }}" aria-expanded="false">
+            <i data-lucide="message-circle"></i>
+            <span class="comment-count count">{{ item.comment_count }}</span>
+          </button>
 
-        <button type="button" class="js-repost-btn xpost-action repost" data-post-id="{{ post.id }}" title="Repost">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v6a4 4 0 0 0 4 4h4m10-10v6a4 4 0 0 1-4 4h-4"/></svg>
-          <span class="repost-count">{{ post.share_count or 0 }}</span>
-        </button>
+          <button type="button" class="js-repost-btn xpost-action repost" data-post-id="{{ post.id }}" title="Repost">
+            <i data-lucide="repeat"></i>
+            <span class="repost-count count">{{ post.share_count or 0 }}</span>
+          </button>
+        </div>
 
-        <button type="button" class="js-share-btn xpost-action share" data-post-id="{{ post.id }}" data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}" title="Share">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 12v.01M20 12v.01M12 20v.01M12 4v.01M4 12h16M12 4c4.418 0 8 3.582 8 8M12 20c-4.418 0-8-3.582-8-8"/></svg>
-        </button>
+        <div class="actions-right" style="display:flex;gap:8px;align-items:center;">
+          <button type="button" class="js-share-btn xpost-action share" data-post-id="{{ post.id }}" data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}" title="Share">
+            <i data-lucide="share-2"></i>
+          </button>
+          <button type="button" class="js-save-btn xpost-action save" data-post-id="{{ post.id }}" title="Save">
+            <i data-lucide="bookmark"></i>
+          </button>
+        </div>
         {% if post.category == 'job_offer' %}
           <a href="{{ url_for('post_detail', post_id=post.id) }}" class="apply-now-btn">Apply Now</a>
         {% endif %}
       </div>
       <div class="xpost-comment-panel mt-4" aria-hidden="true">
         <div class="xpost-comment-summary text-neutral-400 text-sm">{{ item.comment_count }} {{ t.comments if t.comments is defined else 'comments' }}</div>
-        <div class="xpost-comment-row flex items-center gap-3 mt-2">
-          <input type="text" class="xpost-comment-input flex-1 rounded-full bg-neutral-800/60 px-4 py-2 text-neutral-200" placeholder="Write a comment..." aria-label="Write a comment">
-          <button type="button" class="xpost-comment-submit bg-blue-600 text-white rounded-full px-4 py-1.5" data-post-id="{{ post.id }}">Send</button>
+        <div class="xpost-comment-row" style="margin-top:8px">
+          <div class="comment-input" style="width:100%">
+            <input type="text" class="xpost-comment-input" placeholder="Write a comment..." aria-label="Write a comment">
+            <button type="button" class="comment-send-btn" data-post-id="{{ post.id }}">Send</button>
+          </div>
         </div>
       </div>
     </div>

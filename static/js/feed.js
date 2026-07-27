@@ -66,6 +66,7 @@
   // Bottom sheet helper: toggle class on element with .bottom-sheet
   function openBottomSheet(sheet){ if (!sheet) return; sheet.classList.add('bottom-sheet-active'); }
   function closeBottomSheet(sheet){ if (!sheet) return; sheet.classList.remove('bottom-sheet-active'); }
+  function closeAllBottomSheets(){ document.querySelectorAll('.bottom-sheet.bottom-sheet-active').forEach(function(s){ s.classList.remove('bottom-sheet-active'); }); var bo = document.getElementById('feedBottomSheetOverlay') || document.getElementById('uiOverlay'); if (bo) bo.classList.remove('open'); }
 
   // Delegate clicks for media items and post menus
   document.addEventListener('click', function(e){
@@ -87,6 +88,8 @@
 
   // Init: attach dataset for media grids to handle +N overlays
   document.addEventListener('DOMContentLoaded', function(){
+    try { if (typeof window.closeAllModals === 'function') window.closeAllModals(); } catch(e){}
+    try { closeAllBottomSheets(); } catch(e){}
     // Enhance media containers: add click cursor and data-full attributes
     document.querySelectorAll('.media-grid img, .xpost-photo, .pc-media img').forEach(function(img){
       img.style.cursor = 'zoom-in';
@@ -237,5 +240,28 @@
 
   // Ensure a11y labels on initial load
   document.addEventListener('DOMContentLoaded', function(){ try{ ensureAriaLabels(); }catch(e){} });
+
+  // Intercept navigation clicks and fetch to ensure modals are closed before navigation or network activity
+  document.addEventListener('click', function(ev){
+    try{
+      var a = ev.target.closest && ev.target.closest('a');
+      if (a && a.getAttribute('href') && !a.getAttribute('data-no-close')){
+        try{ if (typeof window.closeAllModals === 'function') window.closeAllModals(); }catch(e){}
+        try{ closeAllBottomSheets(); }catch(e){}
+      }
+      var f = ev.target.closest && ev.target.closest('form');
+      if (f && !f.getAttribute('data-no-close')){
+        try{ if (typeof window.closeAllModals === 'function') window.closeAllModals(); }catch(e){}
+        try{ closeAllBottomSheets(); }catch(e){}
+      }
+    }catch(e){}
+  }, true);
+
+  // Monkeypatch fetch to close modals before network calls
+  if (window.fetch && !window._fetch_with_modal_guard) {
+    window._fetch_with_modal_guard = true;
+    const _origFetch = window.fetch.bind(window);
+    window.fetch = function(){ try{ if (typeof window.closeAllModals === 'function') window.closeAllModals(); }catch(e){} try{ closeAllBottomSheets(); }catch(e){} return _origFetch.apply(this, arguments); };
+  }
 
 })();
