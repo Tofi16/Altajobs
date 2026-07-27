@@ -3544,6 +3544,9 @@ html[dir="rtl"] .post-menu-btn { right: auto; left: 12px; }
 .bottom-sheet-overlay {
   position: fixed;
   inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: rgba(0,0,0,0.5);
   opacity: 0;
   pointer-events: none;
@@ -3571,6 +3574,19 @@ html[dir="rtl"] .post-menu-btn { right: auto; left: 12px; }
   -webkit-overflow-scrolling: touch;
 }
 .bottom-sheet.open { transform: translateY(0); }
+.bottom-sheet.centered-modal {
+  top: 50%;
+  bottom: auto;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%) scale(0.98);
+  width: min(94vw, 420px);
+  max-width: 420px;
+  margin: 0 auto;
+}
+.bottom-sheet.centered-modal.open {
+  transform: translate(-50%, -50%) scale(1);
+}
 /* Extra sheet content used by the Share sheet (Copy Link / Send to Follower) */
 .bottom-sheet .sheet-title {
   padding: 2px 12px 10px;

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div id="profileRoot" class="profile-page max-w-4xl mx-auto p-4" data-username="{{ username }}">
+<div id="profileRoot" class="profile-page max-w-4xl mx-auto p-4" data-username="{{ profile_user['username'] }}">
   <div class="profile-banner card-surface overflow-hidden relative" style="height:180px;background:linear-gradient(180deg,#071026,#0F172A);">
     <div id="coverImage" style="position:absolute;inset:0;background-size:cover;background-position:center"></div>
   </div>
@@ -39,10 +39,6 @@
 
 <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
 <script src="{{ url_for('static', filename='js/profile.js') }}" defer></script>
-
-{% endblock %}
-{% extends "base.html" %}
-{% block content %}
 
 <style>
   .profile-shell {
@@ -585,7 +581,6 @@
     if (overlay) overlay.addEventListener('click', function (e) { if (e.target === overlay) closePremiumModal(); });
     document.addEventListener('keydown', function (evt) { if (evt.key === 'Escape') closePremiumModal(); });
   })();
-</script>
 </script>
 
 {% endblock %}

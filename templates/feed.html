@@ -338,7 +338,7 @@
 </div>
 
 <div class="bottom-sheet-overlay" id="feedBottomSheetOverlay"></div>
-<div class="bottom-sheet" id="feedPostActionsSheet" role="dialog" aria-label="Post options">
+<div class="bottom-sheet centered-modal" id="feedPostActionsSheet" role="dialog" aria-label="Post options">
   <div class="bottom-sheet-handle"></div>
   <button type="button" class="sheet-action" id="feedCopyLinkBtn">
     <i class='bx bx-link-alt'></i> Copy Link
@@ -492,14 +492,6 @@
       return;
     }
   });
-
-  if (cancelBtn) {
-    cancelBtn.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      closeFeedSheet();
-    });
-  }
 
   if (overlay) {
     overlay.addEventListener('click', function (e) {
