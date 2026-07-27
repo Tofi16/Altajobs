@@ -69,7 +69,8 @@
   function closeAllBottomSheets(){
     document.querySelectorAll('.bottom-sheet.bottom-sheet-active').forEach(function(s){ s.classList.remove('bottom-sheet-active'); s.classList.add('translate-y-full'); });
     document.querySelectorAll('.bottom-sheet.open').forEach(function(s){ s.classList.remove('open'); s.classList.add('translate-y-full'); });
-    var bo = document.getElementById('feedBottomSheetOverlay'); if (bo) bo.classList.remove('open');
+    var bo = document.getElementById('feedBottomSheetOverlay'); if (bo) { bo.classList.remove('open'); bo.classList.add('hidden'); bo.style.display = 'none'; }
+    var feedSheet = document.getElementById('feedPostActionsSheet'); if (feedSheet) { feedSheet.classList.remove('open'); feedSheet.classList.add('hidden'); feedSheet.style.display = 'none'; }
     var ui = document.getElementById('uiOverlay'); if (ui) { ui.classList.remove('open'); ui.classList.add('hidden'); }
   }
 

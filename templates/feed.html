@@ -377,12 +377,23 @@
 
   if (!overlay || !sheet) return;
 
-  function closeFeedSheet() {
-    sheet.classList.remove('open');
-    overlay.classList.remove('open');
-    currentPostUrl = null;
-    currentPostId = null;
-  }
+  document.addEventListener('DOMContentLoaded', function () {
+    [overlay, sheet].forEach(function (el) {
+      if (!el) return;
+      el.style.display = 'none';
+      el.classList.remove('open', 'active');
+      el.classList.add('hidden');
+    });
+  });
+
+  window.addEventListener('pageshow', function () {
+    [overlay, sheet].forEach(function (el) {
+      if (!el) return;
+      el.style.display = 'none';
+      el.classList.remove('open', 'active');
+      el.classList.add('hidden');
+    });
+  });
 
   var isFeedMenuOpen = false;
 
@@ -402,6 +413,10 @@
       reportTarget.value = currentPostId;
       reportForm.style.display = canReport ? '' : 'none';
     }
+    sheet.style.display = 'flex';
+    overlay.style.display = 'flex';
+    sheet.classList.remove('hidden');
+    overlay.classList.remove('hidden');
     sheet.classList.add('open');
     overlay.classList.add('open');
   }
@@ -410,6 +425,10 @@
     if (!isFeedMenuOpen) return;
     sheet.classList.remove('open');
     overlay.classList.remove('open');
+    sheet.classList.add('hidden');
+    overlay.classList.add('hidden');
+    sheet.style.display = 'none';
+    overlay.style.display = 'none';
     currentPostUrl = null;
     currentPostId = null;
     isFeedMenuOpen = false;

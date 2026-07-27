@@ -516,6 +516,8 @@ document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll('.bottom-sheet.open').forEach(function(s){ s.classList.remove('open'); s.classList.add('translate-y-full'); });
     var ui = document.getElementById('uiOverlay'); if (ui) { ui.classList.remove('open'); ui.classList.add('hidden'); }
     var postOptions = document.getElementById('postOptionsSheet'); if (postOptions) { postOptions.classList.add('translate-y-full'); }
+    var feedOverlay = document.getElementById('feedBottomSheetOverlay'); if (feedOverlay) { feedOverlay.classList.remove('open'); feedOverlay.classList.add('hidden'); feedOverlay.style.display = 'none'; }
+    var feedSheet = document.getElementById('feedPostActionsSheet'); if (feedSheet) { feedSheet.classList.remove('open'); feedSheet.classList.add('hidden'); feedSheet.style.display = 'none'; }
   }
 
   // Ensure all modals / bottom-sheets are closed on initial load
