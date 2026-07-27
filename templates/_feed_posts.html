@@ -296,7 +296,7 @@
             <button type="button" data-action="toggle-menu" class="xpost-menu-btn p-1 rounded-full hover:bg-white/5" aria-label="More options">
               <i data-lucide="more-horizontal" class="w-5 h-5 text-neutral-400"></i>
             </button>
-            <div class="hidden absolute right-0 top-full mt-2 w-44 bg-zinc-900 border border-white/10 rounded-xl shadow-xl z-50 py-1" data-dropdown-menu>
+            <div class="hidden absolute right-0 top-full mt-2 w-44 bg-zinc-900 border border-white/10 rounded-xl shadow-xl z-50 py-1" data-dropdown-menu aria-hidden="true">
               <button type="button" class="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-2" onclick="navigator.clipboard && navigator.clipboard.writeText('{{ url_for('post_detail', post_id=post.id, _external=True) }}')">
                 <i data-lucide="link" class="w-4 h-4"></i> Copy Link
               </button>

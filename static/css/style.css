@@ -3540,6 +3540,13 @@ html[dir="rtl"] .compose-textarea { padding: 4px 0 8px 34px; }
 html[dir="rtl"] .post-menu-btn { right: auto; left: 12px; }
 .xpost-menu-btn { position: relative; z-index: 3; }
 
+#postDropdownBackdrop {
+  display: none;
+}
+#postDropdownBackdrop:not(.hidden) {
+  display: block;
+}
+
 /* ---------- Bottom sheet (post actions) ---------- */
 .bottom-sheet-overlay {
   position: fixed;

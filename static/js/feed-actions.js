@@ -1,8 +1,32 @@
 // Delegated click handler for feed interactions: dropdown toggles and outside clicks
 (function(){
   var activeDropdownMenu = null;
+  var backdropId = 'postDropdownBackdrop';
+
+  function getBackdrop(){
+    return document.getElementById(backdropId);
+  }
+
+  function closeDropdown(){
+    if(activeDropdownMenu){
+      activeDropdownMenu.classList.add('hidden');
+      activeDropdownMenu.setAttribute('aria-hidden', 'true');
+      activeDropdownMenu = null;
+    }
+    var backdrop = getBackdrop();
+    if(backdrop){ backdrop.classList.add('hidden'); }
+  }
+
+  function openDropdown(menu){
+    closeDropdown();
+    menu.classList.remove('hidden');
+    menu.setAttribute('aria-hidden', 'false');
+    activeDropdownMenu = menu;
+    var backdrop = getBackdrop();
+    if(backdrop){ backdrop.classList.remove('hidden'); }
+  }
+
   document.addEventListener('click', function(e){
-    // Toggle dropdown menus
     var menuToggle = e.target.closest('[data-action="toggle-menu"]');
     if(menuToggle){
       e.preventDefault();
@@ -13,29 +37,35 @@
       var menu = root.querySelector('[data-dropdown-menu]');
       if(!menu) return;
       var isHidden = menu.classList.contains('hidden');
-      document.querySelectorAll('[data-dropdown] [data-dropdown-menu]').forEach(function(m){ if(m !== menu) m.classList.add('hidden'); });
+      document.querySelectorAll('[data-dropdown] [data-dropdown-menu]').forEach(function(m){
+        if(m !== menu){
+          m.classList.add('hidden');
+          m.setAttribute('aria-hidden', 'true');
+        }
+      });
       if(isHidden){
-        menu.classList.remove('hidden');
-        activeDropdownMenu = menu;
+        openDropdown(menu);
       } else {
-        menu.classList.add('hidden');
-        activeDropdownMenu = null;
+        closeDropdown();
       }
       return;
     }
 
-    // Close dropdown when clicking outside
     var openMenu = document.querySelector('[data-dropdown] [data-dropdown-menu]:not(.hidden)');
     if(openMenu && !e.target.closest('[data-dropdown]')){
-      openMenu.classList.add('hidden');
-      activeDropdownMenu = null;
+      closeDropdown();
     }
   }, false);
 
-  // Close menus on ESC
   document.addEventListener('keydown', function(e){
     if(e.key === 'Escape'){
-      document.querySelectorAll('[data-dropdown] [data-dropdown-menu]').forEach(function(m){ m.classList.add('hidden'); });
+      closeDropdown();
+    }
+  });
+
+  document.addEventListener('click', function(e){
+    if(e.target.id === backdropId){
+      closeDropdown();
     }
   });
 })();
