@@ -106,8 +106,8 @@
     var overlay = document.getElementById('uiOverlay');
     if (overlay) {
       overlay.addEventListener('click', function(ev){
-        // close any active bottom sheet on overlay click
-        document.querySelectorAll('.bottom-sheet.bottom-sheet-active').forEach(function(s){ closeBottomSheet(s); overlay.classList.add('hidden'); });
+        if (ev.target !== overlay) return;
+        closeAllBottomSheets();
       });
     }
   });

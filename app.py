@@ -5612,126 +5612,140 @@ def coming_soon(feature):
 @login_required
 def profile(user_id):
     db = get_db()
-    profile_user = db.execute(
-        "SELECT * FROM users WHERE id = ?", (user_id,)
-    ).fetchone()
-    if not profile_user:
-        abort(404)
-
-    if hasattr(profile_user, "keys"):
-        profile_user = dict(profile_user)
-    else:
-        profile_user = dict(profile_user)
-    profile_user.setdefault("avatar", None)
-    profile_user.setdefault("verification_tier", profile_user.get("verification_tier") or "none")
-    profile_user.setdefault("verified_until", None)
-    profile_user.setdefault("bio", "")
-    profile_user.setdefault("phone", "")
-    profile_user.setdefault("skills", "")
-    profile_user.setdefault("experience", "")
-    profile_user.setdefault("points", 0)
-    profile_user.setdefault("user_type", "worker")
-    profile_user.setdefault("full_name", profile_user.get("username") or "User")
-
-    has_likes = _table_exists(db, "likes")
-    has_comments = _table_exists(db, "comments")
-    has_user_avatar = _table_has_column(db, "users", "avatar")
-    has_user_type = _table_has_column(db, "users", "user_type")
-    has_user_verification_tier = _table_has_column(db, "users", "verification_tier")
-    has_user_verified_until = _table_has_column(db, "users", "verified_until")
-
-    user_field_selects = [
-        "users.username",
-        "users.full_name",
-        "users.avatar" if has_user_avatar else "NULL AS avatar",
-        "users.user_type" if has_user_type else "NULL AS user_type",
-        "users.verification_tier" if has_user_verification_tier else "NULL AS verification_tier",
-        "users.verified_until" if has_user_verified_until else "NULL AS verified_until",
-    ]
-    user_select_fields = ", ".join(user_field_selects)
-
-    if has_likes or has_comments:
-        posts = db.execute(
-            (
-                "SELECT posts.*, " + user_select_fields + ", "
-                + ("(SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) AS like_count, " if has_likes else "0 AS like_count, ")
-                + ("(SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) AS comment_count" if has_comments else "0 AS comment_count")
-                + " FROM posts JOIN users ON posts.user_id = users.id"
-                + " WHERE posts.user_id = ?"
-                + " ORDER BY posts.created_at DESC"
-            ),
-            (user_id,),
-        ).fetchall()
-    else:
-        posts = db.execute(
-            (
-                "SELECT posts.*, " + user_select_fields + ", "
-                + "0 AS like_count, "
-                + "0 AS comment_count"
-                + " FROM posts JOIN users ON posts.user_id = users.id"
-                + " WHERE posts.user_id = ?"
-                + " ORDER BY posts.created_at DESC"
-            ),
-            (user_id,),
-        ).fetchall()
-
-    has_ratings = _table_exists(db, "ratings")
-    if has_ratings:
-        ratings = db.execute(
-            """SELECT ratings.*, users.username as employer_username
-               FROM ratings JOIN users ON ratings.employer_id = users.id
-               WHERE worker_id = ? ORDER BY ratings.created_at DESC""",
-            (user_id,),
-        ).fetchall()
-        avg_row = db.execute(
-            "SELECT AVG(stars) avg_stars, COUNT(*) cnt FROM ratings WHERE worker_id = ?",
-            (user_id,),
+    try:
+        profile_user = db.execute(
+            "SELECT * FROM users WHERE id = ?", (user_id,)
         ).fetchone()
-        avg_stars = _get_row_value(avg_row, "avg_stars", 0) or 0
-        rating_count = _get_row_value(avg_row, "cnt", 0) or 0
-    else:
-        ratings = []
-        avg_stars = 0
-        rating_count = 0
+        if not profile_user:
+            abort(404)
 
-    has_follows = _table_exists(db, "follows")
-    if has_follows:
-        followers_count = db.execute(
-            "SELECT COUNT(*) c FROM follows WHERE followed_id = ?", (user_id,)
-        ).fetchone()["c"]
-        following_count = db.execute(
-            "SELECT COUNT(*) c FROM follows WHERE follower_id = ?", (user_id,)
-        ).fetchone()["c"]
-    else:
-        followers_count = 0
-        following_count = 0
+        profile_user = dict(profile_user)
+        profile_user.setdefault("id", user_id)
+        profile_user.setdefault("username", "")
+        profile_user.setdefault("avatar", None)
+        profile_user.setdefault("verification_tier", profile_user.get("verification_tier") or "none")
+        profile_user.setdefault("verified_until", None)
+        profile_user.setdefault("bio", "")
+        profile_user.setdefault("phone", "")
+        profile_user.setdefault("skills", "")
+        profile_user.setdefault("experience", "")
+        profile_user.setdefault("points", 0)
+        profile_user.setdefault("user_type", "worker")
+        profile_user.setdefault("full_name", profile_user.get("full_name") or profile_user.get("username") or "User")
+        profile_user.setdefault("linkedin_url", None)
+        profile_user.setdefault("twitter_url", None)
+        profile_user.setdefault("telegram_url", None)
 
-    posts_count = db.execute(
-        "SELECT COUNT(*) c FROM posts WHERE user_id = ?", (user_id,)
-    ).fetchone()["c"]
-    is_following = False
-    current_uid = session.get("user_id")
-    if current_uid and has_follows:
-        is_following = db.execute(
-            "SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ?",
-            (current_uid, user_id),
-        ).fetchone() is not None
+        has_likes = _table_exists(db, "likes")
+        has_comments = _table_exists(db, "comments")
+        has_user_avatar = _table_has_column(db, "users", "avatar")
+        has_user_type = _table_has_column(db, "users", "user_type")
+        has_user_verification_tier = _table_has_column(db, "users", "verification_tier")
+        has_user_verified_until = _table_has_column(db, "users", "verified_until")
 
-    if _table_exists(db, "portfolio_items"):
-        portfolio_items = db.execute(
-            "SELECT * FROM portfolio_items WHERE user_id = ? ORDER BY created_at DESC",
-            (user_id,),
-        ).fetchall()
-    else:
-        portfolio_items = []
+        user_field_selects = [
+            "users.username",
+            "users.full_name",
+            "users.avatar" if has_user_avatar else "NULL AS avatar",
+            "users.user_type" if has_user_type else "NULL AS user_type",
+            "users.verification_tier" if has_user_verification_tier else "NULL AS verification_tier",
+            "users.verified_until" if has_user_verified_until else "NULL AS verified_until",
+        ]
+        user_select_fields = ", ".join(user_field_selects)
 
-    return render_template(
-        "profile.html", profile_user=profile_user, posts=posts,
-        ratings=ratings, avg_stars=avg_stars, rating_count=rating_count,
-        portfolio_items=portfolio_items,
-        followers_count=followers_count, following_count=following_count,
-        posts_count=posts_count, is_following=is_following,
-    )
+        if has_likes or has_comments:
+            posts = db.execute(
+                (
+                    "SELECT posts.*, " + user_select_fields + ", "
+                    + ("(SELECT COUNT(*) FROM likes WHERE likes.post_id = posts.id) AS like_count, " if has_likes else "0 AS like_count, ")
+                    + ("(SELECT COUNT(*) FROM comments WHERE comments.post_id = posts.id) AS comment_count" if has_comments else "0 AS comment_count")
+                    + " FROM posts JOIN users ON posts.user_id = users.id"
+                    + " WHERE posts.user_id = ?"
+                    + " ORDER BY posts.created_at DESC"
+                ),
+                (user_id,),
+            ).fetchall() or []
+        else:
+            posts = db.execute(
+                (
+                    "SELECT posts.*, " + user_select_fields + ", "
+                    + "0 AS like_count, "
+                    + "0 AS comment_count"
+                    + " FROM posts JOIN users ON posts.user_id = users.id"
+                    + " WHERE posts.user_id = ?"
+                    + " ORDER BY posts.created_at DESC"
+                ),
+                (user_id,),
+            ).fetchall() or []
+
+        has_ratings = _table_exists(db, "ratings")
+        if has_ratings:
+            ratings = db.execute(
+                """SELECT ratings.*, users.username as employer_username
+                   FROM ratings JOIN users ON ratings.employer_id = users.id
+                   WHERE worker_id = ? ORDER BY ratings.created_at DESC""",
+                (user_id,),
+            ).fetchall() or []
+            avg_row = db.execute(
+                "SELECT AVG(stars) avg_stars, COUNT(*) cnt FROM ratings WHERE worker_id = ?",
+                (user_id,),
+            ).fetchone()
+            avg_stars = _get_row_value(avg_row, "avg_stars", 0) or 0
+            rating_count = _get_row_value(avg_row, "cnt", 0) or 0
+        else:
+            ratings = []
+            avg_stars = 0
+            rating_count = 0
+
+        has_follows = _table_exists(db, "follows")
+        if has_follows:
+            followers_count = _get_row_value(
+                db.execute("SELECT COUNT(*) c FROM follows WHERE followed_id = ?", (user_id,)).fetchone(),
+                "c",
+                0,
+            )
+            following_count = _get_row_value(
+                db.execute("SELECT COUNT(*) c FROM follows WHERE follower_id = ?", (user_id,)).fetchone(),
+                "c",
+                0,
+            )
+        else:
+            followers_count = 0
+            following_count = 0
+
+        posts_count = _get_row_value(
+            db.execute("SELECT COUNT(*) c FROM posts WHERE user_id = ?", (user_id,)).fetchone(),
+            "c",
+            0,
+        )
+        is_following = False
+        current_uid = session.get("user_id")
+        if current_uid and has_follows:
+            is_following = db.execute(
+                "SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ?",
+                (current_uid, user_id),
+            ).fetchone() is not None
+
+        if _table_exists(db, "portfolio_items"):
+            portfolio_items = db.execute(
+                "SELECT * FROM portfolio_items WHERE user_id = ? ORDER BY created_at DESC",
+                (user_id,),
+            ).fetchall() or []
+        else:
+            portfolio_items = []
+
+        return render_template(
+            "profile.html", profile_user=profile_user, posts=posts,
+            ratings=ratings, avg_stars=avg_stars, rating_count=rating_count,
+            portfolio_items=portfolio_items,
+            followers_count=followers_count, following_count=following_count,
+            posts_count=posts_count, is_following=is_following,
+        )
+    except Exception:
+        app.logger.exception("Error rendering profile for user_id=%s", user_id)
+        abort(500)
+
+def _build_follow_list_entries(db, rows, current_uid):
 
 
 def _build_follow_list_entries(db, rows, current_uid):

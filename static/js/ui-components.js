@@ -57,6 +57,9 @@
     document.execCommand('copy'); t.remove(); return Promise.resolve();
   }
 
+  var currentOptionsPostId = null;
+  var isPostOptionsOpen = false;
+
   /* Post options sheet / desktop popover */
   function openPostOptions(opts) {
     // opts: { postId, postUrl, deleteUrl, buttonRect }
@@ -89,8 +92,25 @@
     overlay.classList.remove('hidden');
     sheet.classList.remove('translate-y-full');
     sheet.classList.remove('bottom-sheet-active');
-    sheet.classList.remove('open');
-    sheet.classList.add('translate-y-full');
+    sheet.classList.add('open');
+    currentOptionsPostId = opts.postId || null;
+    isPostOptionsOpen = true;
+
+    function closeSheet() {
+      sheet.classList.add('translate-y-full');
+      sheet.classList.remove('open');
+      overlay.classList.add('hidden');
+      currentOptionsPostId = null;
+      isPostOptionsOpen = false;
+    }
+
+    if (!overlay._postOptionsCloseHandler) {
+      overlay._postOptionsCloseHandler = function (e) {
+        if (e.target === overlay) closeSheet();
+      };
+      overlay.addEventListener('click', overlay._postOptionsCloseHandler);
+    }
+
     // set forms
     var delForm = document.getElementById('sheetDeleteForm');
     var reportForm = document.getElementById('sheetReportForm');

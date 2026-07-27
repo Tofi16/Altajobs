@@ -384,7 +384,13 @@
     currentPostId = null;
   }
 
+  var isFeedMenuOpen = false;
+
   function openFeedSheet(postId, postUrl, deleteUrl, canDelete, canReport) {
+    if (!isFeedMenuOpen) {
+      try { window.history.pushState({ feedMenuOpen: true }, '', window.location.href); } catch (e) {}
+    }
+    isFeedMenuOpen = true;
     currentPostId = postId || '';
     currentPostUrl = postUrl || window.location.origin + '/post/' + postId;
     if (deleteForm) {
@@ -400,6 +406,18 @@
     overlay.classList.add('open');
   }
 
+  function closeFeedSheet(skipPop) {
+    if (!isFeedMenuOpen) return;
+    sheet.classList.remove('open');
+    overlay.classList.remove('open');
+    currentPostUrl = null;
+    currentPostId = null;
+    isFeedMenuOpen = false;
+    if (!skipPop && window.history.state && window.history.state.feedMenuOpen) {
+      try { window.history.back(); } catch (e) {}
+    }
+  }
+
   document.addEventListener('click', function (e) {
     var btn = e.target.closest('.js-post-menu-btn');
     if (!btn) return;
@@ -413,6 +431,12 @@
       btn.dataset.canDelete === '1' || btn.dataset.canDelete === 'true',
       btn.dataset.canReport === '1' || btn.dataset.canReport === 'true'
     );
+  });
+
+  window.addEventListener('popstate', function (e) {
+    if (isFeedMenuOpen && !(e.state && e.state.feedMenuOpen)) {
+      closeFeedSheet(true);
+    }
   });
 
   if (copyBtn) {
@@ -439,6 +463,14 @@
       } else if (navigator.clipboard) {
         navigator.clipboard.writeText(currentPostUrl);
       }
+      closeFeedSheet();
+    });
+  }
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
       closeFeedSheet();
     });
   }

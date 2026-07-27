@@ -899,11 +899,19 @@ document.addEventListener("DOMContentLoaded", function () {
     const trigger = e.target.closest(".js-post-menu-btn");
     if (trigger) {
       e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
       openSheet(trigger);
       return;
     }
     if (e.target === overlay || e.target === cancelBtn) {
       closeSheet();
+    }
+  });
+
+  window.addEventListener('popstate', function (e) {
+    if (isPostMenuOpen && !(e.state && e.state.postMenuOpen)) {
+      closeSheet(true);
     }
   });
 });

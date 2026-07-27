@@ -5,6 +5,7 @@
     var menuToggle = e.target.closest('[data-action="toggle-menu"]');
     if(menuToggle){
       e.preventDefault();
+      e.stopPropagation();
       var root = menuToggle.closest('[data-dropdown]');
       if(!root) return;
       var menu = root.querySelector('[data-dropdown-menu]');
