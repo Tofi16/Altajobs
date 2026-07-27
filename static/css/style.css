@@ -3547,6 +3547,17 @@ html[dir="rtl"] .post-menu-btn { right: auto; left: 12px; }
   display: block;
 }
 
+#feedPostActionsSheet,
+.bottom-sheet-overlay {
+  display: none !important;
+}
+#feedPostActionsSheet.open,
+#feedPostActionsSheet.active,
+.bottom-sheet-overlay.open,
+.bottom-sheet-overlay.active {
+  display: flex !important;
+}
+
 /* ---------- Bottom sheet (post actions) ---------- */
 .bottom-sheet-overlay {
   position: fixed;
