@@ -5710,7 +5710,8 @@ def profile(user_id):
         "SELECT COUNT(*) c FROM posts WHERE user_id = ?", (user_id,)
     ).fetchone()["c"]
     is_following = False
-    if current_uid := session.get("user_id") and has_follows:
+    current_uid = session.get("user_id")
+    if current_uid and has_follows:
         is_following = db.execute(
             "SELECT 1 FROM follows WHERE follower_id = ? AND followed_id = ?",
             (current_uid, user_id),

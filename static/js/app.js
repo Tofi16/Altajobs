@@ -512,9 +512,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // Bottom-sheet global closer for shared bottom sheets
   window.closeAllBottomSheets = function(){
-    document.querySelectorAll('.bottom-sheet.bottom-sheet-active').forEach(function(s){ s.classList.remove('bottom-sheet-active'); });
-    var ui = document.getElementById('uiOverlay'); if (ui) ui.classList.remove('open');
-    var b = document.querySelectorAll('.bottom-sheet.open'); if (b) b.forEach(function(bb){ bb.classList.remove('open'); });
+    document.querySelectorAll('.bottom-sheet.bottom-sheet-active').forEach(function(s){ s.classList.remove('bottom-sheet-active'); s.classList.add('translate-y-full'); });
+    document.querySelectorAll('.bottom-sheet.open').forEach(function(s){ s.classList.remove('open'); s.classList.add('translate-y-full'); });
+    var ui = document.getElementById('uiOverlay'); if (ui) { ui.classList.remove('open'); ui.classList.add('hidden'); }
+    var postOptions = document.getElementById('postOptionsSheet'); if (postOptions) { postOptions.classList.add('translate-y-full'); }
   }
 
   // Ensure all modals / bottom-sheets are closed on initial load

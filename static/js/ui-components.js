@@ -88,6 +88,9 @@
     // Mobile bottom sheet
     overlay.classList.remove('hidden');
     sheet.classList.remove('translate-y-full');
+    sheet.classList.remove('bottom-sheet-active');
+    sheet.classList.remove('open');
+    sheet.classList.add('translate-y-full');
     // set forms
     var delForm = document.getElementById('sheetDeleteForm');
     var reportForm = document.getElementById('sheetReportForm');

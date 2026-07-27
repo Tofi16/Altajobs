@@ -66,7 +66,12 @@
   // Bottom sheet helper: toggle class on element with .bottom-sheet
   function openBottomSheet(sheet){ if (!sheet) return; sheet.classList.add('bottom-sheet-active'); }
   function closeBottomSheet(sheet){ if (!sheet) return; sheet.classList.remove('bottom-sheet-active'); }
-  function closeAllBottomSheets(){ document.querySelectorAll('.bottom-sheet.bottom-sheet-active').forEach(function(s){ s.classList.remove('bottom-sheet-active'); }); var bo = document.getElementById('feedBottomSheetOverlay') || document.getElementById('uiOverlay'); if (bo) bo.classList.remove('open'); }
+  function closeAllBottomSheets(){
+    document.querySelectorAll('.bottom-sheet.bottom-sheet-active').forEach(function(s){ s.classList.remove('bottom-sheet-active'); s.classList.add('translate-y-full'); });
+    document.querySelectorAll('.bottom-sheet.open').forEach(function(s){ s.classList.remove('open'); s.classList.add('translate-y-full'); });
+    var bo = document.getElementById('feedBottomSheetOverlay'); if (bo) bo.classList.remove('open');
+    var ui = document.getElementById('uiOverlay'); if (ui) { ui.classList.remove('open'); ui.classList.add('hidden'); }
+  }
 
   // Delegate clicks for media items and post menus
   document.addEventListener('click', function(e){
