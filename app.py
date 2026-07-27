@@ -5745,8 +5745,6 @@ def profile(user_id):
         app.logger.exception("Error rendering profile for user_id=%s", user_id)
         abort(500)
 
-def _build_follow_list_entries(db, rows, current_uid):
-
 
 def _build_follow_list_entries(db, rows, current_uid):
     """Shared helper for the followers/following lists. For each user row,
