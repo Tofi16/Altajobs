@@ -2,7 +2,8 @@
 <html lang="{{ current_lang }}" dir="{{ 'rtl' if current_lang == 'ar' else 'ltr' }}">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0B0F17">
 <title>{{ t.app_name }} - {{ t.tagline }}</title>
 {% if current_lang == 'ar' %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -90,7 +91,10 @@
     font-size: 16px;
   }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/feed.css') }}">
+<link rel="manifest" href="/static/manifest.json">
 {% block extra_styles %}{% endblock %}
 <noscript><style>body{opacity:1;visibility:visible;transition:none;}#page-loader{display:none!important;}</style></noscript>
 </head>
@@ -357,9 +361,24 @@
 
 <script src="{{ url_for('static', filename='js/ui-components.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="{{ url_for('static', filename='js/notifications.js') }}" defer></script>
 <script src="https://unpkg.com/lucide@latest"></script>
 <script src="{{ url_for('static', filename='js/feed-actions.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/feed.js') }}" defer></script>
 <script>document.addEventListener('DOMContentLoaded', function(){ try{ lucide.createIcons() }catch(e){} });</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/static/sw.js').then(function(reg){
+        console.log('ServiceWorker registration successful with scope: ', reg.scope);
+      }).catch(function(err){
+        console.warn('ServiceWorker registration failed: ', err);
+      });
+    });
+  }
+</script>
 
 </body>
 </html>

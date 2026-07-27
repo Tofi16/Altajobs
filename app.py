@@ -16,6 +16,8 @@ from functools import wraps
 from email.message import EmailMessage
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
+import json
+
 from flask import (
     Flask, request, session, redirect, url_for,
     render_template, g, flash, abort, send_from_directory
@@ -26,6 +28,26 @@ try:
     from flask_compress import Compress
 except ImportError:
     Compress = None
+
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+except ImportError:
+    Limiter = None
+    get_remote_address = None
+
+try:
+    import bleach
+except ImportError:
+    bleach = None
+
+try:
+    from flask_socketio import SocketIO, emit, join_room, leave_room
+except ImportError:
+    SocketIO = None
+    emit = None
+    join_room = None
+    leave_room = None
 
 try:
     import psycopg2
@@ -248,6 +270,63 @@ app.config["MAIL_PASSWORD"] = os.environ.get("MAIL_PASSWORD", "")
 app.config["MAIL_USE_TLS"] = os.environ.get("MAIL_USE_TLS", "True").lower() in ["true", "on", "1"]
 app.config["MAIL_USE_SSL"] = os.environ.get("MAIL_USE_SSL", "False").lower() in ["true", "on", "1"]
 app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_DEFAULT_SENDER", "noreply@altajobs.app")
+app.config["RATELIMIT_DEFAULT"] = "200 per day;50 per hour"
+app.config["RATELIMIT_HEADERS_ENABLED"] = True
+app.config["RATELIMIT_KEY_FUNC"] = lambda: session.get("user_id") or get_remote_address() if get_remote_address else "anonymous"
+
+socketio = None
+if SocketIO is not None:
+    try:
+        socketio = SocketIO(app, cors_allowed_origins='*')
+    except Exception as e:
+        socketio = None
+        print(f"⚠️  Flask-SocketIO initialization failed: {e}")
+else:
+    print("⚠️  Flask-SocketIO is not installed. Real-time notifications are disabled.")
+
+
+def _emit_socket_notification(user_id, payload):
+    if socketio is None or not user_id:
+        return
+    try:
+        room = f"user_{user_id}"
+        socketio.emit("notification_received", payload, room=room)
+    except Exception as exc:
+        print(f"Warning: failed to emit socket notification: {exc}")
+
+if socketio is not None:
+    @socketio.on("connect")
+    def _handle_socket_connect():
+        user_id = session.get("user_id")
+        if user_id:
+            room = f"user_{user_id}"
+            join_room(room)
+            app.logger.debug(f"Socket.IO connect: joined room {room}")
+
+    @socketio.on("disconnect")
+    def _handle_socket_disconnect():
+        user_id = session.get("user_id")
+        if user_id:
+            room = f"user_{user_id}"
+            leave_room(room)
+            app.logger.debug(f"Socket.IO disconnect: left room {room}")
+
+class _NoOpLimiter:
+    def limit(self, *args, **kwargs):
+        def decorator(f):
+            return f
+        return decorator
+
+limiter = None
+if Limiter is not None and get_remote_address is not None:
+    limiter = Limiter(app, key_func=app.config["RATELIMIT_KEY_FUNC"], default_limits=[app.config["RATELIMIT_DEFAULT"]])
+else:
+    limiter = _NoOpLimiter()
+    print("⚠️  Flask-Limiter is not installed or failed to import. Rate limiting is disabled.")
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    return jsonify({"error": "rate_limit_exceeded", "description": str(e)}), 429
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(CV_PHOTO_FOLDER, exist_ok=True)
@@ -344,8 +423,17 @@ def get_db():
             "ALTER TABLE posts ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0",
             "ALTER TABLE posts ADD COLUMN IF NOT EXISTS virality_score REAL DEFAULT 0.0",
             "ALTER TABLE posts ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'approved'",
+            "ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_urls TEXT DEFAULT NULL",
+            "ALTER TABLE posts ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'general'",
+            "ALTER TABLE posts ADD COLUMN IF NOT EXISTS privacy TEXT DEFAULT 'public'",
+            "ALTER TABLE posts ADD COLUMN IF NOT EXISTS updated_at TEXT DEFAULT NULL",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS points INTEGER DEFAULT 0",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS activity_badge TEXT DEFAULT 'Bronze Member'",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'job_seeker'",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT NULL",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE",
+            "CREATE INDEX IF NOT EXISTS idx_posts_privacy_category_id ON posts (privacy, category, id DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_interactions_post_type ON interactions (post_id, type)",
         ]
         for s in stmts:
             try:
@@ -368,6 +456,18 @@ def get_db():
                     followed_id INTEGER NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(follower_id, followed_id)
+                )
+                """
+            )
+            db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS interactions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    post_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    type TEXT NOT NULL,
+                    comment_text TEXT DEFAULT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
                 """
             )
@@ -492,12 +592,15 @@ def init_postgres_db():
             email TEXT,
             password_hash TEXT NOT NULL,
             full_name TEXT,
+            role TEXT NOT NULL DEFAULT 'job_seeker',
             user_type TEXT NOT NULL DEFAULT 'worker',
             phone TEXT,
             skills TEXT,
             experience TEXT,
             bio TEXT,
             avatar TEXT,
+            avatar_url TEXT DEFAULT NULL,
+            is_verified BOOLEAN DEFAULT FALSE,
             balance REAL DEFAULT 0.0,
             points INTEGER DEFAULT 0,
             activity_badge TEXT DEFAULT 'Bronze Member',
@@ -525,10 +628,24 @@ def init_postgres_db():
             user_id INTEGER NOT NULL,
             content TEXT,
             photo TEXT,
+            media_urls TEXT DEFAULT NULL,
+            category TEXT DEFAULT 'general',
+            privacy TEXT DEFAULT 'public',
             post_type TEXT DEFAULT 'general',
             share_count INTEGER DEFAULT 0,
             status TEXT DEFAULT 'approved',
             created_at TEXT NOT NULL,
+            updated_at TEXT DEFAULT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS interactions (
+            id SERIAL PRIMARY KEY,
+            post_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            type TEXT NOT NULL,
+            comment_text TEXT DEFAULT NULL,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         );
 
@@ -927,6 +1044,10 @@ def init_postgres_db():
         cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts (user_id)")
         # Composite index matching the feed's WHERE status IN (...) ORDER BY created_at DESC
         cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_status_created_at ON posts (status, created_at DESC)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_privacy_category_id ON posts (privacy, category, id DESC)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_interactions_post_type ON interactions (post_id, type)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_privacy_category_id ON posts (privacy, category, id DESC)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_interactions_post_type ON interactions (post_id, type)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_likes_post_id ON likes (post_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_likes_user_id ON likes (user_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments (post_id)")
@@ -2089,6 +2210,10 @@ def add_notification(db, user_id, message, ntype="info"):
         "INSERT INTO notifications (user_id, ntype, message, created_at) VALUES (?, ?, ?, ?)",
         (user_id, ntype, message, datetime.datetime.utcnow().isoformat()),
     )
+    try:
+        _emit_socket_notification(user_id, {"type": ntype, "message": message})
+    except Exception:
+        pass
 
 
 def get_restricted_words(db):
@@ -2405,6 +2530,23 @@ def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXT
 
 
+def _sanitize_text(value):
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return ""
+    if bleach is None:
+        return text
+    return bleach.clean(
+        text,
+        tags=["b", "i", "u", "em", "strong", "p", "br", "ul", "ol", "li", "a"],
+        attributes={"a": ["href", "title", "rel"]},
+        protocols=["http", "https", "mailto"],
+        strip=True,
+    )
+
+
 # --- Optional Cloud Storage (Cloudinary) -------------------------------
 # Render's local disk is ephemeral — anything saved to it is wiped on every
 # restart/redeploy/sleep cycle. Set these 3 environment variables to persist
@@ -2441,12 +2583,19 @@ if (CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET) or C
 def _upload_to_cloudinary(file_storage, folder="altajobs"):
     """Uploads a werkzeug FileStorage to Cloudinary and returns the permanent
     HTTPS secure_url, or None if the upload fails."""
+    if not file_storage or not getattr(file_storage, 'filename', None):
+        return None
+    if not _cloudinary_enabled:
+        return None
     try:
         file_storage.stream.seek(0)
         result = cloudinary.uploader.upload(
             file_storage,
             folder=folder,
-            resource_type="auto",  # auto-detects image vs video (needed for reels)
+            resource_type="image",
+            use_filename=True,
+            unique_filename=True,
+            overwrite=False,
         )
         return result.get("secure_url")
     except Exception as e:
@@ -2485,13 +2634,9 @@ def save_photo(file_storage):
         return None
     if not allowed_file(file_storage.filename):
         return None
-    filename = secure_filename(file_storage.filename)
-    unique = f"{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{filename}"
-
     if _cloudinary_enabled:
         url = _upload_to_cloudinary(file_storage, folder="altajobs")
         if url:
-            print(f"Cloudinary upload successful: {url}")
             return url
         print("Cloudinary upload returned no URL; falling back to local/Supabase storage.")
 
@@ -2499,20 +2644,22 @@ def save_photo(file_storage):
         try:
             file_bytes = file_storage.read()
             content_type = file_storage.mimetype or "application/octet-stream"
+            unique = f"{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{secure_filename(file_storage.filename)}"
             _supabase_client.storage.from_(SUPABASE_BUCKET).upload(
                 unique, file_bytes, {"content-type": content_type}
             )
-            # Store the full public URL - photo_url() below passes it through as-is
             return _supabase_client.storage.from_(SUPABASE_BUCKET).get_public_url(unique)
         except Exception as e:
             print(f"⚠️  Supabase upload failed ({e}); saving locally instead.")
-            file_storage.stream.seek(0)  # rewind so the local save below still works
+            try:
+                file_storage.stream.seek(0)
+            except Exception:
+                pass
 
-    # --- Local disk storage (default behaviour, unchanged) ---
+    # Local disk fallback remains available only if cloud storage is unavailable.
     try:
         local_path = os.path.join(app.config["UPLOAD_FOLDER"], unique)
         file_storage.save(local_path)
-        print(f"Saved uploaded file locally: {local_path}")
         return unique
     except Exception as exc:
         print(f"Failed to save uploaded file locally: {exc}")
@@ -2520,16 +2667,10 @@ def save_photo(file_storage):
 
 
 def save_cv_photo(file_storage):
-    """Saves a CV portrait/passport photo to static/uploads/cv_photos/ (or
-    Supabase Storage under a cv_photos/ prefix if configured), separately
-    from the general post/avatar uploads folder."""
     if not file_storage or file_storage.filename == "":
         return None
     if not allowed_file(file_storage.filename):
         return None
-    filename = secure_filename(file_storage.filename)
-    unique = f"{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{filename}"
-
     if _cloudinary_enabled:
         url = _upload_to_cloudinary(file_storage, folder="altajobs/cv_photos")
         if url:
@@ -2539,6 +2680,7 @@ def save_cv_photo(file_storage):
         try:
             file_bytes = file_storage.read()
             content_type = file_storage.mimetype or "application/octet-stream"
+            unique = f"{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{secure_filename(file_storage.filename)}"
             storage_key = f"cv_photos/{unique}"
             _supabase_client.storage.from_(SUPABASE_BUCKET).upload(
                 storage_key, file_bytes, {"content-type": content_type}
@@ -2546,12 +2688,18 @@ def save_cv_photo(file_storage):
             return _supabase_client.storage.from_(SUPABASE_BUCKET).get_public_url(storage_key)
         except Exception as e:
             print(f"⚠️  Supabase CV photo upload failed ({e}); saving locally instead.")
-            file_storage.stream.seek(0)
+            try:
+                file_storage.stream.seek(0)
+            except Exception:
+                pass
 
-    file_storage.save(os.path.join(CV_PHOTO_FOLDER, unique))
-    # stored value is prefixed so photo_url()/uploaded_file() can tell it
-    # apart from a general upload and serve it from the right subfolder
-    return f"cv_photos/{unique}"
+    try:
+        local_path = os.path.join(CV_PHOTO_FOLDER, unique)
+        file_storage.save(local_path)
+        return f"cv_photos/{unique}"
+    except Exception as exc:
+        print(f"Failed to save CV photo locally: {exc}")
+        return None
 
 
 @app.template_global()
@@ -3229,7 +3377,20 @@ def change_password():
 # ---------------------------------------------------------------------------
 # Feed / Posts
 # ---------------------------------------------------------------------------
-def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE, post_type_filter=None):
+def _normalize_feed_category(category_value):
+    if category_value is None:
+        return None
+    normalized = category_value.strip().lower()
+    if normalized in ("all", "any", ""):
+        return None
+    if normalized in ("job", "jobs", "jobs_only", "job_offer", "job-offer"):
+        return "job"
+    if normalized in ("experience", "experiences", "experience_only", "skill", "skills"):
+        return "experience"
+    return None
+
+
+def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE, post_type_filter=None, cursor=None, order_by="p.created_at DESC"):
     """Fetch one LIMIT/OFFSET page of the feed and build the template payload.
 
     Shared by the server-rendered feed page, the JSON API, and the
@@ -3242,9 +3403,22 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE, post_type_filter=N
     (the "Jobs Only" / "Experiences" pills are enforced by the database, not
     just hidden client-side).
 
+    cursor: optional post ID cursor for cursor-based pagination.
+    order_by: SQL ORDER BY clause used for sorting.
+
     Returns (posts_data, has_next).
     """
     offset = (page - 1) * page_size
+    cursor_value = None
+    cursor_clause = ""
+    if cursor is not None:
+        try:
+            cursor_value = int(cursor)
+        except Exception:
+            cursor_value = None
+    if cursor_value is not None:
+        offset = 0
+        cursor_clause = "p.id < ?"
 
     posts = []
     try:
@@ -3281,12 +3455,26 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE, post_type_filter=N
         elif post_type_filter == "experience":
             type_clause = "post_type IN ('general', 'skill')"
 
-        where_parts = [c for c in (status_clause, type_clause) if c]
+        privacy_column = "COALESCE(privacy, 'public')"
+        uid = user["id"] if user and user.get("id") is not None else -1
+        if _table_exists(db, "follows"):
+            followers_clause = "(p.user_id = ? OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id = ? AND f.followed_id = p.user_id))"
+            privacy_params = [uid, uid, uid]
+        else:
+            followers_clause = "(p.user_id = ?)"
+            privacy_params = [uid, uid]
+
+        privacy_clause = (
+            f"({privacy_column} = 'public' OR ({privacy_column} = 'followers_only' AND {followers_clause}) "
+            f"OR ({privacy_column} = 'private' AND p.user_id = ?))"
+        )
+
+        where_parts = [c for c in (status_clause, type_clause, privacy_clause, cursor_clause) if c]
         latest_posts_where = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
         latest_posts_query = f"""WITH latest_posts AS (
-                   SELECT * FROM posts
+                   SELECT * FROM posts p
                    {latest_posts_where}
-                   ORDER BY created_at DESC
+                   ORDER BY {order_by}
                    LIMIT ? OFFSET ?
                )"""
 
@@ -3311,7 +3499,12 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE, post_type_filter=N
                JOIN users u ON p.user_id = u.id
                ORDER BY p.created_at DESC"""
 
-        posts = db.execute(posts_query, (page_size, offset)).fetchall()
+        query_params = []
+        if cursor_value is not None:
+            query_params.append(cursor_value)
+        query_params.extend(privacy_params)
+        query_params.extend([page_size, offset])
+        posts = db.execute(posts_query, tuple(query_params)).fetchall()
         # Temporary diagnostic: log a small sanitized sample of rows returned
         try:
             sample_rows = []
@@ -3413,9 +3606,12 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE, post_type_filter=N
             row.setdefault("full_name", row.get("username") or "Unknown")
             row.setdefault("username", "unknown")
             row.setdefault("avatar", None)
+            row.setdefault("avatar_url", row.get("avatar") or row.get("avatar_url") or None)
             row.setdefault("like_count", 0)
             row.setdefault("comment_count", 0)
             row.setdefault("verification_tier", "none")
+            row.setdefault("privacy", "public")
+            row.setdefault("category", row.get("category") or row.get("post_type") or "general")
             # Preserve the raw photo value from the row directly. Some rows may
             # come from SQLite/legacy schemas where the field name is not present
             # or is exposed differently, so we normalize it here before rendering.
@@ -3426,7 +3622,9 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE, post_type_filter=N
                     if alt_key in row and row.get(alt_key):
                         row["photo"] = row.get(alt_key)
                         break
-            row["is_verified"] = row.get("verification_tier") in ("blue", "gold")
+            row["avatar_url"] = row.get("avatar_url") or row.get("avatar") or None
+            row["avatar"] = row["avatar_url"]
+            row["is_verified"] = bool(row.get("is_verified") or row.get("verification_tier") in ("blue", "gold"))
             row["is_vip"] = row.get("verification_tier") == "gold"
             payload.append({
                 "post": row,
@@ -3443,6 +3641,50 @@ def _load_feed_page(db, user, page, page_size=FEED_PAGE_SIZE, post_type_filter=N
     posts_data = build_post_payload(posts) or []
     has_next = len(posts) == page_size
     return posts_data, has_next
+
+
+def _normalize_db_media_urls(media_urls):
+    if media_urls is None:
+        return []
+    if isinstance(media_urls, str):
+        try:
+            parsed = json.loads(media_urls)
+            if isinstance(parsed, list):
+                return [str(item) for item in parsed if item is not None]
+            return [media_urls]
+        except Exception:
+            return [media_urls]
+    if isinstance(media_urls, list):
+        return [str(item) for item in media_urls if item is not None]
+    return [str(media_urls)]
+
+
+def _serialize_post_api(item):
+    post = item.get("post", {})
+    return {
+        "id": post.get("id"),
+        "user_id": post.get("user_id"),
+        "full_name": post.get("full_name"),
+        "username": post.get("username"),
+        "avatar_url": post.get("avatar_url"),
+        "is_verified": bool(post.get("is_verified")),
+        "role": post.get("role"),
+        "content": post.get("content"),
+        "photo": post.get("photo"),
+        "media_urls": _normalize_db_media_urls(post.get("media_urls")),
+        "category": post.get("category") or post.get("post_type") or "general",
+        "privacy": post.get("privacy") or "public",
+        "post_type": post.get("post_type"),
+        "created_at": post.get("created_at"),
+        "updated_at": post.get("updated_at"),
+        "like_count": item.get("like_count", 0),
+        "comment_count": item.get("comment_count", 0),
+        "liked": bool(item.get("liked", False)),
+        "saved": bool(item.get("saved", False)),
+        "following": bool(item.get("following", False)),
+        "applied": bool(item.get("applied", False)),
+        "share_count": post.get("share_count", 0),
+    }
 
 
 def _build_single_post_payload(db, user, p):
@@ -3540,10 +3782,10 @@ def feed():
     except Exception:
         page = 1
 
-    active_filter = request.args.get("type", "all")
-    if active_filter not in ("job", "experience"):
-        active_filter = "all"
-    post_type_filter = active_filter if active_filter != "all" else None
+    active_filter = request.args.get("type", "") or request.args.get("category", "all")
+    feed_filter = _normalize_feed_category(active_filter)
+    post_type_filter = feed_filter
+    active_filter = feed_filter or "all"
 
     try:
         posts_data, has_next = _load_feed_page(db, user, page, FEED_PAGE_SIZE, post_type_filter=post_type_filter)
@@ -3602,10 +3844,10 @@ def feed_load_more(page):
         page = 1
     db = get_db()
     user = get_current_user()
-    active_filter = request.args.get("type", "all")
-    if active_filter not in ("job", "experience"):
-        active_filter = "all"
-    post_type_filter = active_filter if active_filter != "all" else None
+    active_filter = request.args.get("type", "") or request.args.get("category", "all")
+    feed_filter = _normalize_feed_category(active_filter)
+    post_type_filter = feed_filter
+    active_filter = feed_filter or "all"
     posts_data, has_next = _load_feed_page(db, user, page, FEED_PAGE_SIZE, post_type_filter=post_type_filter)
     html = render_template("_feed_posts.html", posts_data=posts_data)
     return jsonify({
@@ -3677,18 +3919,422 @@ def api_feed():
     except Exception:
         page = 1
 
+    category = request.args.get("category", "") or request.args.get("type", "all")
+    feed_filter = _normalize_feed_category(category)
+
     try:
-        posts_data, has_next = _load_feed_page(db, user, page, FEED_PAGE_SIZE)
+        posts_data, has_next = _load_feed_page(db, user, page, FEED_PAGE_SIZE, post_type_filter=feed_filter)
     except Exception as exc:
         print(f"Warning: could not load feed posts for API: {exc}")
         return jsonify({"success": False, "error": "feed_load_failed"}), 500
 
+    api_posts = []
+    for item in posts_data:
+        post = item.get("post", {})
+        api_posts.append({
+            "id": post.get("id"),
+            "user_id": post.get("user_id"),
+            "full_name": post.get("full_name"),
+            "username": post.get("username"),
+            "avatar_url": post.get("avatar_url"),
+            "is_verified": bool(post.get("is_verified")),
+            "role": post.get("role"),
+            "content": post.get("content"),
+            "photo": post.get("photo"),
+            "media_urls": post.get("media_urls"),
+            "category": post.get("category"),
+            "privacy": post.get("privacy"),
+            "post_type": post.get("post_type"),
+            "created_at": post.get("created_at"),
+            "updated_at": post.get("updated_at"),
+            "like_count": item.get("like_count", 0),
+            "comment_count": item.get("comment_count", 0),
+            "liked": item.get("liked", False),
+            "saved": item.get("saved", False),
+            "following": item.get("following", False),
+            "applied": item.get("applied", False),
+            "share_count": post.get("share_count", 0),
+        })
     return jsonify({
         "success": True,
-        "posts": posts_data,
+        "posts": api_posts,
         "page": page,
         "has_next": has_next,
     })
+
+
+@app.route("/api/v1/feed")
+@login_required
+def api_v1_feed():
+    db = get_db()
+    user = get_current_user()
+    try:
+        cursor = request.args.get("cursor")
+        limit = int(request.args.get("limit", 10))
+        if limit < 1 or limit > 50:
+            limit = 10
+    except Exception:
+        limit = 10
+    category = request.args.get("category", "all")
+    feed_filter = _normalize_feed_category(category)
+    posts_data, has_more = _load_feed_page(db, user, 1, page_size=limit, post_type_filter=feed_filter, cursor=cursor, order_by="p.id DESC")
+    api_posts = [_serialize_post_api(item) for item in posts_data]
+    next_cursor = api_posts[-1]["id"] if api_posts else None
+    has_more = len(api_posts) == limit
+    if has_more and next_cursor is not None:
+        # Confirm there is an additional row beyond the returned set.
+        more_check = db.execute(
+            "SELECT 1 FROM posts p WHERE p.id < ? AND COALESCE(privacy, 'public') = 'public' LIMIT 1",
+            (next_cursor,),
+        ).fetchone()
+        has_more = bool(more_check)
+    return jsonify({
+        "posts": api_posts,
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+    })
+
+
+@app.route("/api/v1/search")
+@login_required
+def api_v1_search():
+    db = get_db()
+    user = get_current_user()
+    query = (request.args.get("q") or "").strip()
+    if not query:
+        return jsonify({"posts": [], "next_cursor": None, "has_more": False})
+
+    try:
+        limit = int(request.args.get("limit", 10))
+    except Exception:
+        limit = 10
+    limit = max(1, min(limit, 50))
+
+    cursor = request.args.get("cursor")
+    cursor_id = None
+    if cursor is not None:
+        try:
+            cursor_id = int(cursor)
+        except Exception:
+            cursor_id = None
+
+    has_status = _table_has_column(db, "posts", "status")
+    status_clause = "COALESCE(NULLIF(status, ''), 'approved') IN ('approved', 'posted')" if has_status else ""
+    uid = user["id"] if user and user.get("id") is not None else -1
+    if _table_exists(db, "follows"):
+        followers_clause = "(p.user_id = ? OR EXISTS(SELECT 1 FROM follows f WHERE f.follower_id = ? AND f.followed_id = p.user_id))"
+        privacy_params = [uid, uid, uid]
+    else:
+        followers_clause = "(p.user_id = ?)"
+        privacy_params = [uid, uid]
+    privacy_clause = (
+        f"(COALESCE(privacy, 'public') = 'public' OR (COALESCE(privacy, 'public') = 'followers_only' AND {followers_clause}) "
+        f"OR (COALESCE(privacy, 'public') = 'private' AND p.user_id = ?))"
+    )
+    privacy_params.append(uid)
+
+    user_field_selects = [
+        "u.username",
+        "u.full_name",
+        "u.avatar AS avatar",
+        "u.user_type",
+        "u.verification_tier",
+        "u.verified_until",
+    ]
+    user_select_fields = ", ".join(user_field_selects)
+
+    where_parts = [c for c in (status_clause, privacy_clause) if c]
+    if cursor_id is not None:
+        where_parts.append("p.id < ?")
+
+    search_pattern = f"%{query.lower()}%"
+    where_parts.append("(LOWER(p.content) LIKE ? OR LOWER(u.username) LIKE ? OR LOWER(u.full_name) LIKE ?)")
+
+    query_params = []
+    if cursor_id is not None:
+        query_params.append(cursor_id)
+    query_params.extend(privacy_params)
+    query_params.extend([search_pattern, search_pattern, search_pattern, limit])
+
+    posts = db.execute(
+        f"""
+            SELECT p.*, {user_select_fields},
+                   COALESCE(like_counts.like_count, 0) AS like_count,
+                   COALESCE(comment_counts.comment_count, 0) AS comment_count
+            FROM posts p
+            JOIN users u ON p.user_id = u.id
+            LEFT JOIN (
+                SELECT post_id, COUNT(*) AS like_count
+                FROM likes
+                GROUP BY post_id
+            ) like_counts ON like_counts.post_id = p.id
+            LEFT JOIN (
+                SELECT post_id, COUNT(*) AS comment_count
+                FROM comments
+                GROUP BY post_id
+            ) comment_counts ON comment_counts.post_id = p.id
+            WHERE {' AND '.join(where_parts)}
+            ORDER BY p.id DESC
+            LIMIT ?
+        """,
+        tuple(query_params),
+    ).fetchall()
+
+    posts_data = []
+    for p in posts:
+        item = _build_single_post_payload(db, user, p)
+        if item:
+            posts_data.append(item)
+
+    api_posts = [_serialize_post_api(item) for item in posts_data]
+    next_cursor = api_posts[-1]["id"] if api_posts else None
+    has_more = len(api_posts) == limit
+    return jsonify({"posts": api_posts, "next_cursor": next_cursor, "has_more": has_more})
+
+
+@app.route("/api/v1/wallet")
+@login_required
+def api_v1_wallet():
+    db = get_db()
+    user = get_current_user()
+    if not user:
+        return jsonify({"balance": 0, "alta_tokens": 0, "transactions": [], "next_cursor": None, "has_more": False})
+
+    try:
+        limit = int(request.args.get("limit", 20))
+    except Exception:
+        limit = 20
+    limit = max(1, min(limit, 50))
+
+    cursor = request.args.get("cursor")
+    cursor_id = None
+    if cursor is not None:
+        try:
+            cursor_id = int(cursor)
+        except Exception:
+            cursor_id = None
+
+    row = db.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
+    wallet_balance = 0
+    alta_tokens = 0
+    if row is not None:
+        try:
+            wallet_balance = row["wallet_balance"] if "wallet_balance" in row.keys() else row.get("wallet_balance", 0)
+        except Exception:
+            wallet_balance = row.get("wallet_balance", 0) if isinstance(row, dict) else 0
+        try:
+            alta_tokens = row["alta_tokens"] if "alta_tokens" in row.keys() else row.get("alta_tokens", 0)
+        except Exception:
+            alta_tokens = row.get("alta_tokens", 0) if isinstance(row, dict) else 0
+
+    params = [user["id"]]
+    tx_where = "WHERE user_id = ?"
+    if cursor_id is not None:
+        tx_where += " AND id < ?"
+        params.append(cursor_id)
+
+    rows = db.execute(
+        f"""
+            SELECT id, tx_type, amount, note, status, transaction_ref, bank, receipt_photo, account_number, account_name, created_at
+            FROM wallet_transactions
+            {tx_where}
+            ORDER BY id DESC
+            LIMIT ?
+        """,
+        tuple(params + [limit]),
+    ).fetchall()
+
+    transactions = [
+        {
+            "id": r["id"],
+            "tx_type": r["tx_type"],
+            "amount": r["amount"],
+            "note": r["note"],
+            "status": r["status"],
+            "transaction_ref": r["transaction_ref"],
+            "bank": r["bank"],
+            "receipt_photo": r["receipt_photo"],
+            "account_number": r["account_number"],
+            "account_name": r["account_name"],
+            "created_at": r["created_at"],
+        }
+        for r in rows
+    ]
+    next_cursor = transactions[-1]["id"] if transactions else None
+    has_more = len(transactions) == limit
+    return jsonify({
+        "balance": wallet_balance or 0,
+        "alta_tokens": alta_tokens or 0,
+        "transactions": transactions,
+        "next_cursor": next_cursor,
+        "has_more": has_more,
+    })
+
+
+@app.route("/api/v1/posts", methods=["POST"])
+@login_required
+@limiter.limit("10 per day", override_defaults=False)
+def api_v1_create_post():
+    db = get_db()
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "unauthenticated"}), 401
+    payload = request.get_json(silent=True) or {}
+    content = _sanitize_text(payload.get("content") or "")
+    media_urls = payload.get("media_urls")
+    category = _normalize_feed_category(payload.get("category") or "all") or "general"
+    privacy = (payload.get("privacy", "public") or "public").strip().lower()
+    if privacy not in ("public", "followers_only", "private"):
+        privacy = "public"
+    if not content and not media_urls:
+        return jsonify({"error": "content_or_media_required"}), 400
+    created_at = datetime.datetime.utcnow().isoformat()
+    media_urls_json = json.dumps(media_urls) if media_urls is not None else None
+    db.execute(
+        "INSERT INTO posts (user_id, content, media_urls, category, privacy, post_type, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (user["id"], content, media_urls_json, category, privacy, category, created_at, created_at),
+    )
+    db.commit()
+    post_id = db.execute("SELECT last_insert_rowid() AS id" if db.is_sqlite else "SELECT LASTVAL() AS id").fetchone()["id"]
+    return jsonify({"success": True, "id": post_id}), 201
+
+
+@app.route("/api/v1/posts/<int:post_id>")
+@login_required
+def api_v1_get_post(post_id):
+    db = get_db()
+    user = get_current_user()
+    post = db.execute(
+        "SELECT p.*, u.username, u.full_name, u.avatar AS avatar_url, u.role, u.is_verified FROM posts p JOIN users u ON p.user_id = u.id WHERE p.id = ?",
+        (post_id,),
+    ).fetchone()
+    if not post:
+        return jsonify({"error": "not_found"}), 404
+    if not _can_view_post(db, user, post):
+        return jsonify({"error": "forbidden"}), 403
+    like_count = db.execute("SELECT COUNT(*) c FROM likes WHERE post_id = ?", (post_id,)).fetchone()["c"]
+    comment_count = db.execute("SELECT COUNT(*) c FROM comments WHERE post_id = ?", (post_id,)).fetchone()["c"]
+    liked = db.execute("SELECT 1 FROM likes WHERE post_id = ? AND user_id = ?", (post_id, user["id"])).fetchone() is not None
+    payload = _serialize_post_api({
+        "post": dict(post),
+        "like_count": like_count,
+        "comment_count": comment_count,
+        "liked": liked,
+        "saved": False,
+        "following": False,
+        "applied": False,
+    })
+    return jsonify({"post": payload})
+
+
+@app.route("/api/v1/posts/<int:post_id>/like", methods=["POST"])
+@login_required
+def api_v1_like_post(post_id):
+    db = get_db()
+    user = get_current_user()
+    post = db.execute("SELECT id FROM posts WHERE id = ?", (post_id,)).fetchone()
+    if not post:
+        return jsonify({"error": "not_found"}), 404
+    existing = db.execute("SELECT id FROM likes WHERE post_id = ? AND user_id = ?", (post_id, user["id"])).fetchone()
+    if existing:
+        db.execute("DELETE FROM likes WHERE id = ?", (existing["id"],))
+        db.commit()
+        liked = False
+    else:
+        db.execute(
+            "INSERT INTO likes (post_id, user_id, created_at) VALUES (?, ?, ?)",
+            (post_id, user["id"], datetime.datetime.utcnow().isoformat()),
+        )
+        db.commit()
+        liked = True
+        _notify_post_owner_on_like(db, post_id, user["id"])
+        db.commit()
+    like_count = db.execute("SELECT COUNT(*) c FROM likes WHERE post_id = ?", (post_id,)).fetchone()["c"]
+    return jsonify({"is_liked": liked, "like_count": like_count})
+
+
+@app.route("/api/v1/posts/<int:post_id>/comments")
+@login_required
+def api_v1_get_post_comments(post_id):
+    db = get_db()
+    user = get_current_user()
+    cursor = request.args.get("cursor")
+    try:
+        limit = int(request.args.get("limit", 10))
+        if limit < 1 or limit > 50:
+            limit = 10
+    except Exception:
+        limit = 10
+    cursor_id = None
+    if cursor is not None:
+        try:
+            cursor_id = int(cursor)
+        except Exception:
+            cursor_id = None
+    comments_clause = "WHERE post_id = ?"
+    params = [post_id]
+    if cursor_id is not None:
+        comments_clause += " AND id < ?"
+        params.append(cursor_id)
+    comments = db.execute(
+        f"SELECT c.*, u.username, u.full_name FROM comments c JOIN users u ON c.user_id = u.id {comments_clause} ORDER BY c.id DESC LIMIT ?",
+        tuple(params + [limit]),
+    ).fetchall()
+    serialized = [
+        {
+            "id": c["id"],
+            "user_id": c["user_id"],
+            "username": c["username"],
+            "full_name": c["full_name"],
+            "content": c["content"],
+            "created_at": c["created_at"],
+        }
+        for c in comments
+    ]
+    next_cursor = serialized[-1]["id"] if serialized else None
+    has_more = len(serialized) == limit
+    return jsonify({"comments": serialized, "next_cursor": next_cursor, "has_more": has_more})
+
+
+@app.route("/api/v1/posts/<int:post_id>/comments", methods=["POST"])
+@login_required
+@limiter.limit("5 per minute", override_defaults=False)
+def api_v1_create_post_comment(post_id):
+    db = get_db()
+    user = get_current_user()
+    content = _sanitize_text((request.get_json(silent=True) or {}).get("content", ""))
+    if not content:
+        return jsonify({"error": "empty_comment"}), 400
+    post = db.execute("SELECT id, user_id FROM posts WHERE id = ?", (post_id,)).fetchone()
+    if not post:
+        return jsonify({"error": "not_found"}), 404
+    db.execute(
+        "INSERT INTO comments (post_id, user_id, content, created_at) VALUES (?, ?, ?, ?)",
+        (post_id, user["id"], content, datetime.datetime.utcnow().isoformat()),
+    )
+    db.commit()
+    if post["user_id"] != user["id"]:
+        commenter = db.execute("SELECT username, full_name FROM users WHERE id = ?", (user["id"],)).fetchone()
+        commenter_name = (commenter["full_name"] or commenter["username"]) if commenter else "Someone"
+        add_notification(db, post["user_id"], f"{commenter_name} commented on your post.", ntype="comment")
+        db.commit()
+    comment_count = db.execute("SELECT COUNT(*) c FROM comments WHERE post_id = ?", (post_id,)).fetchone()["c"]
+    return jsonify({"success": True, "comment_count": comment_count}), 201
+
+
+@app.route("/api/v1/posts/<int:post_id>", methods=["DELETE"])
+@login_required
+def api_v1_delete_post(post_id):
+    db = get_db()
+    user = get_current_user()
+    post = db.execute("SELECT user_id FROM posts WHERE id = ?", (post_id,)).fetchone()
+    if not post:
+        return jsonify({"error": "not_found"}), 404
+    if post["user_id"] != user["id"] and not _get_row_value(user, "is_admin", False):
+        return jsonify({"error": "unauthorized"}), 403
+    db.execute("DELETE FROM posts WHERE id = ?", (post_id,))
+    db.commit()
+    return jsonify({"success": True})
 
 
 @app.route("/home")
@@ -4670,12 +5316,12 @@ def edit_profile():
     db = get_db()
     user = get_current_user()
     if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        full_name = request.form.get("full_name", "").strip()
-        phone = request.form.get("phone", "").strip()
-        skills = request.form.get("skills", "").strip()
-        experience = request.form.get("experience", "").strip()
-        bio = request.form.get("bio", "").strip()
+        username = _sanitize_text(request.form.get("username", "")).strip()
+        full_name = _sanitize_text(request.form.get("full_name", "")).strip()
+        phone = _sanitize_text(request.form.get("phone", "")).strip()
+        skills = _sanitize_text(request.form.get("skills", "")).strip()
+        experience = _sanitize_text(request.form.get("experience", "")).strip()
+        bio = _sanitize_text(request.form.get("bio", "")).strip()
         avatar = save_photo(request.files.get("avatar"))
 
         if username and username != user["username"]:
@@ -7952,4 +8598,7 @@ def uploaded_file(filename):
 if __name__ == "__main__":
     with app.app_context():
         ensure_database_schema()
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    if socketio is not None:
+        socketio.run(app, debug=True, host="0.0.0.0", port=5000)
+    else:
+        app.run(debug=True, host="0.0.0.0", port=5000)

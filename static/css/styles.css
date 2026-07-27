@@ -1,0 +1,47 @@
+/* Design tokens / theme engine */
+:root {
+  --bg-main: #0B0F17;
+  --card-bg: #131C2E;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --accent-blue: #3B82F6;
+  --accent-purple: #8B5CF6;
+  --accent-green: #10B981;
+  --radius: 0.875rem;
+  --topbar-height: 3.5rem;
+}
+
+/* Prefer variables in components */
+body { background: var(--bg-main); color: var(--text-primary); }
+.card-surface { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); }
+
+/* Accessibility: focus outlines for keyboard navigation */
+button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+/* Offline banner */
+.offline-banner {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 0.5rem;
+  background: #111827;
+  color: var(--text-primary);
+  padding: 8px 14px;
+  border-radius: 999px;
+  box-shadow: 0 6px 24px rgba(2,6,23,0.6);
+  z-index: 99999;
+  font-weight: 600;
+}
+
+/* Empty state */
+.feed-empty-state { display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;color:var(--text-secondary);gap:8px }
+.feed-empty-state h3{margin:0;color:var(--text-primary);font-size:1.05rem}
+.feed-empty-state p{margin:0}
+.feed-empty-state .empty-illustration{font-size:44px}
+.btn { display:inline-block;padding:8px 12px;border-radius:10px;background:var(--accent-blue);color:#061025;font-weight:700;border:none;cursor:pointer }
+.btn-primary{background:linear-gradient(90deg,var(--accent-blue),var(--accent-purple))}
+

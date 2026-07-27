@@ -33,6 +33,7 @@ document.addEventListener("click", async function (e) {
   try {
     const res = await fetch(`/api/follow/${userId}`, { method: "POST" });
     const data = await res.json();
+    triggerHaptic();
     buttons.forEach((followBtn) => {
       followBtn.classList.toggle("following", !!data.following);
       followBtn.textContent = data.following ? followingLabel : followLabel;
@@ -51,6 +52,16 @@ function refreshLucideIcons(parent) {
       lucide.createIcons({ parent: parent || document });
     } catch (err) {
       console.warn('Lucide icon refresh failed', err);
+    }
+  }
+}
+
+function triggerHaptic() {
+  if (navigator.vibrate) {
+    try {
+      navigator.vibrate(12);
+    } catch (err) {
+      // ignore vibration exceptions on unsupported devices
     }
   }
 }
@@ -90,6 +101,7 @@ async function togglePostLike(btn, options) {
     }
     if (data.liked) {
       btn.classList.add("just-liked");
+      triggerHaptic();
       setTimeout(() => btn.classList.remove("just-liked"), 400);
     }
     if (options && options.fromDoubleTap) {
@@ -129,6 +141,7 @@ document.addEventListener("click", function (e) {
       const input = panel.querySelector('.xpost-comment-input');
       if (input) input.focus();
     }
+    triggerHaptic();
     return;
   }
 

@@ -178,9 +178,45 @@
   var hasNext = wrap.dataset.hasNext === '1';
   var activeType = wrap.dataset.filter || 'all';
   var loading = false;
+  var isFetching = false;
+  var renderedPostIds = new Set();
+  container.querySelectorAll('.xpost[data-post-id]').forEach(function (postNode) {
+    if (postNode.dataset.postId) {
+      renderedPostIds.add(postNode.dataset.postId.toString());
+    }
+  });
+
+  function appendUniquePosts(html) {
+    if (!html) return;
+    var fragment = document.createRange().createContextualFragment(html);
+    var nodes = Array.from(fragment.querySelectorAll('.xpost'));
+    nodes.forEach(function (postNode) {
+      var postId = postNode.dataset.postId;
+      if (!postId || renderedPostIds.has(postId.toString())) {
+        return;
+      }
+      renderedPostIds.add(postId.toString());
+      container.appendChild(postNode);
+    });
+  }
+
+  function prependUniquePosts(html) {
+    if (!html) return;
+    var fragment = document.createRange().createContextualFragment(html);
+    var nodes = Array.from(fragment.querySelectorAll('.xpost'));
+    nodes.reverse().forEach(function (postNode) {
+      var postId = postNode.dataset.postId;
+      if (!postId || renderedPostIds.has(postId.toString())) {
+        return;
+      }
+      renderedPostIds.add(postId.toString());
+      container.insertBefore(postNode, container.firstChild);
+    });
+  }
 
   function loadNextPage() {
-    if (loading || !hasNext) return;
+    if (isFetching || loading || !hasNext) return;
+    isFetching = true;
     loading = true;
     if (btn) btn.hidden = true;
     if (spinner) spinner.hidden = false;
@@ -190,7 +226,7 @@
       .then(function (data) {
         if (data && data.success) {
           if (data.html) {
-            container.insertAdjacentHTML('beforeend', data.html);
+            appendUniquePosts(data.html);
             if (window.refreshPostSeeMoreButtons) {
               window.refreshPostSeeMoreButtons();
             }
@@ -208,6 +244,7 @@
         // Network hiccup: leave the button visible so the user can retry manually.
       })
       .finally(function () {
+        isFetching = false;
         loading = false;
         if (spinner) spinner.hidden = true;
         if (btn) btn.hidden = !hasNext;
@@ -240,7 +277,13 @@
         .then(function (res) { return res.json(); })
         .then(function (data) {
           if (data && data.success) {
+            renderedPostIds.clear();
             container.innerHTML = data.html || '';
+            container.querySelectorAll('.xpost[data-post-id]').forEach(function (postNode) {
+              if (postNode.dataset.postId) {
+                renderedPostIds.add(postNode.dataset.postId.toString());
+              }
+            });
             page = 1;
             hasNext = !!data.has_next;
             if (window.refreshPostSeeMoreButtons) {
@@ -253,6 +296,7 @@
           }
         })
         .finally(function () {
+          isFetching = false;
           loading = false;
           container.style.opacity = '';
           if (spinner) spinner.hidden = true;

@@ -7,6 +7,9 @@
   /* Simple toast helper */
   function toast(msg, timeout) {
     timeout = timeout || 1500;
+    if (window.showToast && typeof window.showToast === 'function') {
+      try { window.showToast(msg, 'success'); return; } catch (e) {}
+    }
     var t = document.createElement('div');
     t.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-zinc-800/90 text-white px-4 py-2 rounded-xl z-60 shadow';
     t.textContent = msg;
