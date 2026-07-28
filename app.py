@@ -3333,20 +3333,20 @@ from markupsafe import Markup
 
 
 _VERIFICATION_BADGE_SVG = {
-    "blue": '''<span class="verification-badge--inline verification-badge--blue" data-tier="blue" title="Verified">
+    "blue": """<span class="verification-badge--inline verification-badge--blue" data-tier="blue" title="Verified">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" width="18" height="18" role="img">
                 <circle cx="12" cy="12" r="10" fill="#1D9BF0" />
                 <path fill="#fff" d="M9.5 12.8l-1.8-1.8 1.2-1.2 0.6 0.6 2.9-2.9 1.2 1.2z" transform="translate(0.5,1) scale(1.2)"/>
             </svg>
             <span class="verification-text">Verified</span>
-        </span>'',
-    "gold": '''<span class="verification-badge--inline verification-badge--gold" data-tier="gold" title="Verified Organization">
+        </span>""",
+    "gold": """<span class="verification-badge--inline verification-badge--gold" data-tier="gold" title="Verified Organization">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" width="18" height="18" role="img">
                 <circle cx="12" cy="12" r="10" fill="#F5A623" />
                 <path fill="#3B2A00" d="M8.8 12.4l-1.6-1.6 1.1-1.1 0.5 0.5 2.5-2.5 1.1 1.1z" transform="translate(0.6,1) scale(1.18)"/>
             </svg>
             <span class="verification-text">VIP</span>
-        </span>'',
+        </span>""",
 }
 
 

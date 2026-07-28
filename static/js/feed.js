@@ -250,8 +250,10 @@
   // Toggle professional style when ?style=professional is present
   try {
     var params = new URLSearchParams(window.location.search);
-    if (params.get('style') === 'professional') {
+    var styleParam = params.get('style');
+    if (styleParam === 'professional' || styleParam === 'comfort') {
       document.body.classList.add('style-professional');
+      if (styleParam === 'comfort') document.body.classList.add('style-comfort');
       var profCss = document.createElement('link');
       profCss.rel = 'stylesheet';
       profCss.href = '/static/css/feed-professional.css';
