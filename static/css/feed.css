@@ -188,3 +188,127 @@
 @keyframes shimmer { 0%{ background-position:-200px 0 } 100%{ background-position:200px 0 } }
 .skeleton-card::before { content:''; position:absolute; inset:0; background:linear-gradient(90deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.02) 100%); background-size:400px 100%; animation: shimmer 1.2s linear infinite; pointer-events:none }
 
+/* ---------- Scoped Feed Redesign (feed-page only) ---------- */
+.feed-page .feed-card {
+  background: linear-gradient(180deg, var(--surface), rgba(12,18,28,0.9));
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 1rem;
+  padding: 1rem;
+  box-shadow: 0 12px 30px rgba(2,6,23,0.6);
+}
+.feed-page .feed-card .xpost-head { align-items: center; }
+.feed-page .feed-card .xpost-name { font-size: 1.03rem; font-weight: 900; }
+.feed-page .feed-card .xpost-meta { font-size: 0.82rem; color: var(--muted); }
+
+.feed-page .feed-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 24px 62px rgba(8, 15, 27, 0.32);
+  border-radius: 1.5rem;
+}
+.feed-page .feed-card-inner {
+  display: grid;
+  gap: 1rem;
+}
+.feed-page .feed-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.feed-page .feed-card-author-row {
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.feed-page .feed-card-author {
+  display: grid;
+  gap: 0.22rem;
+  min-width: 0;
+}
+.feed-page .feed-card-author-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+.feed-page .feed-verify-badge {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  margin-left: 0;
+}
+.feed-page .feed-card-meta {
+  color: var(--muted);
+}
+.feed-page .feed-card-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.feed-page .actions-left,
+.feed-page .actions-right {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+.feed-page .feed-share-btn {
+  color: var(--accent);
+  border-color: rgba(29, 155, 240, 0.16);
+}
+.feed-page .feed-share-btn.copied {
+  background: rgba(29, 155, 240, 0.14);
+  color: var(--text-primary);
+}
+.feed-page .feed-comment-row { margin-top: 0.85rem; }
+.feed-page .feed-comment-box .comment-input {
+  width: 100%;
+}
+.feed-page .feed-comment-box .xpost-comment-input {
+  width: 100%;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  padding: 0.95rem 1rem;
+}
+.feed-page .feed-comment-box .comment-send-btn {
+  border-radius: 999px;
+  padding: 0.82rem 1.1rem;
+  background: linear-gradient(90deg, var(--accent), var(--accent-dark));
+  color: #ffffff;
+  font-weight: 700;
+  border: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.feed-page .feed-comment-box .comment-send-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* Action row styling */
+.feed-page .post-action-btn, .feed-page .feed-share-btn { background: transparent; border: none; color: var(--muted); padding: 8px; border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.feed-page .feed-share-btn { color: var(--accent); }
+.feed-page .post-action-btn:hover, .feed-page .feed-share-btn:hover { background: rgba(255,255,255,0.03); color: var(--text); transform: translateY(-2px); }
+
+/* Inline share panel */
+.feed-page .feed-share-panel { overflow: hidden; max-height: 0; transition: max-height 0.28s cubic-bezier(.2,.9,.2,1), opacity 0.18s ease; opacity: 0; }
+.feed-page .feed-share-panel.open { opacity: 1; max-height: 200px; }
+.feed-page .feed-share-panel .post-action { border-radius: 999px; padding: 8px 12px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.03); color: var(--text); }
+
+/* Comment box inline expand */
+.feed-page .xpost-comment-panel { overflow: hidden; max-height: 0; transition: max-height 0.34s cubic-bezier(.2,.9,.2,1), opacity 0.18s ease; opacity: 0; }
+.feed-page .xpost-comment-panel.open { opacity: 1; max-height: 420px; }
+.feed-page .feed-comment-box { padding-top: 8px; }
+.feed-page .feed-comment-box .comment-input { width: 100%; }
+
+/* Small screens tweaks */
+@media (max-width: 640px) {
+  .feed-page .feed-card { padding: 0.9rem; }
+  .feed-page .xpost-photo { max-height: 380px; }
+}
+

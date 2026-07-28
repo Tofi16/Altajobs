@@ -84,7 +84,7 @@
   }
 </style>
 
-<div class="mx-auto max-w-4xl px-4 py-6 text-slate-200">
+<div class="mx-auto max-w-4xl px-4 py-6 text-slate-200 feed-page">
   <section id="feedCreateCard" class="max-w-3xl mx-auto w-full mb-6">
     <form id="composeForm" method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data" class="bg-neutral-900 rounded-xl border border-neutral-800 p-4">
       <div class="flex items-center gap-4">
@@ -524,3 +524,62 @@
 
 
 {% endblock %}
+
+<script>
+// Inline feed interactions: toggle comment and share panels per-post
+(function(){
+  function setPanelState(panel, open){
+    if(!panel) return;
+    if(open){
+      panel.classList.add('open');
+      panel.setAttribute('aria-hidden','false');
+      // allow transition from 0 to full height
+      panel.style.maxHeight = panel.scrollHeight + 'px';
+      setTimeout(function(){ panel.style.maxHeight = ''; }, 350);
+    } else {
+      panel.style.maxHeight = panel.scrollHeight + 'px';
+      requestAnimationFrame(function(){ panel.style.maxHeight = '0px'; panel.classList.remove('open'); panel.setAttribute('aria-hidden','true'); });
+    }
+  }
+
+  document.addEventListener('click', function(e){
+    var cbtn = e.target.closest('.js-comment-toggle');
+    if(cbtn){
+      e.preventDefault();
+      var postId = cbtn.dataset.postId;
+      var panel = document.querySelector('#post-' + postId + ' .xpost-comment-panel');
+      if(panel) setPanelState(panel, !panel.classList.contains('open'));
+      return;
+    }
+
+    var sbtn = e.target.closest('.js-share-btn');
+    if(sbtn){
+      // allow existing inline share-copy behavior to run, but also toggle inline share panel
+      var postId = sbtn.dataset.postId;
+      var panel = document.querySelector('#post-' + postId + ' .xpost-share-panel');
+      if(panel){
+        setPanelState(panel, !panel.classList.contains('open'));
+      }
+      return;
+    }
+
+    // copy link from inline share panel
+    var copyBtn = e.target.closest('.post-action.copy-link');
+    if(copyBtn){
+      var url = copyBtn.dataset.postUrl;
+      if(navigator.clipboard && url){ navigator.clipboard.writeText(url); }
+      var panel = copyBtn.closest('.xpost-share-panel'); if(panel) setPanelState(panel, false);
+      return;
+    }
+
+    var nativeBtn = e.target.closest('.js-share-native');
+    if(nativeBtn){
+      var url = nativeBtn.dataset.postUrl;
+      if(navigator.share){ navigator.share({ title: document.title, url: url }).catch(function(){}); }
+      else if(navigator.clipboard && url){ navigator.clipboard.writeText(url); }
+      var panel = nativeBtn.closest('.xpost-share-panel'); if(panel) setPanelState(panel, false);
+      return;
+    }
+  });
+})();
+</script>
