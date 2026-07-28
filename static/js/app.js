@@ -31,6 +31,10 @@ function updateFollowButtonLabel(button, following, followLabel, followingLabel)
   button.setAttribute('aria-pressed', String(!!following));
 }
 
+// Prevent duplicate concurrent follow/like requests per target
+window._pendingFollowRequests = window._pendingFollowRequests || {};
+window._pendingLikeRequests = window._pendingLikeRequests || {};
+
 document.addEventListener("click", async function (e) {
   const btn = e.target.closest(".js-follow-btn");
   if (!btn) return;
@@ -39,11 +43,12 @@ document.addEventListener("click", async function (e) {
   e.stopImmediatePropagation();
 
   const userId = btn.dataset.userId;
+  if (window._pendingFollowRequests[userId]) return;
   const followLabel = btn.dataset.followLabel || "Follow";
   const followingLabel = btn.dataset.followingLabel || "Following";
   const buttons = Array.from(document.querySelectorAll(`.js-follow-btn[data-user-id="${userId}"]`));
-
   buttons.forEach((followBtn) => { followBtn.disabled = true; });
+  window._pendingFollowRequests[userId] = true;
   try {
     const res = await fetch(`/api/follow/${userId}`, { method: "POST" });
     const data = await res.json();
@@ -65,8 +70,78 @@ document.addEventListener("click", async function (e) {
     console.error("Follow toggle failed", err);
   } finally {
     buttons.forEach((followBtn) => { followBtn.disabled = false; });
+    window._pendingFollowRequests[userId] = false;
   }
 });
+
+// Back to top button behavior
+(function(){
+  function ensureBackToTop(){
+    var btn = document.getElementById('backToTopBtn');
+    if (!btn) return null;
+    var visible = false;
+    function update(){
+      var y = window.scrollY || window.pageYOffset || (document.scrollingElement || document.documentElement).scrollTop;
+      if (y > 220) {
+        if (!visible) { btn.classList.add('show'); visible = true; }
+      } else {
+        if (visible) { btn.classList.remove('show'); visible = false; }
+      }
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    document.addEventListener('DOMContentLoaded', update);
+    btn.addEventListener('click', function(e){
+      e.preventDefault(); e.stopPropagation();
+      try { if (typeof window.closeAllModals === 'function') window.closeAllModals(); } catch(e){}
+      try { closeAllBottomSheets(); } catch(e){}
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    btn.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click(); } });
+    return btn;
+  }
+  try { ensureBackToTop(); } catch(e){}
+})();
+
+// Boxed action ripple and interactions for professional feed
+(function(){
+  function createRipple(el, clientX, clientY){
+    if (!el) return;
+    var rect = el.getBoundingClientRect();
+    var r = document.createElement('span');
+    r.className = 'action-ripple';
+    var size = Math.max(rect.width, rect.height) * 1.8;
+    r.style.width = r.style.height = size + 'px';
+    r.style.left = (clientX - rect.left - size/2) + 'px';
+    r.style.top = (clientY - rect.top - size/2) + 'px';
+    el.appendChild(r);
+    // trigger animation
+    requestAnimationFrame(function(){ r.classList.add('show'); });
+    setTimeout(function(){ try{ r.remove(); }catch(e){} }, 680);
+  }
+
+  document.addEventListener('pointerdown', function(e){
+    var btn = e.target.closest('.feed-card .xpost-action, .feed-card .js-follow-btn');
+    if (!btn) return;
+    btn.classList.add('pressed');
+    try { createRipple(btn, e.clientX || (e.touches && e.touches[0] && e.touches[0].clientX) || 0, e.clientY || 0); } catch(e){}
+  }, { passive: true });
+
+  document.addEventListener('pointerup', function(e){
+    var btn = e.target.closest('.feed-card .xpost-action, .feed-card .js-follow-btn');
+    if (!btn) return;
+    setTimeout(function(){ btn.classList.remove('pressed'); }, 140);
+  });
+
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('.feed-card .xpost-action, .feed-card .js-follow-btn');
+    if (!btn) return;
+    btn.classList.add('action-clicked');
+    setTimeout(function(){ btn.classList.remove('action-clicked'); }, 360);
+  });
+
+  // Enhance like animation hook: when server toggles liked, add just-liked class
+  // togglePostLike already adds .just-liked to the initiating btn; ensure it bubbles to visible boxed style
+})();
 
 // ---------- AJAX Like button (instant, no reload, no scroll jump) ----------
 function refreshLucideIcons(parent) {
@@ -100,7 +175,10 @@ async function togglePostLike(btn, options) {
   const card = btn.closest(".xpost");
   const socialCount = card ? card.querySelector(".social-proof-count") : null;
 
+  if (window._pendingLikeRequests[postId]) return;
+  window._pendingLikeRequests[postId] = true;
   btn.disabled = true;
+  try { triggerHaptic(); } catch(e){}
   try {
     const res = await fetch(`/api/like/${postId}`, { method: "POST", headers: { 'X-Requested-With': 'XMLHttpRequest' } });
     const data = await res.json();
@@ -122,11 +200,13 @@ async function togglePostLike(btn, options) {
     if (socialCount && typeof data.like_count === "number") {
       socialCount.textContent = `${Math.max(data.like_count - 1, 0)} others`;
     }
-    if (data.liked) {
-      btn.classList.add("just-liked");
-      triggerHaptic();
-      setTimeout(() => btn.classList.remove("just-liked"), 400);
-    }
+    // animate all visible like buttons and provide short haptic feedback
+    likeButtons.forEach(function(likeBtn) {
+      try {
+        if (data.liked) likeBtn.classList.add('just-liked');
+        setTimeout(function(){ likeBtn.classList.remove('just-liked'); }, 420);
+      } catch (e) {}
+    });
     if (options && options.fromDoubleTap) {
       const overlay = card ? card.querySelector(".double-tap-heart") : null;
       if (overlay) {
@@ -140,6 +220,7 @@ async function togglePostLike(btn, options) {
     console.error("Like toggle failed", err);
   } finally {
     btn.disabled = false;
+    window._pendingLikeRequests[postId] = false;
   }
 }
 
@@ -247,6 +328,69 @@ document.addEventListener("dblclick", function (e) {
   e.preventDefault();
   togglePostLike(btn, { fromDoubleTap: true });
 });
+
+// Touch-friendly double-tap detection for poster images (mobile)
+(function(){
+  const lastTap = new WeakMap();
+  const maxDelay = 380; // ms
+  const maxDistance = 36; // px
+
+  function getPoint(e){
+    if (e.changedTouches && e.changedTouches[0]) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    return { x: e.clientX || 0, y: e.clientY || 0 };
+  }
+
+  document.addEventListener('pointerup', function(e){
+    if (e.pointerType !== 'touch') return;
+    const media = e.target.closest('.xpost-photo-wrap, .xpost-photo, .post-media');
+    if (!media) return;
+    const card = media.closest('.xpost');
+    if (!card) return;
+    const now = Date.now();
+    const pt = getPoint(e);
+    const previous = lastTap.get(media) || { time: 0, x: 0, y: 0 };
+    const dt = now - previous.time;
+    const dx = Math.abs(pt.x - previous.x);
+    const dy = Math.abs(pt.y - previous.y);
+    if (dt > 40 && dt < maxDelay && dx < maxDistance && dy < maxDistance) {
+      const btn = card.querySelector('.js-like-btn');
+      if (btn) {
+        e.preventDefault(); e.stopPropagation();
+        togglePostLike(btn, { fromDoubleTap: true });
+      }
+      lastTap.delete(media);
+    } else {
+      lastTap.set(media, { time: now, x: pt.x, y: pt.y });
+    }
+  }, { passive: true });
+
+  // Mutation observer: ensure newly added posts have .double-tap-heart overlay and refresh icons
+  const mo = new MutationObserver(function(mutations){
+    mutations.forEach(function(m){
+      m.addedNodes && m.addedNodes.forEach(function(n){
+        if (!(n instanceof HTMLElement)) return;
+        if (n.matches && n.matches('.xpost')) {
+          ensureDoubleTapOverlay(n);
+          refreshLucideIcons(n);
+        } else {
+          n.querySelectorAll && n.querySelectorAll('.xpost').forEach(function(x){ ensureDoubleTapOverlay(x); refreshLucideIcons(x); });
+        }
+      });
+    });
+  });
+  function ensureDoubleTapOverlay(card){
+    try {
+      if (!card.querySelector('.double-tap-heart')){
+        var ov = document.createElement('div');
+        ov.className = 'double-tap-heart';
+        ov.innerHTML = '<i class="bx bxs-heart"></i>';
+        var mediaWrap = card.querySelector('.xpost-photo-wrap') || card.querySelector('.post-media') || card;
+        mediaWrap && mediaWrap.appendChild(ov);
+      }
+    } catch(e){}
+  }
+  mo.observe(document.body, { childList: true, subtree: true });
+})();
 
 // ---------- Compact compose box: expand on focus/typing ----------
 document.addEventListener("DOMContentLoaded", function () {
@@ -456,6 +600,30 @@ document.addEventListener("DOMContentLoaded", function () {
       if (isOpen) {
         closeSearch();
         closeSidebar();
+        // Load recent notifications and mark them read
+        try {
+          fetch('/api/notifications')
+            .then(r => r.json())
+            .then(data => {
+              const list = document.querySelector('.notification-list');
+              if (!list) return;
+              list.innerHTML = '';
+              if (data.notifications && data.notifications.length) {
+                data.notifications.forEach(function(n){
+                  const row = document.createElement('div');
+                  row.className = 'notification-row' + (n.is_read ? '' : ' unread');
+                  row.innerHTML = `<i class="bx ${n.icon}"></i><div class="notification-body"><div class="notification-msg">${n.message}</div><div class="notification-time">${n.created_at}</div></div>`;
+                  list.appendChild(row);
+                });
+              } else {
+                list.innerHTML = '<div class="notification-empty"><i class="bx bx-bell"></i><span>No recent activity</span></div>';
+              }
+              // mark read on server
+              fetch('/api/notifications/mark-read', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+              // remove badge if present
+              const badge = document.querySelector('.topbar-badge'); if (badge) badge.remove();
+            }).catch(()=>{});
+        } catch(e){}
       }
     });
   }
@@ -812,6 +980,7 @@ document.addEventListener("DOMContentLoaded", function () {
               );
               if (countEl) countEl.textContent = data.share_count;
               quickBtn.innerHTML = '<i class="bx bx-check"></i> Reposted!';
+              try { triggerHaptic(); } catch(e){}
               setTimeout(closeRepostModal, 600);
             }
           })
@@ -873,6 +1042,7 @@ document.addEventListener("DOMContentLoaded", function () {
           .writeText(currentShareUrl)
           .then(() => {
             copyBtn.innerHTML = '<i class="bx bx-check"></i> Link copied!';
+            try { triggerHaptic(); } catch(e){}
             setTimeout(() => {
               copyBtn.innerHTML = '<i class="bx bx-link-alt"></i> Copy Link';
               closeShareSheet();
@@ -937,7 +1107,8 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   window.addEventListener('popstate', function (e) {
-    if (isPostMenuOpen && !(e.state && e.state.postMenuOpen)) {
+              sendBtn.innerHTML = '<i class="bx bx-check"></i> Sent!';
+              try { triggerHaptic(); } catch(e){}
       closeSheet(true);
     }
   });

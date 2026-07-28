@@ -1,0 +1,164 @@
+/* Professional Feed Theme - overrides for a clean, corporate look */
+:root{
+  --pf-bg: #ffffff;
+  --pf-card-bg: #f8fafc;
+  --pf-border: #e6eef7;
+  --pf-text: #0f172a;
+  --pf-muted: #64748b;
+  --pf-accent: #0ea5e9;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+}
+
+body.style-professional {
+  background: var(--pf-bg);
+  color: var(--pf-text);
+}
+
+/* Card */
+.feed-card { background: var(--pf-card-bg) !important; border-color: var(--pf-border) !important; box-shadow: 0 6px 20px rgba(15,23,42,0.06) !important; }
+.feed-card .xpost-name { color: var(--pf-text) !important; }
+.feed-card .xpost-meta, .feed-card .like-count, .feed-card .comment-count { color: var(--pf-muted) !important; }
+
+/* Action buttons: flat, subtle borders */
+.feed-card .xpost-action, .feed-card .xpost-follow-btn { background: transparent !important; border-color: var(--pf-border) !important; color: var(--pf-text) !important; box-shadow: none !important; }
+.feed-card .xpost-action:hover, .feed-card .xpost-follow-btn:hover { background: rgba(14,165,233,0.06) !important; border-color: rgba(14,165,233,0.12) !important; }
+.feed-card .xpost-action.like.liked { color: var(--pf-accent) !important; background: rgba(14,165,233,0.08) !important; border-color: rgba(14,165,233,0.14) !important; }
+
+/* Avatars */
+.feed-card .xpost-avatar { border-radius: 8px !important; }
+
+/* Text and content */
+.feed-card .xpost-content { color: var(--pf-text) !important; }
+.feed-card .xpost-photo { border-radius: 6px; border: 1px solid var(--pf-border); }
+
+/* Follow button as pill with subtle brand color */
+.feed-card .js-follow-btn { background: var(--pf-accent); color: white !important; border: none !important; }
+.feed-card .js-follow-btn.following { background: #0b5f78 !important; }
+
+/* Make comment panel lighter */
+.feed-card .xpost-comment-panel { background: transparent !important; }
+
+/* Ensure layout spacing is slightly tighter for a professional dense feed */
+.feed-card { padding: 14px !important; margin-bottom: 12px !important; }
+
+/* Utility: hide professional container by default until activated */
+#feedPostsProfessionalContainer{ display:none; }
+
+/* Professional action boxes (Like / Comment / Share / Save) */
+.feed-card .xpost-actions { display:flex; align-items:center; gap:10px; }
+.feed-card .xpost-action {
+  display:inline-flex; align-items:center; gap:8px; justify-content:center;
+  background: #fff; color: var(--pf-text); border: 1px solid var(--pf-border);
+  padding: clamp(6px, 1.6vw, 10px) clamp(10px, 2.6vw, 14px);
+  border-radius: 12px; box-shadow: 0 6px 18px rgba(15,23,42,0.06); cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  min-height: 44px; min-width: 44px;
+}
+.feed-card .xpost-action i[data-lucide], .feed-card .xpost-action svg { width: 18px; height: 18px; display:block; }
+.feed-card .xpost-action .like-count, .feed-card .xpost-action .comment-count { color: var(--pf-muted); font-weight:700; }
+.feed-card .xpost-action:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(15,23,42,0.08); }
+.feed-card .xpost-action.like.liked { background: linear-gradient(135deg, rgba(14,165,233,0.08), rgba(14,165,233,0.04)); border-color: rgba(14,165,233,0.12); color: var(--pf-accent); }
+
+/* compact icon-only on small screens (hide counts to save space) */
+@media (max-width: 520px) {
+  .feed-card .xpost-action { padding: 8px; min-width: 40px; border-radius: 10px; }
+  .feed-card .xpost-action .like-count, .feed-card .xpost-action .comment-count { display:none; }
+}
+
+/* Poster-size photo: large, professional crop for visual posts */
+.feed-card .xpost-photo.poster {
+  width: 100%; height: auto; max-height: 820px; border-radius: 12px; object-fit: cover; display:block;
+  box-shadow: 0 18px 60px rgba(15,23,42,0.08); border: 1px solid var(--pf-border);
+}
+
+/* Responsive poster sizing for phones */
+@media (max-width: 420px) {
+  .feed-card .xpost-photo.poster { max-height: 520px; border-radius: 10px; }
+}
+
+/* Mobile comfort adjustments */
+@media (max-width: 640px) {
+  body.style-professional { padding-bottom: env(safe-area-inset-bottom); }
+  .feed-card { padding: 16px !important; margin-bottom: 14px !important; border-radius: 12px; }
+  .feed-card .xpost-content { font-size: 1.05rem; line-height: 1.8; }
+  .feed-card .xpost-name { font-size: 1rem; }
+  .feed-card .xpost-meta { font-size: 0.9rem; }
+  .feed-card .xpost-action { min-width: 48px; min-height: 48px; padding: 10px; border-radius: 12px; }
+  .feed-card .xpost-action i[data-lucide], .feed-card .xpost-action svg { width: 20px; height: 20px; }
+  .feed-card .xpost-actions { gap: 12px; }
+  .feed-card .xpost-avatar img { width: 56px; height: 56px; border-radius: 12px; }
+  .feed-creator-media-label { padding: 12px 16px; font-size: 0.98rem; }
+
+  /* Sticky composer at bottom for comfortable thumb reach */
+  .compose-shell { position: sticky; bottom: 12px; z-index: 1100; display: block; background: transparent; }
+  .compose-shell .compose-actions { box-shadow: 0 10px 30px rgba(2,6,23,0.06); border-radius: 14px; }
+
+  /* Larger tap area for three-dot menu */
+  .js-post-menu-btn { padding: 10px; margin-right: -6px; }
+
+  /* Slightly increase spacing in feed for readability */
+  .container { padding-left: 12px; padding-right: 12px; }
+}
+
+/* High-contrast readable text variant for phones */
+@media (max-width: 420px) {
+  .feed-card .xpost-content { color: #0b1220; }
+}
+
+/* Compose/upload area: professional media pill */
+.feed-creator-media-label {
+  display:inline-flex; align-items:center; gap:10px; padding:10px 14px; border-radius:12px;
+  background: linear-gradient(180deg, #ffffff, #f6fbff); border:1px solid var(--pf-border); color:var(--pf-text); font-weight:800;
+  box-shadow: 0 10px 30px rgba(2,6,23,0.06);
+}
+.feed-creator-media-label i, .feed-creator-media-label svg { width:18px; height:18px; }
+
+/* Ensure high-performance rendering: prefer transform/opacity, reduce repaints */
+.feed-card .xpost-action, .feed-creator-media-label { will-change: transform; backface-visibility: hidden; }
+
+/* Accessibility: focus styles */
+.feed-card .xpost-action:focus { outline: 3px solid rgba(14,165,233,0.16); }
+
+/* Ripple effect for boxed actions */
+.feed-card .xpost-action { position: relative; overflow: hidden; }
+.feed-card .action-ripple {
+  position: absolute; border-radius: 50%; pointer-events: none; transform: scale(0.2); opacity: 0.12;
+  background: rgba(14,165,233,0.18); transition: transform 360ms cubic-bezier(.2,.9,.2,1), opacity 360ms ease;
+}
+.feed-card .action-ripple.show { transform: scale(1); opacity: 0.06; }
+
+/* Pressed state (small depress) */
+.feed-card .xpost-action.pressed { transform: translateY(1px) scale(0.995); box-shadow: 0 6px 14px rgba(15,23,42,0.04); }
+
+/* Click animation: short pop */
+.feed-card .xpost-action.action-clicked { animation: actionPop 260ms ease; }
+@keyframes actionPop { 0% { transform: translateY(0) scale(1); } 30% { transform: translateY(-4px) scale(1.02); } 100% { transform: translateY(0) scale(1); } }
+
+/* Liked animation: pulse and color emphasis */
+.feed-card .xpost-action.like.just-liked { animation: likedPulse 640ms ease; }
+@keyframes likedPulse { 0% { transform: scale(1); box-shadow: 0 6px 18px rgba(14,165,233,0.06); } 30% { transform: scale(1.08); box-shadow: 0 18px 40px rgba(14,165,233,0.12); } 100% { transform: scale(1); box-shadow: 0 8px 22px rgba(14,165,233,0.06); } }
+
+/* Save / share subtle hover fill for professional look */
+.feed-card .xpost-action.share:hover { background: linear-gradient(135deg, rgba(34,197,94,0.06), rgba(16,185,129,0.04)); border-color: rgba(34,197,94,0.12); }
+.feed-card .xpost-action.save:hover { background: linear-gradient(135deg, rgba(168,85,247,0.06), rgba(124,58,237,0.04)); border-color: rgba(168,85,247,0.12); }
+
+/* Larger double-tap heart for poster-style media */
+.xpost-photo.poster .double-tap-heart {
+  pointer-events: none;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.xpost-photo.poster .double-tap-heart i {
+  font-size: clamp(6rem, 14vw, 10rem);
+  color: rgba(255,255,255,0.98);
+  filter: drop-shadow(0 18px 36px rgba(0,0,0,0.42));
+  animation: double-heart-pop 0.52s cubic-bezier(0.2, 1, 0.3, 1);
+}
+.xpost-photo.poster .double-tap-heart.active { transform: scale(1.04); }
+
