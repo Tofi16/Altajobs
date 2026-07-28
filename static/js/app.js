@@ -19,10 +19,24 @@ window.openTab = function (tabName) {
 };
 
 // ---------- AJAX Follow button (instant, no reload) ----------
+function updateFollowButtonLabel(button, following, followLabel, followingLabel) {
+  const labelEl = button.querySelector('.follow-label');
+  const text = following ? followingLabel : followLabel;
+  if (labelEl) {
+    labelEl.textContent = text;
+  } else {
+    button.textContent = text;
+  }
+  button.classList.toggle('following', !!following);
+  button.setAttribute('aria-pressed', String(!!following));
+}
+
 document.addEventListener("click", async function (e) {
   const btn = e.target.closest(".js-follow-btn");
   if (!btn) return;
   e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
 
   const userId = btn.dataset.userId;
   const followLabel = btn.dataset.followLabel || "Follow";
@@ -34,10 +48,19 @@ document.addEventListener("click", async function (e) {
     const res = await fetch(`/api/follow/${userId}`, { method: "POST" });
     const data = await res.json();
     triggerHaptic();
+    const following = !!data.following;
     buttons.forEach((followBtn) => {
-      followBtn.classList.toggle("following", !!data.following);
-      followBtn.textContent = data.following ? followingLabel : followLabel;
+      updateFollowButtonLabel(followBtn, following, followLabel, followingLabel);
     });
+
+    const followersCountEl = document.getElementById('profileFollowersCount');
+    const followingCountEl = document.getElementById('profileFollowingCount');
+    if (followersCountEl && typeof data.followers_count === 'number') {
+      followersCountEl.textContent = data.followers_count;
+    }
+    if (followingCountEl && typeof data.your_following_count === 'number') {
+      followingCountEl.textContent = data.your_following_count;
+    }
   } catch (err) {
     console.error("Follow toggle failed", err);
   } finally {
@@ -124,6 +147,8 @@ document.addEventListener("click", function (e) {
   const btn = e.target.closest(".js-like-btn");
   if (btn) {
     e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
     togglePostLike(btn);
     return;
   }

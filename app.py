@@ -2388,14 +2388,29 @@ def api_toggle_follow_basic(user_id):
         if existing:
             db.execute("DELETE FROM follows WHERE id = ?", (existing['id'],))
             db.commit()
-            return jsonify({'following': False})
+            following = False
         else:
             db.execute(
                 "INSERT INTO follows (follower_id, followed_id) VALUES (?, ?)",
                 (me['id'], user_id),
             )
             db.commit()
-            return jsonify({'following': True})
+            following = True
+
+        followers_count = db.execute(
+            "SELECT COUNT(*) c FROM follows WHERE followed_id = ?",
+            (user_id,),
+        ).fetchone()["c"]
+        your_following_count = db.execute(
+            "SELECT COUNT(*) c FROM follows WHERE follower_id = ?",
+            (me['id'],),
+        ).fetchone()["c"]
+
+        return jsonify({
+            'following': following,
+            'followers_count': int(followers_count or 0),
+            'your_following_count': int(your_following_count or 0),
+        })
     except Exception:
         try:
             db.rollback()

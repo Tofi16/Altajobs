@@ -289,7 +289,7 @@
           {% if current_user and post.user_id != current_user['id'] %}
                 <button type="button" data-action="follow" class="js-follow-btn xpost-follow-btn" data-user-id="{{ post.user_id }}"
                   data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
-              {{ t.unfollow if item.following else t.follow }}
+              <span class="follow-label">{{ t.unfollow if item.following else t.follow }}</span>
             </button>
           {% endif %}
           <div class="relative" data-dropdown>
