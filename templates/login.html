@@ -1,28 +1,100 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="min-h-screen flex items-center justify-center bg-slate-950 px-4 py-8 text-slate-100">
-  <div class="w-full max-w-md bg-slate-900/95 border border-white/10 backdrop-blur-xl rounded-3xl shadow-2xl p-8">
-    <div class="mb-8 text-center">
-      <div class="text-4xl font-black tracking-tight text-white">AltaJobs <span class="text-cyan-300">.</span></div>
-    </div>
-    <form method="POST" action="{{ url_for('login') }}" class="space-y-5">
-      <input type="hidden" name="next" value="{{ next or request.args.get('next','') }}" />
-      <div>
-        <label for="username" class="block text-sm font-semibold text-slate-300 mb-2">{{ t.username }}</label>
-        <input id="username" name="username" type="text" autocomplete="username" required
-               class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20" />
+<div class="min-h-screen flex items-center justify-center bg-slate-950 px-4 py-10 text-slate-100 relative overflow-hidden">
+
+  <!-- Ambient background glow -->
+  <div class="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl"></div>
+  <div class="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-blue-500/10 blur-3xl"></div>
+
+  <div class="w-full max-w-md relative">
+    <div class="bg-slate-900/95 border border-white/10 backdrop-blur-xl rounded-3xl shadow-2xl p-8 sm:p-9">
+
+      <!-- Logo / heading -->
+      <div class="mb-7 text-center">
+        <div class="text-4xl font-black tracking-tight text-white">AltaJobs <span class="text-cyan-300">.</span></div>
+        <p class="mt-2 text-sm text-slate-400">{{ t.get('login_subtitle', 'Welcome back — sign in to continue.') }}</p>
       </div>
-      <div>
-        <label for="password" class="block text-sm font-semibold text-slate-300 mb-2">{{ t.password }}</label>
-        <input id="password" name="password" type="password" autocomplete="current-password" required
-               class="w-full rounded-2xl border border-white/10 bg-slate-950/80 px-4 py-3 text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20" />
+
+      <form method="POST" action="{{ url_for('login') }}" class="space-y-5" novalidate>
+        <input type="hidden" name="next" value="{{ next or request.args.get('next','') }}" />
+
+        <!-- Username -->
+        <div>
+          <label for="username" class="block text-sm font-semibold text-slate-300 mb-2">{{ t.username }}</label>
+          <div class="relative">
+            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A9 9 0 1118.879 6.196 9 9 0 015.12 17.804zM12 11a3 3 0 100-6 3 3 0 000 6z"/>
+              </svg>
+            </span>
+            <input id="username" name="username" type="text" autocomplete="username" required autofocus
+                   placeholder="{{ t.get('username_placeholder', 'Enter your username') }}"
+                   class="w-full rounded-2xl border border-white/10 bg-slate-950/80 pl-11 pr-4 py-3 text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20 transition" />
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label for="password" class="block text-sm font-semibold text-slate-300">{{ t.password }}</label>
+            <a href="{{ url_for('coming_soon', feature='password_reset') }}" class="text-xs font-medium text-cyan-300 hover:text-cyan-200">
+              {{ t.get('forgot_password', 'Forgot password?') }}
+            </a>
+          </div>
+          <div class="relative">
+            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-12V7a4 4 0 10-8 0v4h8z"/>
+              </svg>
+            </span>
+            <input id="password" name="password" type="password" autocomplete="current-password" required
+                   placeholder="{{ t.get('password_placeholder_login', 'Enter your password') }}"
+                   class="w-full rounded-2xl border border-white/10 bg-slate-950/80 pl-11 pr-11 py-3 text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20 transition" />
+            <button type="button" data-toggle-for="password" aria-label="Toggle password visibility"
+                    class="toggle-eye absolute inset-y-0 right-0 flex items-center pr-4 text-slate-500 hover:text-cyan-300 transition">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5 eye-open">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5 eye-closed hidden">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.243L9.88 9.88"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Remember me -->
+        <label class="flex items-center gap-2 text-sm text-slate-400 select-none cursor-pointer">
+          <input type="checkbox" name="remember_me" class="h-4 w-4 rounded border-white/20 bg-slate-950/80 text-cyan-400 focus:ring-cyan-300/40 focus:ring-offset-0" />
+          {{ t.get('remember_me', 'Remember me on this device') }}
+        </label>
+
+        <button type="submit"
+                class="w-full rounded-2xl bg-cyan-500 px-4 py-3 text-base font-semibold text-slate-950 transition hover:bg-cyan-400">
+          {{ t.login }}
+        </button>
+      </form>
+
+      <div class="mt-6 text-center text-sm text-slate-400">
+        <span>{{ t.get('new_here', 'New here?') }}</span>
+        <a href="{{ url_for('register') }}" class="font-semibold text-cyan-300 hover:text-cyan-200">{{ t.create_account }}</a>
       </div>
-      <button type="submit" class="w-full rounded-2xl bg-cyan-500 px-4 py-3 text-base font-semibold text-slate-950 transition hover:bg-cyan-400">{{ t.login }}</button>
-    </form>
-    <div class="mt-6 text-center text-sm text-slate-400">
-      <span>{{ t.get('new_here', 'New here?') }}</span>
-      <a href="{{ url_for('register') }}" class="font-semibold text-cyan-300 hover:text-cyan-200">{{ t.create_account }}</a>
     </div>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.toggle-eye').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var targetId = btn.getAttribute('data-toggle-for');
+      var input = document.getElementById(targetId);
+      var isHidden = input.type === 'password';
+      input.type = isHidden ? 'text' : 'password';
+      btn.querySelector('.eye-open').classList.toggle('hidden', isHidden);
+      btn.querySelector('.eye-closed').classList.toggle('hidden', !isHidden);
+    });
+  });
+});
+</script>
 {% endblock %}
