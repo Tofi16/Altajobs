@@ -64,6 +64,25 @@
   cursor: pointer; font-size: 1.05rem;
 }
 
+/* "Hiring now" tag overlay on job-post photos */
+.pc-media-tag {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #f8fafc;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+  backdrop-filter: blur(6px);
+  z-index: 2;
+}
+
 /* Specialized post variants */
 .post-cat-job_offer { border-left: 4px solid var(--accent-blue); }
 .post-cat-job_offer .post-badge-job { position: absolute; right: 12px; top: 8px; background: linear-gradient(90deg,var(--accent-blue),#2563EB); color: #fff; padding: 6px 10px; border-radius: 999px; font-weight:800; font-size:0.75rem; box-shadow: 0 6px 20px rgba(59,130,246,0.18); }

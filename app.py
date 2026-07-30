@@ -2102,7 +2102,9 @@ def login_required(f):
     def wrapper(*args, **kwargs):
         uid = session.get("user_id")
         if not uid:
-            return redirect(url_for("login", next=request.path))
+            # Do NOT pass next= so that after logout→login the user always
+            # lands on Home/Feed, not on the last page they were viewing.
+            return redirect(url_for("login"))
 
         db = get_db()
         placeholder = "%s" if not getattr(db, "is_sqlite", False) else "?"
@@ -2111,14 +2113,13 @@ def login_required(f):
             (uid,),
         ).fetchone()
         if not user:
-            # session points at an account that no longer exists
             session.pop("user_id", None)
-            return redirect(url_for("login", next=request.path))
+            return redirect(url_for("login"))
 
         if is_currently_banned(user):
             session.pop("user_id", None)
             flash("account_banned")
-            return redirect(url_for("login", next=request.path))
+            return redirect(url_for("login"))
 
         return f(*args, **kwargs)
     return wrapper
@@ -2390,21 +2391,12 @@ def api_toggle_follow_basic(user_id):
             db.commit()
             following = False
         else:
-            try:
-                db.execute(
-                    "INSERT INTO follows (follower_id, followed_id) VALUES (?, ?)",
-                    (me['id'], user_id),
-                )
-                db.commit()
-                # Notify the followed user
-                try:
-                    add_notification(db, user_id, f"{me.get('full_name') or me.get('username')} started following you.", ntype="follow")
-                except Exception:
-                    pass
-                following = True
-            except sqlite3.IntegrityError:
-                # race: duplicate insert; treat as already following
-                following = True
+            db.execute(
+                "INSERT INTO follows (follower_id, followed_id) VALUES (?, ?)",
+                (me['id'], user_id),
+            )
+            db.commit()
+            following = True
 
         followers_count = db.execute(
             "SELECT COUNT(*) c FROM follows WHERE followed_id = ?",
@@ -2447,19 +2439,14 @@ def api_toggle_like_basic(post_id):
             row = db.execute("SELECT COALESCE(like_count,0) AS c FROM posts WHERE id = ?", (post_id,)).fetchone()
             return jsonify({'liked': False, 'like_count': int(row['c'] or 0)})
         else:
-            try:
-                db.execute(
-                    "INSERT INTO likes (user_id, post_id) VALUES (?, ?)",
-                    (me['id'], post_id),
-                )
-                db.execute("UPDATE posts SET like_count = COALESCE(like_count,0) + 1 WHERE id = ?", (post_id,))
-                db.commit()
-                row = db.execute("SELECT COALESCE(like_count,0) AS c FROM posts WHERE id = ?", (post_id,)).fetchone()
-                return jsonify({'liked': True, 'like_count': int(row['c'] or 0)})
-            except sqlite3.IntegrityError:
-                # race: duplicate like inserted concurrently — treat as liked
-                row = db.execute("SELECT COALESCE(like_count,0) AS c FROM posts WHERE id = ?", (post_id,)).fetchone()
-                return jsonify({'liked': True, 'like_count': int(row['c'] or 0)})
+            db.execute(
+                "INSERT INTO likes (user_id, post_id) VALUES (?, ?)",
+                (me['id'], post_id),
+            )
+            db.execute("UPDATE posts SET like_count = COALESCE(like_count,0) + 1 WHERE id = ?", (post_id,))
+            db.commit()
+            row = db.execute("SELECT COALESCE(like_count,0) AS c FROM posts WHERE id = ?", (post_id,)).fetchone()
+            return jsonify({'liked': True, 'like_count': int(row['c'] or 0)})
     except Exception:
         try:
             db.rollback()
@@ -3333,20 +3320,24 @@ from markupsafe import Markup
 
 
 _VERIFICATION_BADGE_SVG = {
-    "blue": """<span class="verification-badge--inline verification-badge--blue" data-tier="blue" title="Verified">
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" width="18" height="18" role="img">
-                <circle cx="12" cy="12" r="10" fill="#1D9BF0" />
-                <path fill="#fff" d="M9.5 12.8l-1.8-1.8 1.2-1.2 0.6 0.6 2.9-2.9 1.2 1.2z" transform="translate(0.5,1) scale(1.2)"/>
+    "blue": '''<span class="verification-badge verification-badge--blue" title="Verified">
+            <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false" width="18" height="18">
+                <path fill="#1D9BF0" d="M20.396 11c0-1.196-.734-2.222-1.789-2.65.19-1.098-.128-2.301-.947-3.12-.82-.82-2.023-1.137-3.121-.947C14.111 3.228 13.085 2.494 11.89 2.494c-1.197 0-2.223.734-2.651 1.789-1.098-.19-2.301.127-3.12.947-.82.819-1.137 2.022-.947 3.12C4.228 8.778 3.494 9.804 3.494 11c0 1.196.734 2.222 1.789 2.65-.19 1.098.127 2.301.946 3.12.82.82 2.023 1.137 3.121.947.428 1.055 1.454 1.789 2.651 1.789 1.196 0 2.222-.734 2.65-1.789 1.098.19 2.301-.128 3.12-.947.82-.819 1.137-2.022.947-3.12 1.055-.428 1.789-1.454 1.789-2.65z"/>
+                <path fill="#fff" d="M9.323 14.416l-3.5-3.5 1.415-1.415 2.085 2.085 4.939-4.939 1.415 1.415z"/>
             </svg>
-            <span class="verification-text">Verified</span>
-        </span>""",
-    "gold": """<span class="verification-badge--inline verification-badge--gold" data-tier="gold" title="Verified Organization">
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" width="18" height="18" role="img">
-                <circle cx="12" cy="12" r="10" fill="#F5A623" />
-                <path fill="#3B2A00" d="M8.8 12.4l-1.6-1.6 1.1-1.1 0.5 0.5 2.5-2.5 1.1 1.1z" transform="translate(0.6,1) scale(1.18)"/>
+        </span>''',
+    "gold": '''<span class="verification-badge verification-badge--gold" title="Verified Organization">
+            <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false" width="18" height="18">
+                <defs>
+                    <linearGradient id="g_tier_gold" x1="0%" x2="100%" y1="0%" y2="100%">
+                        <stop offset="0%" stop-color="#F9D976"/>
+                        <stop offset="100%" stop-color="#C9A227"/>
+                    </linearGradient>
+                </defs>
+                <path fill="url(#g_tier_gold)" d="M20.396 11c0-1.196-.734-2.222-1.789-2.65.19-1.098-.128-2.301-.947-3.12-.82-.82-2.023-1.137-3.121-.947C14.111 3.228 13.085 2.494 11.89 2.494c-1.197 0-2.223.734-2.651 1.789-1.098-.19-2.301.127-3.12.947-.82.819-1.137 2.022-.947 3.12C4.228 8.778 3.494 9.804 3.494 11c0 1.196.734 2.222 1.789 2.65-.19 1.098.127 2.301.946 3.12.82.82 2.023 1.137 3.121.947.428 1.055 1.454 1.789 2.651 1.789 1.196 0 2.222-.734 2.65-1.789 1.098.19 2.301-.128 3.12-.947.82-.819 1.137-2.022.947-3.12 1.055-.428 1.789-1.454 1.789-2.65z"/>
+                <path fill="#3B2A00" d="M9.323 14.416l-3.5-3.5 1.415-1.415 2.085 2.085 4.939-4.939 1.415 1.415z"/>
             </svg>
-            <span class="verification-text">VIP</span>
-        </span>""",
+        </span>''',
 }
 
 
@@ -5154,7 +5145,9 @@ def comment_post(post_id):
         comment_count = db.execute(
             "SELECT COUNT(*) c FROM comments WHERE post_id = ?", (post_id,)
         ).fetchone()["c"]
-        return jsonify({"success": True, "comment_count": comment_count})
+        me = get_current_user()
+        author_name = (me["full_name"] or me["username"]) if me else "You"
+        return jsonify({"success": True, "comment_count": comment_count, "author": author_name})
 
     return redirect(url_for("post_detail", post_id=post_id))
 

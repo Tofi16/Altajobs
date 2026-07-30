@@ -1,22 +1,42 @@
 <style>
+  /* ══════════════════════════════════════════════════════════════
+     AltaJobs Feed — Premium / VIP Fintech token system
+     Palette: near-black base (#0B0D12), raised surface (#151822),
+     coffee-gold accent (#D4AF37), warm bronze secondary (#8B6F3D),
+     cream-on-gold (#F5E6C8), cool muted text (#8B95A8).
+     Consistent with the existing Habesha Fintech wallet identity.
+     ══════════════════════════════════════════════════════════════ */
   .xpost {
-    border-radius: 26px;
-    background: rgba(15, 23, 42, 0.85);
-    border: 1px solid rgba(148, 163, 184, 0.16);
-    box-shadow: 0 24px 40px rgba(15, 23, 42, 0.18);
+    position: relative;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #151822 0%, #10131b 100%);
+    border: 1px solid rgba(212, 175, 55, 0.10);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255,255,255,0.02);
     padding: 20px;
     display: block;
-    transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
     overflow: hidden;
   }
+  .xpost::before {
+    /* Signature hairline: draws in gold on hover, top edge only */
+    content: "";
+    position: absolute;
+    top: 0; left: 16px; right: 16px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0), transparent);
+    transition: background 0.4s ease;
+    pointer-events: none;
+  }
   .xpost:hover {
-    transform: translateY(-1px);
-    background: rgba(15, 23, 42, 0.94);
-    border-color: rgba(96, 165, 250, 0.22);
+    border-color: rgba(212, 175, 55, 0.22);
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(212, 175, 55, 0.04);
+  }
+  .xpost:hover::before {
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.55), transparent);
   }
   .xpost-card {
     display: grid;
-    gap: 16px;
+    gap: 14px;
   }
   .xpost-head {
     display: flex;
@@ -27,23 +47,24 @@
   .xpost-headline {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 11px;
     flex-wrap: wrap;
     min-width: 0;
   }
   .xpost-avatar {
-    width: 54px;
-    height: 54px;
-    border-radius: 18px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
     flex-shrink: 0;
     overflow: hidden;
-    background: linear-gradient(135deg, #0ea5e9, #22c55e);
-    color: #0f172a;
+    background: linear-gradient(135deg, #D4AF37, #8B6F3D);
+    color: #241a06;
     font-weight: 800;
-    font-size: 1.1rem;
+    font-size: 0.98rem;
     text-decoration: none;
     display: grid;
     place-items: center;
+    box-shadow: 0 0 0 2px #10131b, 0 0 0 3px rgba(212, 175, 55, 0.4);
   }
   .xpost-avatar img {
     width: 100%;
@@ -53,27 +74,34 @@
   }
   .xpost-author {
     display: grid;
-    gap: 4px;
+    gap: 3px;
     min-width: 0;
   }
+  .xpost-name-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
   .xpost-name {
-    font-weight: 800;
-    color: #f8fafc;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #F5E6C8;
     text-decoration: none;
-    font-size: 1rem;
+    font-size: 0.98rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .xpost-meta {
-    color: #94a3b8;
-    font-size: 0.84rem;
+    color: #8B95A8;
+    font-size: 0.81rem;
     line-height: 1.4;
+    font-weight: 500;
   }
   .xpost-dot::before {
     content: "·";
     margin: 0 6px;
-    color: #94a3b8;
+    color: #4a5163;
   }
   .xpost-badge {
     display: inline-flex;
@@ -82,8 +110,9 @@
     flex-shrink: 0;
   }
   .xpost-badge .verification-badge {
-    width: 18px;
-    height: 18px;
+    width: 17px;
+    height: 17px;
+    filter: drop-shadow(0 0 4px rgba(212, 175, 55, 0.5));
   }
   .xpost-badge .verification-badge svg {
     width: 100%;
@@ -92,64 +121,68 @@
   .xpost-head-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
     justify-content: flex-end;
   }
   .xpost-follow-chip {
-    border: 1px solid rgba(255,255,255,0.12);
+    border: 1px solid rgba(212, 175, 55, 0.3);
     border-radius: 999px;
-    padding: 8px 16px;
+    padding: 7px 15px;
     font-weight: 700;
-    font-size: 0.82rem;
-    background: rgba(16, 185, 129, 0.12);
-    color: #a7f3d0;
+    font-size: 0.78rem;
+    letter-spacing: 0.01em;
+    background: rgba(212, 175, 55, 0.1);
+    color: #E8C766;
     cursor: pointer;
     transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
     white-space: nowrap;
   }
   .xpost-follow-chip.following {
-    background: rgba(255,255,255,0.05);
-    color: #f8fafc;
-    border-color: rgba(148,163,184,0.22);
+    background: rgba(255,255,255,0.04);
+    color: #8B95A8;
+    border-color: rgba(255,255,255,0.1);
   }
   .xpost-menu-btn {
     border: none;
-    background: rgba(255,255,255,0.05);
-    color: #cbd5e1;
+    background: rgba(255,255,255,0.04);
+    color: #8B95A8;
     cursor: pointer;
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     transition: background 0.15s ease, color 0.15s ease;
   }
   .xpost-menu-btn:hover {
-    background: rgba(29, 155, 240, 0.14);
-    color: #f8fafc;
+    background: rgba(212, 175, 55, 0.12);
+    color: #E8C766;
   }
   .xpost-job-pill {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: rgba(56, 189, 248, 0.12);
-    color: #7dd3fc;
-    font-size: 0.78rem;
+    background: rgba(212, 175, 55, 0.1);
+    color: #E8C766;
+    font-size: 0.76rem;
     font-weight: 700;
+    letter-spacing: 0.02em;
     padding: 6px 12px;
     border-radius: 999px;
     width: fit-content;
+    border: 1px solid rgba(212, 175, 55, 0.18);
   }
   .xpost-content {
-    color: #e2e8f0;
-    font-size: 0.96rem;
-    line-height: 1.7;
-    margin: 4px 0 10px;
+    color: #C9CFDB;
+    font-size: 0.95rem;
+    line-height: 1.68;
+    margin: 2px 0 8px;
     white-space: pre-wrap;
     word-break: break-word;
+    letter-spacing: 0.001em;
   }
   .xpost-content.xpost-clamped {
     display: -webkit-box;
@@ -160,22 +193,24 @@
   .xpost-seemore {
     background: none;
     border: none;
-    color: #38bdf8;
+    color: #D4AF37;
     font-weight: 700;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     cursor: pointer;
     padding: 0;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     display: inline-flex;
     align-items: center;
+    transition: color 0.15s ease;
   }
+  .xpost-seemore:hover { color: #E8C766; }
   .xpost-seemore.hidden {
     display: none;
   }
   .xpost-photo-wrap {
-    border-radius: 22px;
+    border-radius: 14px;
     overflow: hidden;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+    box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.08);
   }
   .xpost-photo {
     width: 100%;
@@ -184,75 +219,291 @@
     object-fit: cover;
     display: block;
   }
+  .media-grid { display: grid; gap: 3px; border-radius: 14px; overflow: hidden; }
+  .media-grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .media-grid-1 { grid-template-columns: 1fr; }
+  .media-grid-1 img { max-height: 420px; }
+  .media-grid-2 { grid-template-columns: 1fr 1fr; aspect-ratio: 16/9; }
+  .media-grid-3 { grid-template-columns: 1fr 1fr; aspect-ratio: 16/9; }
+  .media-grid-3 .mg-left { grid-row: span 2; }
+  .media-grid-4 { grid-template-columns: 1fr 1fr; aspect-ratio: 4/3; }
+  .media-item { position: relative; overflow: hidden; }
+  .media-more-overlay {
+    position: absolute; inset: 0; background: rgba(11,13,18,0.62);
+    display: flex; align-items: center; justify-content: center;
+    color: #F5E6C8; font-weight: 800; font-size: 1.3rem;
+  }
+
+  /* ── Action row: understated, icon-forward, gold-on-interact ── */
   .xpost-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 6px;
     align-items: center;
     justify-content: flex-start;
-    margin-top: 8px;
+    margin-top: 6px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.05);
   }
   .xpost-action,
   .xpost-follow-btn {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(255,255,255,0.04);
-    color: #cbd5e1;
-    font-size: 0.92rem;
-    font-weight: 700;
+    gap: 8px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #8B95A8;
+    font-size: 0.88rem;
+    font-weight: 600;
     cursor: pointer;
-    padding: 10px 14px;
-    border-radius: 999px;
+    padding: 8px 12px;
+    border-radius: 10px;
     text-decoration: none;
-    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-    min-height: 44px;
+    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+    min-height: 40px;
     line-height: 1;
     white-space: nowrap;
   }
-  .xpost-action:hover,
+  .xpost-action:hover {
+    background: rgba(255,255,255,0.04);
+    color: #C9CFDB;
+  }
   .xpost-follow-btn:hover {
-    background: rgba(15, 23, 42, 0.98);
-    color: #f8fafc;
     transform: translateY(-1px);
-    border-color: rgba(96, 165, 250, 0.28);
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.18);
   }
   .xpost-action svg,
   .xpost-action i,
   .xpost-follow-btn svg,
   .xpost-follow-btn i {
-    width: 1.15rem;
-    height: 1.15rem;
+    width: 1.05rem;
+    height: 1.05rem;
     flex-shrink: 0;
   }
   .xpost-action .like-count,
   .xpost-action .comment-count,
   .xpost-action .repost-count {
-    color: #94a3b8;
-    font-size: 0.92rem;
-    font-weight: 800;
+    color: inherit;
+    font-size: 0.87rem;
+    font-weight: 700;
+  }
+
+  /* Like: gold-tinted rose fill, spring pop on activation */
+  .xpost-action.like {
+    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+  }
+  .xpost-action.like [data-lucide],
+  .xpost-action.like i {
+    transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   .xpost-action.like.liked {
-    color: #f9a8d4;
-    background: rgba(249, 168, 212, 0.14);
-    border-color: rgba(249, 168, 212, 0.35);
+    color: #E88A9A;
+    background: rgba(232, 138, 154, 0.1);
   }
-  .xpost-action.like:hover { color: #f472b6; }
-  .xpost-action.comment:hover { color: #38bdf8; }
-  .xpost-action.repost:hover { color: #a78bfa; }
-  .xpost-action.share:hover { color: #4ade80; }
+  .xpost-action.like.liked [data-lucide],
+  .xpost-action.like.liked i {
+    fill: currentColor;
+    transform: scale(1.12);
+  }
+  .xpost-action.like:active [data-lucide],
+  .xpost-action.like:active i {
+    transform: scale(0.85);
+  }
+  .xpost-action.like:hover { color: #E88A9A; }
+  .xpost-action.comment:hover { color: #D4AF37; }
+  .xpost-action.repost:hover { color: #A78BFA; }
+  .xpost-action.share:hover { color: #D4AF37; }
+  .xpost-action.save:hover { color: #D4AF37; }
+
   .xpost-follow-btn {
-    border-color: rgba(56, 189, 248, 0.24);
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(16, 185, 129, 0.14));
-    color: #eff6ff;
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    background: rgba(212, 175, 55, 0.08);
+    color: #E8C766;
+    padding: 8px 16px;
+    border-radius: 999px;
   }
   .xpost-follow-btn.following {
-    background: rgba(255,255,255,0.08);
-    color: #f8fafc;
-    border-color: rgba(148, 163, 184, 0.24);
+    background: rgba(255,255,255,0.04);
+    color: #8B95A8;
+    border-color: rgba(255,255,255,0.1);
   }
+
+  .apply-now-btn {
+    margin-left: auto;
+    background: linear-gradient(135deg, #D4AF37, #B8933F);
+    color: #241a06;
+    font-weight: 800;
+    font-size: 0.84rem;
+    padding: 9px 18px;
+    border-radius: 999px;
+    text-decoration: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 4px 14px rgba(212, 175, 55, 0.25);
+  }
+  .apply-now-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(212, 175, 55, 0.35);
+  }
+
+  /* ── Inline comment panel (expand within card) ── */
+  .xpost-comment-panel,
+  .xpost-share-panel {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    border-top: 1px solid rgba(255,255,255,0.05);
+    margin-top: 0;
+    padding-top: 0;
+  }
+  .xpost-comment-panel.open,
+  .xpost-share-panel.open {
+    margin-top: 10px;
+    padding-top: 14px;
+  }
+  .xpost-comment-summary {
+    font-size: 0.8rem;
+    color: #8B95A8;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  .xpost-comment-list {
+    display: grid;
+    gap: 7px;
+    margin-bottom: 12px;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .xpost-comment-item {
+    background: rgba(255,255,255,0.025);
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: 12px;
+    padding: 8px 12px;
+    font-size: 0.86rem;
+    line-height: 1.5;
+  }
+  .xpost-comment-author {
+    font-weight: 700;
+    color: #E8C766;
+    margin-right: 6px;
+  }
+  .xpost-comment-text {
+    color: #C9CFDB;
+  }
+  .xpost-comment-row {
+    display: flex;
+  }
+  .xpost-comment-row .comment-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 999px;
+    padding: 5px 5px 5px 16px;
+    transition: border-color 0.15s ease;
+  }
+  .xpost-comment-row .comment-input:focus-within {
+    border-color: rgba(212, 175, 55, 0.35);
+  }
+  .xpost-comment-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #F5E6C8;
+    font-size: 0.88rem;
+    min-width: 0;
+  }
+  .xpost-comment-input::placeholder { color: #4a5163; }
+  .xpost-comment-submit {
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #D4AF37, #B8933F);
+    color: #241a06;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-weight: 800;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+  .xpost-comment-submit:hover { opacity: 0.92; transform: translateY(-1px); }
+  .xpost-comment-submit:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+  .xpost-share-panel .post-action {
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    color: #8B95A8;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .xpost-share-panel .post-action:hover {
+    background: rgba(212, 175, 55, 0.1);
+    color: #E8C766;
+    border-color: rgba(212, 175, 55, 0.25);
+  }
+
+  /* ── Post type ribbons ── */
+  .post-badge {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    padding: 4px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .post-badge-job {
+    background: rgba(212, 175, 55, 0.12);
+    color: #E8C766;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+  }
+  .post-badge-experience {
+    background: rgba(139, 149, 168, 0.12);
+    color: #A9B2C3;
+    border: 1px solid rgba(139, 149, 168, 0.18);
+  }
+
+  /* ── Toast (used by feed-actions.js for error feedback) ── */
+  .aj-toast {
+    position: fixed;
+    bottom: 88px;
+    left: 50%;
+    transform: translateX(-50%) translateY(12px);
+    background: #151822;
+    color: #F5E6C8;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 12px;
+    padding: 10px 18px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.45);
+    opacity: 0;
+    z-index: 2000;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none;
+  }
+  .aj-toast--show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .aj-toast--error { border-color: rgba(232, 138, 154, 0.4); }
+
+  /* ── Notification popover items (fallback styling, additive) ── */
+  .notif-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .notif-item:last-child { border-bottom: none; }
+  .notif-item--unread { background: rgba(212, 175, 55, 0.05); border-radius: 12px; }
+  .notif-icon { font-size: 1.05rem; color: #D4AF37; margin-top: 2px; flex-shrink: 0; }
+  .notif-body { min-width: 0; }
+  .notif-msg { margin: 0; font-size: 0.84rem; color: #C9CFDB; line-height: 1.4; }
+  .notif-time { font-size: 0.73rem; color: #4a5163; }
+  .topbar-popover.open { display: block; }
 </style>
 
 {% for item in posts_data %}
@@ -417,6 +668,7 @@
       </div>
       <div class="xpost-comment-panel feed-comment-box mt-4" aria-hidden="true">
         <div class="xpost-comment-summary text-neutral-400 text-sm">{{ item.comment_count }} {{ t.comments if t.comments is defined else 'comments' }}</div>
+        <div class="xpost-comment-list"></div>
         <div class="xpost-comment-row feed-comment-row">
           <div class="comment-input feed-comment-box">
             <input type="text" class="xpost-comment-input" placeholder="Write a comment..." aria-label="Write a comment">

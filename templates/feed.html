@@ -78,40 +78,191 @@
   }
   .filter-pill:hover { background: rgba(255,255,255,0.08); }
   .filter-pill.active {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(14, 165, 233, 0.18));
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(234, 88, 12, 0.16));
     color: #f8fafc;
-    border-color: rgba(56,189,248,0.24);
+    border-color: rgba(245, 158, 11, 0.3);
   }
+
+  /* ── Post composer (create post box) ── */
+  .post-composer {
+    border-radius: 20px;
+    background: rgba(17, 20, 28, 0.92);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    box-shadow: 0 18px 32px rgba(0, 0, 0, 0.22);
+    padding: 16px;
+  }
+  .post-composer-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .post-composer-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    overflow: hidden;
+    background: linear-gradient(135deg, #f59e0b, #ea580c);
+    color: #1c1006;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid rgba(245, 158, 11, 0.35);
+  }
+  .post-composer-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .post-composer-input-wrap { flex: 1; min-width: 0; }
+  .post-composer-input {
+    width: 100%;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 11px 18px;
+    color: #f1f5f9;
+    font-size: 0.94rem;
+    outline: none;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .post-composer-input:focus {
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(245, 158, 11, 0.35);
+  }
+  .post-composer-input::placeholder { color: #64748b; }
+
+  .post-composer-preview {
+    margin-top: 14px;
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    max-height: 280px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .post-composer-preview img {
+    width: 100%;
+    max-height: 280px;
+    object-fit: cover;
+    display: block;
+  }
+  .post-composer-preview-remove {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    border: none;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .post-composer-preview-remove:hover { background: rgba(0,0,0,0.75); }
+
+  .post-composer-footer {
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .post-composer-media-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #94a3b8;
+    font-size: 0.86rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 8px 14px;
+    border-radius: 999px;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .post-composer-media-btn:hover { background: rgba(245, 158, 11, 0.1); color: #fbbf24; }
+  .post-composer-media-btn svg { width: 19px; height: 19px; }
+  .post-composer-submit {
+    background: #f59e0b;
+    color: #1c1006;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 24px;
+    font-weight: 800;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+  .post-composer-submit:hover { background: #fbbf24; transform: translateY(-1px); }
 </style>
 
 <div class="mx-auto max-w-4xl px-4 py-6 text-slate-200 feed-page">
   <section id="feedCreateCard" class="max-w-3xl mx-auto w-full mb-6">
-    <form id="composeForm" method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data" class="bg-neutral-900 rounded-xl border border-neutral-800 p-4">
-      <div class="flex items-center gap-4">
-        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-sky-500 to-green-400 flex items-center justify-center text-black font-bold overflow-hidden">
+    <form id="composeForm" method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data" class="post-composer">
+      <div class="post-composer-top">
+        <div class="post-composer-avatar">
           {% if current_user['avatar'] %}
-            <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}" class="w-full h-full object-cover rounded-full">
+            <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}">
           {% else %}
-            <span class="text-sm">{{ (current_user['full_name'] or current_user['username'])[0] }}</span>
+            <span>{{ (current_user['full_name'] or current_user['username'])[0] }}</span>
           {% endif %}
         </div>
-        <div class="flex-1">
+        <div class="post-composer-input-wrap">
           <label for="composeTextarea" class="sr-only">What's on your mind?</label>
-          <input id="composeTextarea" name="content" placeholder="What's on your mind?" aria-label="What's on your mind?" class="w-full rounded-full bg-neutral-800 border-transparent px-4 py-2 text-neutral-200 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input id="composeTextarea" name="content" placeholder="What's on your mind, {{ current_user['full_name'] or current_user['username'] }}?" aria-label="What's on your mind?" class="post-composer-input" />
           <input type="hidden" name="post_type" id="composePostType" value="general">
           <input type="hidden" name="current_filter" id="composeCurrentFilter" value="{{ active_filter or 'all' }}">
         </div>
-        <div class="flex items-center gap-3">
-          <label for="composePhotoInput" class="flex items-center gap-2 cursor-pointer text-neutral-400 hover:text-neutral-100">
-            <!-- media SVG -->
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7M16 3v4M8 3v4M3 11h18"/></svg>
-            <input type="file" name="photo" accept="image/*" id="composePhotoInput" class="hidden">
-          </label>
-          <button type="submit" id="composeSubmitButton" class="bg-blue-600 text-white rounded-full font-semibold px-4 py-1.5 hover:bg-blue-700">Post</button>
-        </div>
+      </div>
+
+      <div id="composePreviewWrap" class="post-composer-preview" hidden>
+        <img id="composePreviewImg" src="" alt="Selected photo preview">
+        <button type="button" id="composePreviewRemove" class="post-composer-preview-remove" aria-label="Remove photo">&times;</button>
+      </div>
+
+      <div class="post-composer-footer">
+        <label for="composePhotoInput" class="post-composer-media-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7M16 3v4M8 3v4M3 11h18"/></svg>
+          <span>Photo</span>
+          <input type="file" name="photo" accept="image/*" id="composePhotoInput" class="sr-only">
+        </label>
+        <button type="submit" id="composeSubmitButton" class="post-composer-submit">Post</button>
       </div>
     </form>
   </section>
+
+  <script>
+  (function () {
+    var input = document.getElementById('composePhotoInput');
+    var wrap = document.getElementById('composePreviewWrap');
+    var img = document.getElementById('composePreviewImg');
+    var removeBtn = document.getElementById('composePreviewRemove');
+    if (!input) return;
+
+    input.addEventListener('change', function () {
+      var file = input.files && input.files[0];
+      if (!file) { wrap.hidden = true; return; }
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        img.src = e.target.result;
+        wrap.hidden = false;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    if (removeBtn) {
+      removeBtn.addEventListener('click', function () {
+        input.value = '';
+        img.src = '';
+        wrap.hidden = true;
+      });
+    }
+  })();
+  </script>
 
   <section class="feed-filters" id="feedFilters">
     <button type="button" class="filter-pill {{ 'active' if active_filter == 'all' or not active_filter }}" data-filter="all">All</button>

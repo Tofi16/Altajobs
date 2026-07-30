@@ -247,32 +247,6 @@
   // Ensure a11y labels on initial load
   document.addEventListener('DOMContentLoaded', function(){ try{ ensureAriaLabels(); }catch(e){} });
 
-  // Toggle professional style when ?style=professional is present
-  try {
-    var params = new URLSearchParams(window.location.search);
-    var styleParam = params.get('style');
-    if (styleParam === 'professional' || styleParam === 'comfort') {
-      document.body.classList.add('style-professional');
-      if (styleParam === 'comfort') document.body.classList.add('style-comfort');
-      var profCss = document.createElement('link');
-      profCss.rel = 'stylesheet';
-      profCss.href = '/static/css/feed-professional.css';
-      document.head.appendChild(profCss);
-      // show professional container, hide default feed markup
-      var prof = document.getElementById('feedPostsProfessionalContainer');
-      var orig = document.getElementById('feedPostsContainer');
-      if (prof && orig) {
-        // hide original feed partial contents while keeping container for scripts
-        orig.querySelectorAll(':scope > article').forEach(function(n){ n.style.display = 'none'; });
-        prof.style.display = '';
-        // refresh lucide icons inside professional container
-        try { if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons({ parent: prof }); } catch(e){}
-        // ensure UI components and handlers see the newly visible nodes
-        try { if (typeof refreshLucideIcons === 'function') refreshLucideIcons(prof); } catch(e){}
-      }
-    }
-  } catch (e) { /* ignore */ }
-
   // Intercept navigation clicks and fetch to ensure modals are closed before navigation or network activity
   document.addEventListener('click', function(ev){
     try{
