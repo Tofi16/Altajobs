@@ -404,6 +404,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const textarea = document.getElementById("composeTextarea");
   const actions = document.getElementById("composeActions");
   const photoInput = document.getElementById("composePhotoInput");
+  const photoPreviewWrap = document.getElementById("composePreviewWrap");
+  const photoPreviewImg = document.getElementById("composePreviewImg");
+  const photoPreviewRemove = document.getElementById("composePreviewRemove");
   const photoName = document.getElementById("composePhotoName");
   const composeForm = document.getElementById("composeForm");
   const composeSubmit = document.getElementById("composeSubmitButton");
@@ -438,6 +441,13 @@ document.addEventListener("DOMContentLoaded", function () {
     autoGrow();
     updateComposeSubmitState();
   });
+
+  var photoAttachButton = document.querySelector('.feed-composer-attach[data-attachment="photo"]');
+  if (photoAttachButton && photoInput) {
+    photoAttachButton.addEventListener('click', function () {
+      photoInput.click();
+    });
+  }
 
   typeButtons.forEach(function (button) {
     button.addEventListener('click', function () {
@@ -488,14 +498,18 @@ document.addEventListener("DOMContentLoaded", function () {
             }
             textarea.value = '';
             if (photoInput) { photoInput.value = ''; }
-            if (photoName) { photoName.textContent = ''; }
+            if (photoName) { photoName.textContent = ''; photoName.hidden = true; }
+            if (photoPreviewWrap) { photoPreviewWrap.hidden = true; }
+            if (photoPreviewImg) { photoPreviewImg.src = ''; }
             updateComposeSubmitState();
             composeSubmit.textContent = 'Posted';
             setTimeout(function () { composeSubmit.textContent = 'Post'; }, 1200);
           } else if (data && data.success && !data.html) {
             textarea.value = '';
             if (photoInput) { photoInput.value = ''; }
-            if (photoName) { photoName.textContent = ''; }
+            if (photoName) { photoName.textContent = ''; photoName.hidden = true; }
+            if (photoPreviewWrap) { photoPreviewWrap.hidden = true; }
+            if (photoPreviewImg) { photoPreviewImg.src = ''; }
             updateComposeSubmitState();
             composeSubmit.textContent = 'Posted';
             setTimeout(function () { composeSubmit.textContent = 'Post'; }, 1200);
@@ -516,7 +530,25 @@ document.addEventListener("DOMContentLoaded", function () {
   if (photoInput && photoName) {
     photoInput.addEventListener("change", function () {
       expand();
-      photoName.textContent = photoInput.files && photoInput.files[0] ? photoInput.files[0].name : "";
+      var file = photoInput.files && photoInput.files[0];
+      if (!file) {
+        photoName.textContent = '';
+        photoName.hidden = true;
+        if (photoPreviewWrap) { photoPreviewWrap.hidden = true; }
+        if (photoPreviewImg) { photoPreviewImg.src = ''; }
+        updateComposeSubmitState();
+        return;
+      }
+      photoName.textContent = file.name;
+      photoName.hidden = false;
+      if (photoPreviewWrap && photoPreviewImg) {
+        var reader = new FileReader();
+        reader.onload = function (event) {
+          photoPreviewImg.src = event.target.result;
+          photoPreviewWrap.hidden = false;
+        };
+        reader.readAsDataURL(file);
+      }
       updateComposeSubmitState();
     });
   }
@@ -541,7 +573,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const searchStatus = document.getElementById("headerSearchStatus");
   const bellToggle = document.getElementById("headerBellToggle");
   const bellPopover = document.getElementById("headerNotifications");
-  const avatarToggle = document.getElementById("headerSidebarToggle");
+  const headerAvatarLink = document.getElementById("headerAvatarLink");
   const sidebarDrawer = document.getElementById("headerSidebarDrawer");
   const sidebarOverlay = document.getElementById("headerSidebarOverlay");
 
@@ -585,7 +617,6 @@ document.addEventListener("DOMContentLoaded", function () {
       sidebarDrawer.setAttribute("aria-hidden", "true");
     }
     if (sidebarOverlay) sidebarOverlay.classList.remove("open");
-    if (avatarToggle) avatarToggle.setAttribute("aria-expanded", "false");
     document.body.classList.remove("drawer-open");
     lockState.drawer = false;
     syncScrollLock();
@@ -636,19 +667,17 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  if (avatarToggle && sidebarDrawer && sidebarOverlay) {
-    avatarToggle.addEventListener("click", function (e) {
-      e.stopPropagation();
-      const isOpen = sidebarDrawer.classList.toggle("open");
-      sidebarDrawer.setAttribute("aria-hidden", isOpen ? "false" : "true");
-      avatarToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
-      sidebarOverlay.classList.toggle("open", isOpen);
-      document.body.classList.toggle("drawer-open", isOpen);
-      lockState.drawer = isOpen ? 1 : 0;
-      syncScrollLock();
-      if (isOpen) {
-        closeSearch();
-        closePopover();
+  // note: headerSidebarToggle (three-dot actions) removed; drawer remains accessible from other UI where present
+
+  // If header avatar link exists, ensure it simply navigates to profile (anchor), but prevent double handling
+  if (headerAvatarLink) {
+    headerAvatarLink.addEventListener('click', function (e) {
+      // allow native navigation; close any open overlays to keep behavior consistent
+      closeSearch();
+      closePopover();
+      if (sidebarDrawer && sidebarDrawer.classList.contains('open')) {
+        sidebarDrawer.classList.remove('open');
+        sidebarDrawer.setAttribute('aria-hidden', 'true');
       }
     });
   }
@@ -663,7 +692,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const clickedBell = bellPopover && bellPopover.contains(e.target);
     const clickedBellToggle = bellToggle && bellToggle.contains(e.target);
     const clickedDrawer = sidebarDrawer && sidebarDrawer.contains(e.target);
-    const clickedAvatar = avatarToggle && avatarToggle.contains(e.target);
+    const clickedAvatar = headerAvatarLink && headerAvatarLink.contains(e.target);
 
     if (!clickedInsideSearch && !clickedSearchToggle) closeSearch();
     if (!clickedBell && !clickedBellToggle) closePopover();
@@ -1078,32 +1107,43 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // ---------- Three-dot post menu -> animated bottom sheet ----------
 document.addEventListener("DOMContentLoaded", function () {
-  const overlay = document.getElementById("bottomSheetOverlay");
-  const sheet = document.getElementById("postActionsSheet");
+  const overlay = document.getElementById("bottomSheetOverlay") || document.getElementById("postDropdownBackdrop");
+  const sheet = document.getElementById("postActionsSheet") || document.getElementById("postOptionsSheet");
   const deleteForm = document.getElementById("sheetDeleteForm");
   const reportForm = document.getElementById("sheetReportForm");
   const reportTargetId = document.getElementById("sheetReportTargetId");
-  const cancelBtn = document.getElementById("sheetCancelBtn");
+  const cancelBtn = document.getElementById("sheetCancelBtn") || document.getElementById("postSheetCancel");
+
   if (!overlay || !sheet) return;
 
-  const closeSheet = function () {
+  const closeSheet = function (skipHistory) {
     sheet.classList.remove("open");
     overlay.classList.remove("open");
+    if (!skipHistory && window.history.state && window.history.state.feedMenuOpen) {
+      try { window.history.back(); } catch (e) {}
+    }
   };
 
   const openSheet = function (btn) {
-    const postId = btn.dataset.postId;
-    const canDelete = btn.dataset.canDelete === "1";
-    const canReport = btn.dataset.canReport === "1";
+    const postId = btn.dataset.postId || "";
+    const canDelete = btn.dataset.canDelete === "1" || btn.dataset.canDelete === "true";
+    const canReport = btn.dataset.canReport === "1" || btn.dataset.canReport === "true";
 
-    deleteForm.style.display = canDelete ? "block" : "none";
-    deleteForm.action = `/post/${postId}/delete`;
+    if (deleteForm) {
+      deleteForm.style.display = canDelete ? "block" : "none";
+      deleteForm.action = postId ? `/post/${postId}/delete` : "";
+    }
 
-    reportForm.style.display = canReport ? "block" : "none";
-    if (reportTargetId) reportTargetId.value = postId;
+    if (reportForm) {
+      reportForm.style.display = canReport ? "block" : "none";
+    }
+    if (reportTargetId) {
+      reportTargetId.value = postId;
+    }
 
     sheet.classList.add("open");
     overlay.classList.add("open");
+    try { window.history.pushState({ feedMenuOpen: true }, "", window.location.href); } catch (e) {}
   };
 
   document.addEventListener("click", function (e) {
@@ -1115,16 +1155,13 @@ document.addEventListener("DOMContentLoaded", function () {
       openSheet(trigger);
       return;
     }
-    if (e.target === overlay || e.target === cancelBtn) {
+    if (e.target === overlay || (cancelBtn && e.target === cancelBtn)) {
       closeSheet();
     }
   });
 
-  window.addEventListener('popstate', function (e) {
-              sendBtn.innerHTML = '<i class="bx bx-check"></i> Sent!';
-              try { triggerHaptic(); } catch(e){}
-      closeSheet(true);
-    }
+  window.addEventListener("popstate", function () {
+    closeSheet(true);
   });
 });
 

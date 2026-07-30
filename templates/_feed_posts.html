@@ -626,11 +626,11 @@
             </button>
             <div class="xpost-menu" data-dropdown-menu aria-hidden="true">
               <button type="button" class="xpost-menu-item js-post-copy-link" data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}">
-                <i data-lucide="link" class="w-4 h-4"></i>
+                <svg class="menu-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><path d="M10 14a3 3 0 0 1 0-6h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 10a3 3 0 0 1 0 6H10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 <span>Copy Link</span>
               </button>
               <button type="button" class="xpost-menu-item js-share-btn" data-post-id="{{ post.id }}" data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}">
-                <i data-lucide="share-2" class="w-4 h-4"></i>
+                <svg class="menu-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><circle cx="18" cy="5" r="3" stroke="currentColor" stroke-width="1.6"/><circle cx="6" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/><circle cx="18" cy="19" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M8.6 13.5l6.8 3.99" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.4 6.5 8.6 10.49" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 <span>Share</span>
               </button>
               <button type="button" class="xpost-menu-item" data-action="report-post" data-post-id="{{ post.id }}">
@@ -721,14 +721,21 @@
           </button>
 
           <button type="button" class="js-repost-btn xpost-action repost" data-post-id="{{ post.id }}" title="Repost" aria-label="Repost post">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10"></path><path d="M17 7v10"></path><path d="M7 17v-10"></path><path d="M7 17h10"></path></svg>
+            <svg class="pc-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" fill="none">
+              <path d="M21 12a9 9 0 1 0-2.6 6.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              <path d="M21 12v-4h-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </svg>
             <span class="xpost-action-count repost-count count">{{ post.share_count or 0 }}</span>
           </button>
         </div>
 
         <div class="flex items-center gap-2">
           <button type="button" class="js-share-btn xpost-action share feed-share-btn" data-post-id="{{ post.id }}" data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}" title="Share" aria-label="Share post">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 12v7"></path><path d="M16 5v7"></path><path d="m5 8 7-4 7 4"></path><path d="M8 12h8"></path></svg>
+            <svg class="pc-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" fill="none">
+              <path d="M12 3v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+              <path d="M8 7l4-4 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+              <path d="M21 21H3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+            </svg>
           </button>
           <button type="button" class="js-save-btn xpost-action save" data-post-id="{{ post.id }}" title="Save" aria-label="Save post">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h12a1 1 0 0 1 1 1v15l-7-4-7 4V5a1 1 0 0 1 1-1Z"></path></svg>

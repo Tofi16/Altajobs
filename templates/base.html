@@ -98,7 +98,7 @@
 {% block extra_styles %}{% endblock %}
 <noscript><style>body{opacity:1;visibility:visible;transition:none;}#page-loader{display:none!important;}</style></noscript>
 </head>
-<body class="{% if request.path.startswith('/admin') %}admin-page{% endif %}">
+<body class="{% if request.path.startswith('/admin') %}admin-page{% endif %}{% if current_user and (request.path == '/' or request.path.startswith('/feed')) %} home-theme{% endif %}">
 <div id="page-loader"><div class="loader-ring" aria-hidden="true"></div></div>
 <script>
 (function() {
@@ -120,10 +120,10 @@
 {% if current_user %}
 <header class="topbar">
   <div class="topbar-inner">
-    <a href="{{ url_for('feed') }}" class="brand" aria-label="AltaJobs home">
-      <span class="brand-mark">A</span>
+    <a href="{{ url_for('feed') }}" class="brand brand-logo" aria-label="AltaJobs home">
+      <span class="brand-mark"><i class='bx bxs-briefcase'></i></span>
       <span class="brand-copy">
-        <span class="brand-name">AltaJobs</span>
+        <span class="brand-name">AltaJobs<span class="brand-dot">.</span></span>
         <span class="brand-tag">Find work</span>
       </span>
     </a>
@@ -136,9 +136,9 @@
       <div class="topbar-icon-wrap">
         <button type="button" class="topbar-icon-btn" id="headerBellToggle" aria-label="Notifications" aria-controls="headerNotifications" aria-expanded="false">
           <i class='bx bx-bell'></i>
-          {% set alert_count = unread_message_count or 0 %}
-          {% if alert_count > 0 %}
-          <span class="topbar-badge pulse">{{ alert_count if alert_count < 10 else '9+' }}</span>
+          {% set notification_count = notification_unread_count or 0 %}
+          {% if notification_count > 0 %}
+          <span class="topbar-badge pulse">{{ notification_count if notification_count < 10 else '9+' }}</span>
           {% endif %}
         </button>
         <div class="topbar-popover" id="headerNotifications" role="dialog" aria-label="Recent notifications" aria-hidden="true">
@@ -158,14 +158,15 @@
         </div>
       </div>
 
-      <button type="button" class="topbar-avatar-btn" id="headerSidebarToggle" aria-label="Open account menu" aria-controls="headerSidebarDrawer" aria-expanded="false">
+      <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="topbar-avatar-btn" id="headerAvatarLink" aria-label="Open profile">
         {% set user_name = (current_user.get('full_name') or current_user.get('username') or 'U') %}
         {% if current_user.get('avatar') %}
           <img src="{{ photo_url(current_user.get('avatar')) }}" alt="{{ user_name }}">
         {% else %}
           <span>{{ user_name[0] }}</span>
         {% endif %}
-      </button>
+      </a>
+      <!-- three-dot actions removed per request -->
     </div>
   </div>
 
@@ -194,9 +195,9 @@
   </a>
 
   <div class="sidebar-card">
-    <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="sidebar-link"><i class='bx bx-user-circle'></i> {{ t.tab_profile }}</a>
-    <a href="{{ url_for('wallet') }}" class="sidebar-link"><i class='bx bx-wallet'></i> {{ t.wallet }}</a>
-    <a href="{{ url_for('settings_page') }}" class="sidebar-link"><i class='bx bx-cog'></i> {{ t.tab_settings }}</a>
+  <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="sidebar-link"><i class='bx bx-user-circle'></i> {{ t.tab_profile }}</a>
+  <a href="{{ url_for('wallet') }}" class="sidebar-link"><i class='bx bx-wallet'></i> {{ t.wallet }}</a>
+  <!-- Settings link intentionally omitted here to avoid duplicate entry; use bottom nav (mobile) and header drawer (menu) -->
     {% if current_user and current_user['is_admin'] %}
       <a href="{{ url_for('admin_dashboard') }}" class="sidebar-link"><i class='bx bx-shield-quarter'></i> Admin Dashboard</a>
     {% endif %}
@@ -261,6 +262,7 @@
       <i class='bx bx-user-circle' style="font-size:1.35rem;color:var(--accent)"></i>
       <div class="drawer-label">{{ t.tab_profile }}</div>
     </a>
+    <!-- Settings kept in drawer for quick access, but removed from left sidebar to avoid duplicates -->
     <a href="{{ url_for('settings_page') }}">
       <i class='bx bx-cog' style="font-size:1.35rem;color:var(--accent)"></i>
       <div class="drawer-label">Settings</div>
@@ -305,16 +307,9 @@
     <i class='bx {{ "bxs-wallet" if request.path.startswith("/wallet") else "bx-wallet" }}'></i>
     <span>{{ t.wallet }}</span>
   </a>
-  <a href="{{ url_for('profile', user_id=current_user['id']) }}" class="nav-tab {{ 'active' if request.path.startswith('/profile/' + current_user['id']|string) or request.path.startswith('/settings') or request.path.startswith('/admin') or request.path.startswith('/challenge') }}">
-    <span class="nav-profile-avatar">
-      {% set profile_name = (current_user.get('full_name') or current_user.get('username') or 'U') %}
-      {% if current_user.get('avatar') %}
-        <img src="{{ photo_url(current_user.get('avatar')) }}">
-      {% else %}
-        {{ profile_name[0] }}
-      {% endif %}
-    </span>
-    <span>{{ t.tab_profile }}</span>
+  <a href="{{ url_for('settings_page') }}" class="nav-tab {{ 'active' if request.path.startswith('/settings') }}">
+    <i class='bx {{ "bxs-cog" if request.path.startswith("/settings") else "bx-cog" }}'></i>
+    <span>{{ t.tab_settings }}</span>
   </a>
 </nav>
 <script>

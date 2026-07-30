@@ -172,21 +172,106 @@
 .pc-identity, .xpost-author { min-width:0 }
 .pc-name { font-weight:800; color:#f1f5f9; font-size:1rem; display:inline-flex; align-items:center; gap:8px }
 .pc-meta, .xpost-meta { color:#94a3b8; font-size:0.85rem }
-.verification-badge--inline { display:inline-flex; margin-left:6px; }
+.verification-badge--inline {
+  display: inline-flex;
+  margin-left: 0.4ch;
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+  flex: none;
+  line-height: 1;
+}
+.verification-badge--inline svg { width: 100%; height: 100%; display: block; }
+.verification-badge--blue { color: var(--accent, #1D9BF0); }
+.verification-badge--gold { color: #f6c84c; }
 
 /* Media */
-.pc-media, .xpost-photo-wrap { margin-top:12px; border-radius:0.875rem; overflow:hidden; }
-.pc-media img, .xpost-photo { width:100%; max-height:480px; object-fit:cover; display:block; }
+.pc-media, .xpost-photo-wrap { margin-top: 12px; border-radius: 0.875rem; overflow: hidden; }
+.pc-media img, .xpost-photo { width: 100%; max-width: 100%; height: auto; display: block; border-radius: inherit; }
+
+/* Prevent overflow on very tall images while keeping aspect ratio */
+@media (max-width: 640px) {
+  .pc-media img, .xpost-photo { max-height: 60vh; object-fit: cover; }
+}
 
 /* Actions row */
 .pc-actions, .xpost-actions, .post-actions-row {
   display:flex; justify-content:space-between; align-items:center; padding:0.75rem 0.5rem; gap:8px; margin-top:12px;
 }
 .pc-actions .pc-action-btn, .xpost-action, .post-action-btn {
-  display:inline-flex; align-items:center; gap:10px; padding:8px 10px; border-radius:9999px; background:transparent; border:1px solid transparent; transition:all .18s ease; cursor:pointer; color:var(--muted, #cbd5e1);
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: 12px; background: transparent; border: 1px solid transparent; transition: all .12s ease; cursor: pointer; color: var(--muted, #94a3b8); min-height: 48px; min-width: 48px; box-sizing: border-box;
 }
-.pc-actions .pc-action-btn:hover, .xpost-action:hover, .post-action-btn:hover { background: rgba(255,255,255,0.04); transform:translateY(-2px); }
-.pc-actions .pc-action-btn i, .xpost-action i, .post-action-btn i { width:18px;height:18px; display:inline-block; }
+.pc-actions .pc-action-btn:hover, .xpost-action:hover, .post-action-btn:hover { background: rgba(255,255,255,0.04); transform: translateY(-2px); }
+.pc-actions .pc-action-btn:active, .xpost-action:active, .post-action-btn:active { transform: translateY(0); }
+.pc-actions .pc-action-btn svg, .xpost-action svg, .post-action-btn svg { width: 22px; height: 22px; display: block; stroke: currentColor; }
+.pc-actions .pc-action-btn .count, .xpost-action .like-count, .xpost-action .comment-count { font-size: 0.96rem; font-weight: 800; color: #e6edf3; margin-left: 6px; }
+
+/* Compact boxed action area for improved spacing and comfortable touch targets */
+.pc-action-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.04);
+  width: 100%;
+  box-sizing: border-box;
+}
+.pc-actions-left, .pc-actions-right { display:flex; gap:8px; align-items:center }
+
+/* Slightly reduce icon size visually while keeping comfortable touch area */
+.pc-action-box .pc-action-btn { padding: 8px; min-width:48px; min-height:48px; border-radius:10px; background: transparent; }
+.pc-action-box .pc-action-btn svg { width:20px; height:20px; }
+.pc-action-box .pc-action-btn .count { margin-left:6px; font-size:0.92rem }
+
+@media (max-width: 640px) {
+  .pc-action-box { padding: 6px; }
+  .pc-action-box .pc-action-btn { min-width:44px; min-height:44px; padding: 6px }
+}
+
+/* Small inline icons used in dropdown/menu items */
+.menu-icon { width:18px; height:18px; display:inline-block; vertical-align:middle; margin-right:8px; stroke:currentColor; }
+.xpost-menu-item svg { width:18px; height:18px; stroke:currentColor }
+
+/* Distinct color states */
+.pc-action-btn.liked, .pc-action-btn.liked svg { color: #ef4444; filter: drop-shadow(0 6px 14px rgba(239,68,68,0.14)); }
+.pc-action-btn.bookmarked, .pc-action-btn.bookmarked svg { color: #f59e0b; filter: drop-shadow(0 6px 14px rgba(245,158,11,0.12)); }
+
+/* bookmark fill toggle: when .saved add fill and hide outline stroke */
+.pc-action-btn.saved svg .bm-outline { opacity: 0; }
+.pc-action-btn.saved svg .bm-fill { opacity: 1; }
+.pc-action-btn.saved { color: #06b6d4; }
+
+/* Slight spacing and color polish to match brand tokens */
+.pc-card { border-radius: 1.25rem; padding: 1rem; }
+.pc-name { color: #f8fafc; font-weight: 800; font-size: 1rem; }
+.pc-meta { color: #94a3b8; font-size: 0.82rem; }
+
+/* Role pill for job / skill posts — sample-only badge (non-interactive) */
+.pc-name-row { display: inline-flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+.pc-role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.22rem 0.56rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #e6edf3;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid rgba(255,255,255,0.04);
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.18);
+  white-space: nowrap;
+}
+.pc-role-pill i, .pc-role-pill svg { width: 1em; height: 1em; }
+
+@media (max-width: 640px) {
+  .pc-role-pill { font-size: 0.72rem; padding: 0.18rem 0.44rem; }
+  .pc-name { font-size: 0.98rem; }
+  .pc-actions .pc-action-btn, .xpost-action, .post-action-btn { min-height: 44px; min-width: 44px; padding: 8px; }
+}
 
 /* Like animation */
 @keyframes heartPop { 0%{ transform: scale(1); } 40%{ transform: scale(1.35); } 100%{ transform: scale(1); } }

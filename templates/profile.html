@@ -114,10 +114,7 @@
       <i class='bx bx-share-alt'></i>
     </button>
     {% if current_user and current_user['id'] == profile_user['id'] %}
-      <a href="{{ url_for('settings_page') }}" class="profile-settings-link" aria-label="Open settings" title="Open settings">
-        <i class='bx bx-cog'></i>
-        {{ t.tab_settings if t.tab_settings is defined else 'Settings' }}
-      </a>
+      <!-- Settings link removed from profile header to avoid duplication; access Settings via header drawer or bottom nav -->
     {% endif %}
   </div>
 

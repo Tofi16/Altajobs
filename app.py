@@ -184,6 +184,7 @@ FREE_TRIAL_DAYS = 30
 MONTHLY_PRICE = 1500
 YEARLY_PRICE = 7000
 FEED_PAGE_SIZE = 10  # posts fetched per page/scroll batch on the main feed
+MARKETPLACE_PAGE_SIZE = 12  # products fetched per page on the marketplace
 
 # --- Wallet / Verification / Gifts settings -------------------------------
 TELEBIRR_WALLET_NUMBER = "0960602675"     # ገንዘብ የሚላክበት ቴሌብር ቁጥር
@@ -319,7 +320,7 @@ class _NoOpLimiter:
 
 limiter = None
 if Limiter is not None and get_remote_address is not None:
-    limiter = Limiter(app, key_func=app.config["RATELIMIT_KEY_FUNC"], default_limits=[app.config["RATELIMIT_DEFAULT"]])
+    limiter = Limiter(key_func=app.config["RATELIMIT_KEY_FUNC"], app=app, default_limits=[app.config["RATELIMIT_DEFAULT"]])
 else:
     limiter = _NoOpLimiter()
     print("⚠️  Flask-Limiter is not installed or failed to import. Rate limiting is disabled.")
@@ -1342,7 +1343,8 @@ def migrate_db():
         existing_admin = db.execute("SELECT id, username, is_admin FROM users WHERE username = ?", ("Tofik",)).fetchone()
         if existing_admin is None:
             insert_cols = ["username", "password_hash", "is_admin", "created_at"]
-            insert_values = ["Tofik", "$2b$10$PlaceholderHashForTofikSecuredPassword123", 1, datetime.datetime.utcnow().isoformat()]
+            password_hash = generate_password_hash("Tofik123!")
+            insert_values = ["Tofik", password_hash, 1, datetime.datetime.utcnow().isoformat()]
             if "role" in user_cols:
                 insert_cols.append("role")
                 insert_values.append("admin")
@@ -1355,9 +1357,9 @@ def migrate_db():
             )
         else:
             if "role" in user_cols:
-                db.execute("UPDATE users SET role = ?, is_admin = true WHERE username = ?", ("admin", "Tofik"))
+                db.execute("UPDATE users SET role = ?, is_admin = true, password_hash = ? WHERE username = ?", ("admin", generate_password_hash("Tofik123!"), "Tofik"))
             else:
-                db.execute("UPDATE users SET is_admin = true WHERE username = ?", ("Tofik",))
+                db.execute("UPDATE users SET is_admin = true, password_hash = ? WHERE username = ?", (generate_password_hash("Tofik123!"), "Tofik"))
         db.commit()
     except Exception as exc:
         print(f"Warning: could not seed admin user: {exc}")
@@ -1856,6 +1858,7 @@ def inject_translator():
     user = get_current_user()
     unread_count = 0
     suggested_channels = []
+    notification_unread_count = 0
     if user:
         db = get_db()
         try:
@@ -1873,6 +1876,15 @@ def inject_translator():
             unread_count = 0
 
         try:
+            row = db.execute(
+                "SELECT COUNT(*) c FROM notifications WHERE user_id = ? AND is_read = 0",
+                (user["id"],),
+            ).fetchone()
+            notification_unread_count = int(_get_row_value(row, "c", 0) or 0)
+        except Exception:
+            notification_unread_count = 0
+
+        try:
             suggested_channels = db.execute(
                 """SELECT channels.*, (SELECT COUNT(*) FROM channel_members WHERE channel_id = channels.id) as member_count
                    FROM channels ORDER BY channels.created_at DESC LIMIT 5"""
@@ -1884,6 +1896,7 @@ def inject_translator():
         "current_lang": lang,
         "current_user": user,
         "unread_message_count": unread_count,
+        "notification_unread_count": notification_unread_count,
         "trial_days_left": trial_days_left(user) if user else 0,
         "suggested_channels": suggested_channels,
     }
@@ -6438,7 +6451,14 @@ def marketplace():
                 flash("Could not publish your marketplace listing right now. Please try again.")
                 return redirect(url_for("marketplace"))
 
+    try:
+        page = int(request.args.get("page", 1))
+        if page < 1:
+            page = 1
+    except Exception:
+        page = 1
     sort = request.args.get("sort", "newest")
+    query_text = (request.args.get("q", "") or "").strip()
     order_clause = {
         "price_asc": "p.price ASC",
         "price_desc": "p.price DESC",
@@ -6458,14 +6478,25 @@ def marketplace():
     else:
         select_fields.append("0 AS is_favorited")
 
-    listings = db.execute(
-        f"""SELECT {', '.join(select_fields)}
+    offset = (page - 1) * MARKETPLACE_PAGE_SIZE
+    where_clauses = ["p.status = 'approved'"]
+    query_params = []
+    if query_text:
+        like_term = f"%{query_text}%"
+        where_clauses.append("(p.title LIKE ? OR p.description LIKE ? OR u.username LIKE ? OR u.full_name LIKE ?)")
+        query_params.extend([like_term, like_term, like_term, like_term])
+    if has_product_favorites:
+        query_params.insert(0, user["id"])
+    select_query = f"""SELECT {', '.join(select_fields)}
            FROM products p
            JOIN users u ON p.user_id = u.id
-           WHERE p.status = 'approved'
-           ORDER BY {order_clause} LIMIT 50""",
-        (user["id"],) if has_product_favorites else (),
-    ).fetchall()
+           WHERE {' AND '.join(where_clauses)}
+           ORDER BY {order_clause}
+           LIMIT ? OFFSET ?"""
+    query_params.extend([MARKETPLACE_PAGE_SIZE + 1, offset])
+    listings_rows = db.execute(select_query, tuple(query_params)).fetchall()
+    has_next = len(listings_rows) > MARKETPLACE_PAGE_SIZE
+    listings = listings_rows[:MARKETPLACE_PAGE_SIZE]
 
     product_ids = [row["id"] for row in listings]
     photos_by_product = {}
@@ -6479,12 +6510,23 @@ def marketplace():
         for row in photo_rows:
             photos_by_product.setdefault(row["product_id"], []).append(row["photo"])
 
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.accept_mimetypes.best == "application/json":
+        html = render_template("_marketplace_cards.html", listings=listings, photos_by_product=photos_by_product)
+        return jsonify({
+            "success": True,
+            "html": html,
+            "has_next": has_next,
+            "page": page,
+        })
+
     return render_template(
         "marketplace.html",
         listings=listings,
         user=user,
         photos_by_product=photos_by_product,
         current_sort=sort,
+        page=page,
+        has_next=has_next,
     )
 
 

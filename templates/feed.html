@@ -281,6 +281,52 @@
     transition: background-color 0.16s ease, transform 0.16s ease, opacity 0.16s ease;
     cursor: pointer;
   }
+  .feed-composer-filename {
+    margin-top: 0.5rem;
+    color: #94a3b8;
+    font-size: 0.82rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .feed-composer-preview {
+    position: relative;
+    margin-top: 0.9rem;
+    border-radius: 1rem;
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(15, 23, 42, 0.92);
+  }
+  .feed-composer-preview img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: cover;
+    max-height: 260px;
+  }
+  .feed-composer-preview-remove {
+    position: absolute;
+    top: 0.7rem;
+    right: 0.7rem;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.88);
+    color: #f8fafc;
+    font-size: 1.15rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
+  }
+  .feed-composer-preview-remove:hover,
+  .feed-composer-preview-remove:focus-visible {
+    background: rgba(15, 23, 42, 1);
+    outline: none;
+  }
   .feed-composer-submit:hover,
   .feed-composer-submit:focus-visible {
     background: #0ea5e9;
@@ -352,22 +398,23 @@
         <button type="button" id="composePreviewRemove" class="feed-composer-preview-remove" aria-label="Remove photo">×</button>
       </div>
 
-      <div class="feed-composer-actions">
+      <div id="composeActions" class="feed-composer-actions">
         <div class="flex items-center gap-1 sm:gap-2">
           <button type="button" class="feed-composer-attach" data-attachment="photo">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2-2h10l2 2h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
             <span>Photo</span>
           </button>
-          <button type="button" class="feed-composer-attach" data-attachment="job">
+          <button type="button" class="feed-composer-attach feed-creator-pill" data-post-type="job">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M3 7h18"></path><path d="M5 7v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7"></path><path d="M9 7V5h6v2"></path></svg>
             <span>Job</span>
           </button>
-          <button type="button" class="feed-composer-attach" data-attachment="skill">
+          <button type="button" class="feed-composer-attach feed-creator-pill" data-post-type="skill">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M12 3 4 7v5c0 5 3.6 8.2 8 9 4.4-.8 8-4 8-9V7l-8-4Z"></path></svg>
             <span>Skill</span>
           </button>
           <label for="composePhotoInput" class="sr-only">Attach photo</label>
           <input type="file" name="photo" accept="image/*" id="composePhotoInput" class="sr-only">
+          <div id="composePhotoName" class="feed-composer-filename" hidden></div>
         </div>
         <button type="submit" id="composeSubmitButton" class="feed-composer-submit">Post</button>
       </div>
@@ -556,87 +603,6 @@
     }
   }
 
-  if (composerTextarea) {
-    composerTextarea.addEventListener('input', resizeComposerTextarea);
-    resizeComposerTextarea();
-  }
-
-  if (composerInput) {
-    composerInput.addEventListener('change', function () {
-      var file = composerInput.files && composerInput.files[0];
-      if (!composerPreviewWrap || !composerPreviewImg) return;
-      if (!file) {
-        refreshComposerPreview();
-        return;
-      }
-      var reader = new FileReader();
-      reader.onload = function (e) {
-        composerPreviewImg.src = e.target.result;
-        composerPreviewWrap.hidden = false;
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  if (composerPreviewRemove) {
-    composerPreviewRemove.addEventListener('click', function () {
-      if (composerInput) composerInput.value = '';
-      refreshComposerPreview();
-    });
-  }
-
-  if (composerForm) {
-    composerForm.addEventListener('submit', function (e) {
-      e.preventDefault();
-      if (!composerTextarea) return;
-      var content = composerTextarea.value.trim();
-      var hasFile = composerInput && composerInput.files && composerInput.files.length > 0;
-      if (!content && !hasFile) return;
-
-      syncComposerType();
-      if (composerSubmit) {
-        composerSubmit.disabled = true;
-        composerSubmit.textContent = 'Posting…';
-      }
-
-      var formData = new FormData(composerForm);
-      fetch(composerForm.action, {
-        method: 'POST',
-        body: formData,
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      })
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-          if (data && data.success && data.html) {
-            composerForm.reset();
-            syncComposerType();
-            refreshComposerPreview();
-            if (composerTextarea) {
-              composerTextarea.value = '';
-              resizeComposerTextarea();
-            }
-            prependUniquePosts(data.html);
-            refreshFeedUI();
-            if (typeof window.showToast === 'function') {
-              window.showToast('Post published', 'success');
-            }
-          } else if (typeof window.showToast === 'function') {
-            window.showToast('Could not publish your post', 'error');
-          }
-        })
-        .catch(function () {
-          if (typeof window.showToast === 'function') {
-            window.showToast('Could not publish your post', 'error');
-          }
-        })
-        .finally(function () {
-          if (composerSubmit) {
-            composerSubmit.disabled = false;
-            composerSubmit.textContent = 'Post';
-          }
-        });
-    });
-  }
 
   function loadNextPage() {
     if (isFetching || loading || !hasNext) return;

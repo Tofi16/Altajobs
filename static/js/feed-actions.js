@@ -17,6 +17,18 @@
     });
   }
 
+  function postJson(url) {
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+    }).then(function (r) {
+      var ct = r.headers.get('content-type') || '';
+      if (ct.indexOf('application/json') === -1) return r.json().catch(function(){ return {} });
+      return r.json();
+    });
+  }
+
   function showToast(msg, type) {
     var t = document.createElement('div');
     t.className = 'aj-toast aj-toast--' + (type || 'info');
@@ -40,6 +52,10 @@
 
     var postId = btn.dataset.postId;
     if (!postId) return;
+
+    // prevent duplicate rapid clicks
+    if (btn.dataset.inflight === '1') return;
+    btn.dataset.inflight = '1';
 
     // Optimistic update
     var wasLiked = btn.classList.contains('liked');
@@ -66,6 +82,9 @@
         btn.classList.toggle('liked', wasLiked);
         if (countEl) countEl.textContent = currentCount;
         showToast('Could not update like. Try again.', 'error');
+      })
+      .finally(function () {
+        delete btn.dataset.inflight;
       });
   });
 
@@ -85,6 +104,10 @@
     var wasFollowing = btn.classList.contains('following');
     var followLabel = btn.dataset.followLabel || 'Follow';
     var followingLabel = btn.dataset.followingLabel || 'Unfollow';
+
+    // prevent duplicate requests
+    if (btn.dataset.inflight === '1') return;
+    btn.dataset.inflight = '1';
 
     // Optimistic update
     btn.classList.toggle('following', !wasFollowing);
@@ -122,8 +145,14 @@
         if (labelEl) labelEl.textContent = wasFollowing ? followingLabel : followLabel;
         showToast('Could not update follow. Try again.', 'error');
       })
+      .catch(function () {
+        btn.classList.toggle('following', wasFollowing);
+        if (labelEl) labelEl.textContent = wasFollowing ? followingLabel : followLabel;
+        showToast('Could not update follow. Try again.', 'error');
+      })
       .finally(function () {
         btn.disabled = false;
+        delete btn.dataset.inflight;
       });
   });
 
@@ -316,15 +345,90 @@
     e.stopPropagation();
     var postId = btn.dataset.postId;
     if (!postId) return;
+    // guard rapid clicks
+    if (btn.dataset.inflight === '1') return;
+    btn.dataset.inflight = '1';
     var wasSaved = btn.classList.contains('saved');
     btn.classList.toggle('saved', !wasSaved);
+    btn.disabled = true;
     fetch('/post/' + postId + '/save', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    }).then(function (r) {
+      if (!r.ok) throw new Error('network');
+      // server returns redirect; assume success on 2xx
     }).catch(function () {
       btn.classList.toggle('saved', wasSaved);
       showToast('Could not update save state.', 'error');
+    }).finally(function () {
+      btn.disabled = false;
+      delete btn.dataset.inflight;
+    });
+  });
+
+  /* ─── Repost (share) handler (AJAX) ───────────────────────────── */
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.js-repost-btn');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var postId = btn.dataset.postId;
+    if (!postId) return;
+    if (btn.dataset.inflight === '1') return;
+    btn.dataset.inflight = '1';
+    btn.disabled = true;
+    // optimistic: increment any nearby share count element
+    var countEl = btn.querySelector('.count') || document.querySelector('.js-share-count[data-post-id="' + postId + '"]');
+    var current = parseInt((countEl && countEl.textContent) || '0', 10) || 0;
+    if (countEl) countEl.textContent = current + 1;
+    postJson('/api/post/' + postId + '/repost')
+      .then(function (data) {
+        if (!data || !data.success) throw new Error('failed');
+        if (countEl && typeof data.share_count !== 'undefined') countEl.textContent = data.share_count;
+        showToast('Reposted', 'info');
+      })
+      .catch(function () {
+        if (countEl) countEl.textContent = current;
+        showToast('Could not repost. Try again.', 'error');
+      })
+      .finally(function () {
+        btn.disabled = false;
+        delete btn.dataset.inflight;
+      });
+  });
+
+  /* ─── Share button: open native share where available, and log via repost API ───────────────── */
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.js-share-btn');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var postId = btn.dataset.postId;
+    if (!postId) return;
+    if (btn.dataset.inflight === '1') return;
+    btn.dataset.inflight = '1';
+    btn.disabled = true;
+    // attempt navigator.share
+    var shareUrl = window.location.origin + '/post/' + postId;
+    var sharePromise = Promise.resolve();
+    if (navigator.share) {
+      sharePromise = navigator.share({ title: document.title, url: shareUrl }).catch(function () {});
+    }
+    sharePromise.then(function () {
+      // log share/repost server-side
+      return postJson('/api/post/' + postId + '/repost');
+    }).then(function (data) {
+      showToast('Thanks for sharing!', 'info');
+      // update counts if returned
+      var cnt = data && data.share_count ? data.share_count : undefined;
+      var countEl = document.querySelector('.js-share-count[data-post-id="' + postId + '"]');
+      if (countEl && typeof cnt !== 'undefined') countEl.textContent = cnt;
+    }).catch(function () {
+      showToast('Could not complete share.', 'error');
+    }).finally(function () {
+      btn.disabled = false;
+      delete btn.dataset.inflight;
     });
   });
 

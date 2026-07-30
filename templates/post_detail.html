@@ -59,11 +59,19 @@
       <span class="like-count">{{ like_count }}</span>
     </button>
     <button type="button" class="action-btn js-repost-btn" data-post-id="{{ post['id'] }}" title="Repost">
-      <i class='bx bx-repost'></i><span class="action-count repost-count">{{ post['share_count'] }}</span>
+      <svg class="pc-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" fill="none">
+        <path d="M21 12a9 9 0 1 0-2.6 6.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <path d="M21 12v-4h-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+      <span class="action-count repost-count">{{ post['share_count'] }}</span>
     </button>
     <button type="button" class="action-btn js-share-btn" data-post-id="{{ post['id'] }}"
             data-post-url="{{ url_for('post_detail', post_id=post['id'], _external=True) }}" title="Share">
-      <i class='bx bx-share-alt'></i>
+      <svg class="pc-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" fill="none">
+        <path d="M12 3v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+        <path d="M8 7l4-4 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+        <path d="M21 21H3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+      </svg>
     </button>
   </div>
 

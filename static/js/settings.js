@@ -39,8 +39,19 @@
       var msgAlerts = document.getElementById('messageAlertsToggle');
       if(msgAlerts){ msgAlerts.checked = !!s.notifications_messages; msgAlerts.addEventListener('change', function(){ fetch('/api/v1/settings/preferences', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({notifications_messages: msgAlerts.checked})}); }); }
 
-      // language modal actions
-      elAll('#langModal a').forEach(function(a){ a.addEventListener('click', function(){ var href = a.getAttribute('href'); fetch(href).then(function(){ location.reload(); }); return false; }); });
+      // language modal actions — persist via settings API then reload
+      elAll('#langModal a').forEach(function(a){ a.addEventListener('click', function(ev){ ev.preventDefault(); var href = a.getAttribute('href'); try{ var m = href.match(/lang=|set_language\/(\w+)/); var lang = null; if(m){ lang = m[1] || null; } if(!lang){ // try query param
+            var parts = href.split('?'); if(parts.length>1){ var params = new URLSearchParams(parts[1]); lang = params.get('lang'); }
+          }
+          if(!lang){ // fallback to href path last segment
+            var seg = href.split('/').pop(); if(seg) lang = seg;
+          }
+          if(lang){
+            fetch('/api/v1/settings/preferences', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ language: lang }) }).then(function(r){ return r.json(); }).then(function(res){ if(res && res.success) location.reload(); else location.reload(); }).catch(function(){ location.reload(); });
+            return false;
+          }
+        }catch(e){ /* ignore and fallback */ }
+        fetch(href).then(function(){ location.reload(); }); return false; }); });
 
       // change password form (if present)
       var pwdForm = document.getElementById('changePasswordForm');

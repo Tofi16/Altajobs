@@ -7,6 +7,10 @@
       <h2>💬 {{ t.messages }}</h2>
       <p class="messages-subtitle">{{ t.messages_subtitle if t.messages_subtitle is defined else 'Connect with your network through secure AltaJobs chat.' }}</p>
     </div>
+    <div class="messages-header-actions">
+      <span class="messages-count">{{ active|length }} {{ 'conversation' if active|length == 1 else 'conversations' }}</span>
+      <a href="{{ url_for('feed') }}" class="btn btn-outline btn-small">Browse feed</a>
+    </div>
   </div>
 
   {% if requests_in %}

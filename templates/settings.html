@@ -82,7 +82,6 @@
           </div>
           <i class='bx bx-chevron-right text-slate-400'></i>
         </a>
-
         <div class="settings-row">
           <div class="settings-row-left">
             <div class="settings-icon"><i class='bx bx-moon text-indigo-400 text-lg'></i></div>
@@ -95,6 +94,34 @@
             <input type="checkbox" id="themeToggle" class="sr-only" checked onchange="toggleTheme(this)">
             <div class="w-11 h-6 bg-white/6 rounded-full shadow-inner"></div>
             <span class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full transition-transform" id="themeThumb"></span>
+          </label>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-icon"><i class='bx bx-bell text-amber-400 text-lg'></i></div>
+            <div>
+              <div class="settings-row-title">Job Alerts</div>
+              <div class="settings-row-subtitle">Receive notifications for new job matches</div>
+            </div>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="jobAlertsToggle" class="sr-only">
+            <div class="w-11 h-6 bg-white/6 rounded-full shadow-inner"></div>
+          </label>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-row-left">
+            <div class="settings-icon"><i class='bx bx-mail-send text-sky-400 text-lg'></i></div>
+            <div>
+              <div class="settings-row-title">Message Notifications</div>
+              <div class="settings-row-subtitle">Notify me when I receive new messages</div>
+            </div>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="messageAlertsToggle" class="sr-only">
+            <div class="w-11 h-6 bg-white/6 rounded-full shadow-inner"></div>
           </label>
         </div>
       </div>
