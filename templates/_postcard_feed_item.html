@@ -100,7 +100,7 @@
           <path d="M21 21H3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
         </svg>
       </button>
-      <button type="button" class="pc-action-btn js-save-btn" data-post-id="{{ post['id'] }}" aria-pressed="false" aria-label="Save">
+      <button type="button" class="pc-action-btn js-save-btn {{ 'saved' if post.get('saved') else '' }}" data-post-id="{{ post['id'] }}" aria-pressed="{{ 'true' if post.get('saved') else 'false' }}" aria-label="Save">
         <!-- bookmark outline/fill (CSS toggles 'saved' class) -->
         <svg class="pc-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
           <path class="bm-outline" d="M6 2h12v18l-6-4-6 4V2z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>

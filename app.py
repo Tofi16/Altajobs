@@ -2401,39 +2401,10 @@ def get_verification_tier(user):
 # handler was removed to avoid duplicate route registration.
 
 
-@app.route('/api/like/<int:post_id>', methods=['POST'])
-@login_required
-def api_toggle_like_basic(post_id):
-    db = get_db()
-    me = get_current_user()
-    if not me:
-        return jsonify({'error': 'not_authenticated'}), 401
-    try:
-        existing = db.execute(
-            "SELECT id FROM likes WHERE user_id = ? AND post_id = ?",
-            (me['id'], post_id),
-        ).fetchone()
-        if existing:
-            db.execute("DELETE FROM likes WHERE id = ?", (existing['id'],))
-            db.execute("UPDATE posts SET like_count = COALESCE(like_count,0) - 1 WHERE id = ? AND like_count > 0", (post_id,))
-            db.commit()
-            row = db.execute("SELECT COALESCE(like_count,0) AS c FROM posts WHERE id = ?", (post_id,)).fetchone()
-            return jsonify({'liked': False, 'like_count': int(row['c'] or 0)})
-        else:
-            db.execute(
-                "INSERT INTO likes (user_id, post_id) VALUES (?, ?)",
-                (me['id'], post_id),
-            )
-            db.execute("UPDATE posts SET like_count = COALESCE(like_count,0) + 1 WHERE id = ?", (post_id,))
-            db.commit()
-            row = db.execute("SELECT COALESCE(like_count,0) AS c FROM posts WHERE id = ?", (post_id,)).fetchone()
-            return jsonify({'liked': True, 'like_count': int(row['c'] or 0)})
-    except Exception:
-        try:
-            db.rollback()
-        except Exception:
-            pass
-        return jsonify({'error': 'db_error'}), 500
+# The original basic AJAX like handler was removed to avoid conflicting
+# duplicate routes. The JSON-native `api_toggle_like` handler later in
+# this file implements likes in a robust way (counts derived from the
+# `likes` table rather than relying on a `like_count` column).
 
 
 def set_verification_tier(db, user_id, tier, until):
@@ -5040,8 +5011,8 @@ def like_post(post_id):
         liked = False
     else:
         db.execute(
-            "INSERT INTO likes (post_id, user_id, created_at) VALUES (?, ?, ?)",
-            (post_id, session["user_id"], datetime.datetime.utcnow().isoformat()),
+            "INSERT INTO likes (post_id, user_id) VALUES (?, ?)",
+            (post_id, session["user_id"]),
         )
         _notify_post_owner_on_like(db, post_id, session["user_id"])
         liked = True

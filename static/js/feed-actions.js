@@ -439,6 +439,8 @@
   var bellBtn = document.getElementById('headerBellToggle');
 
   function loadNotifications() {
+    // ensure we have a reference to the header bell button (might be null if script ran early)
+    var _bellBtn = bellBtn || document.getElementById('headerBellToggle');
     fetch('/api/notifications', {
       credentials: 'same-origin',
       headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -446,12 +448,12 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var count = data.unread_count || 0;
-        var badge = bellBtn ? bellBtn.querySelector('.topbar-badge') : null;
+        var badge = _bellBtn ? _bellBtn.querySelector('.topbar-badge') : null;
         if (count > 0) {
-          if (!badge && bellBtn) {
+          if (!badge && _bellBtn) {
             badge = document.createElement('span');
             badge.className = 'topbar-badge pulse';
-            bellBtn.appendChild(badge);
+            _bellBtn.appendChild(badge);
           }
           if (badge) badge.textContent = count > 9 ? '9+' : count;
         } else if (badge) {
@@ -463,6 +465,8 @@
 
   // Initial badge load + poll every 45s (does not mark as read, just refreshes count)
   document.addEventListener('DOMContentLoaded', function () {
+    // make loader callable from other scripts/tests and run immediately
+    window.loadNotifications = loadNotifications;
     loadNotifications();
     setInterval(loadNotifications, 45000);
   });

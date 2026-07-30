@@ -311,6 +311,8 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   justify-content: center;
   box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.84);
 }
+.topbar-icon-wrap { z-index: 10060; }
+.topbar-badge { position: absolute; z-index: 10070; }
 .topbar-badge.pulse { animation: topbar-badge-pulse 1.4s ease-in-out infinite; }
 @keyframes topbar-badge-pulse {
   0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.35); }

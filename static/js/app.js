@@ -35,6 +35,24 @@ function updateFollowButtonLabel(button, following, followLabel, followingLabel)
 window._pendingFollowRequests = window._pendingFollowRequests || {};
 window._pendingLikeRequests = window._pendingLikeRequests || {};
 
+// Capture-phase click guard for action buttons to prevent accidental navigation/scrolls
+document.addEventListener('click', function (e) {
+  try {
+    var target = e.target;
+    var btn = target.closest && target.closest('.js-like-btn, .js-follow-btn, .js-repost-btn, .js-save-btn, .js-share-btn, .js-comment-toggle');
+    if (btn) {
+      // If the button is inside a <form> we should not forcibly prevent default
+      // because the form handler/suggestion page relies on native submit behavior.
+      if (btn.closest && btn.closest('form')) return;
+      // prevent default navigation that can cause a scroll-to-top (e.g. anchors or form submits)
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  } catch (err) {
+    // ignore
+  }
+}, true);
+
 document.addEventListener("click", async function (e) {
   const btn = e.target.closest(".js-follow-btn");
   if (!btn) return;
@@ -89,7 +107,11 @@ document.addEventListener("click", async function (e) {
       }
     }
     window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update, { passive: true });
+    window.addEventListener('load', update, { passive: true });
     document.addEventListener('DOMContentLoaded', update);
+    // ensure initial visibility state is correct
+    try { update(); } catch(e){}
     btn.addEventListener('click', function(e){
       e.preventDefault(); e.stopPropagation();
       try { if (typeof window.closeAllModals === 'function') window.closeAllModals(); } catch(e){}

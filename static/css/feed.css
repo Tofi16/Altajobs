@@ -44,7 +44,8 @@
   justify-content: center;
   background: rgba(0,0,0,0.85);
   backdrop-filter: blur(8px);
-  z-index: 9998;
+  /* place above topbar badges/popovers */
+  z-index: 10150;
 }
 .feed-lightbox-overlay.open { display: flex; }
 .feed-lightbox-content {
@@ -58,7 +59,7 @@
   position: fixed;
   right: 14px;
   top: 14px;
-  z-index: 9999;
+  z-index: 10160; /* above lightbox overlay content */
   width: 44px; height: 44px; border-radius: 10px;
   display: grid; place-items: center; color: #fff; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
   cursor: pointer; font-size: 1.05rem;
@@ -184,6 +185,10 @@
 .verification-badge--inline svg { width: 100%; height: 100%; display: block; }
 .verification-badge--blue { color: var(--accent, #1D9BF0); }
 .verification-badge--gold { color: #f6c84c; }
+
+/* Ensure verification badges render above theme overlays and are not clipped */
+.verification-badge--inline { position: relative; z-index: 10050; }
+.pc-name-row, .pc-identity { overflow: visible; }
 
 /* Media */
 .pc-media, .xpost-photo-wrap { margin-top: 12px; border-radius: 0.875rem; overflow: hidden; }

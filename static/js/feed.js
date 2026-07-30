@@ -43,9 +43,13 @@
     lbOverlay.innerHTML = '<div class="feed-lightbox-content"><img src="" alt="preview"/></div><button class="feed-lightbox-close" aria-label="Close">✕</button>';
     document.body.appendChild(lbOverlay);
 
+    // Prevent lightbox clicks from bubbling to global document handlers
     lbOverlay.addEventListener('click', function(e){
       if (e.target === lbOverlay) closeLightbox();
     });
+    lbOverlay.addEventListener('click', function(e){
+      e.stopPropagation();
+    }, true);
     var closeBtn = lbOverlay.querySelector('.feed-lightbox-close');
     closeBtn.addEventListener('click', closeLightbox);
     document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeLightbox(); });
@@ -55,12 +59,23 @@
     var box = ensureLightbox();
     var img = box.querySelector('img');
     img.src = src || '';
+    // Close other UI that might interfere (popovers, bottom sheets)
+    try { if (typeof window.closeAllModals === 'function') window.closeAllModals(); } catch(e){}
+    try { if (typeof closeAllBottomSheets === 'function') closeAllBottomSheets(); } catch(e){}
+    // Also close any header popovers if present
+    try {
+      document.querySelectorAll('.topbar-popover.open').forEach(function(p){ p.classList.remove('open'); p.setAttribute('aria-hidden','true'); });
+      var bt = document.getElementById('headerBellToggle'); if (bt) bt.setAttribute('aria-expanded','false');
+    } catch(e){}
     box.classList.add('open');
+    // prevent body from scrolling behind the lightbox
+    document.body.classList.add('no-scroll');
   }
   function closeLightbox(){
     if (!lbOverlay) return;
     lbOverlay.classList.remove('open');
     var img = lbOverlay.querySelector('img'); if (img) img.src = '';
+    document.body.classList.remove('no-scroll');
   }
 
   // Bottom sheet helper: toggle class on element with .bottom-sheet
