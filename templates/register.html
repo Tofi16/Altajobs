@@ -1,18 +1,96 @@
 {% extends "base.html" %}
+
+{% block extra_styles %}
+<style>
+  /* ===== Animated brand mark ===== */
+  .brand-logo { display:inline-flex; align-items:center; gap:0.7rem; }
+  .brand-mark {
+    display:grid; place-items:center;
+    width:3rem; height:3rem; flex-shrink:0;
+    border-radius: 1.1rem;
+    background: linear-gradient(135deg, #22d3ee, #3b82f6 45%, #8b5cf6);
+    background-size: 220% 220%;
+    animation: brandMarkShift 6s ease infinite, brandMarkFloat 4.5s ease-in-out infinite;
+    box-shadow: 0 10px 32px -6px rgba(59,130,246,0.55), 0 0 0 1px rgba(255,255,255,0.08) inset;
+    color: #04101f;
+    font-size: 1.35rem;
+  }
+  @keyframes brandMarkShift { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+  @keyframes brandMarkFloat { 0%,100%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-5px) rotate(-3deg)} }
+  .brand-text {
+    font-size: 2.05rem; font-weight: 900; letter-spacing: -0.02em; line-height:1;
+    background: linear-gradient(90deg, #67e8f9, #60a5fa, #a78bfa, #60a5fa, #67e8f9);
+    background-size: 300% auto;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: brandTextShine 6s linear infinite;
+  }
+  @keyframes brandTextShine { to { background-position: -300% center; } }
+  .brand-dot { color:#22d3ee; display:inline-block; animation: brandDotPulse 1.7s ease-in-out infinite; }
+  @keyframes brandDotPulse { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:0.35; transform:scale(1.4)} }
+
+  /* ===== Living background ===== */
+  .auth-bg { position:absolute; inset:0; overflow:hidden; z-index:0; pointer-events:none; }
+  .auth-orb { position:absolute; border-radius:50%; filter: blur(64px); }
+  .auth-orb-1 { width:26rem; height:26rem; top:-9rem; left:-9rem; background:radial-gradient(circle at 30% 30%, rgba(34,211,238,0.55), transparent 70%); animation: orbFloat1 17s ease-in-out infinite; }
+  .auth-orb-2 { width:24rem; height:24rem; bottom:-10rem; right:-7rem; background:radial-gradient(circle at 70% 70%, rgba(139,92,246,0.5), transparent 70%); animation: orbFloat2 21s ease-in-out infinite; }
+  .auth-orb-3 { width:18rem; height:18rem; top:38%; left:58%; background:radial-gradient(circle, rgba(59,130,246,0.4), transparent 70%); animation: orbFloat3 23s ease-in-out infinite; }
+  @keyframes orbFloat1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(2.5rem,3.5rem) scale(1.12)} }
+  @keyframes orbFloat2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-2.5rem,-2rem) scale(1.08)} }
+  @keyframes orbFloat3 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-2rem,2.5rem) scale(0.9)} }
+  .auth-grid {
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 42px 42px;
+    -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 72%);
+    mask-image: radial-gradient(ellipse at center, black 0%, transparent 72%);
+  }
+  .auth-particle { position:absolute; bottom:-10px; border-radius:50%; background: rgba(103,232,249,0.7); animation-name: particleRise; animation-timing-function: linear; animation-iteration-count: infinite; }
+  @keyframes particleRise {
+    0% { transform:translateY(0) translateX(0); opacity:0; }
+    12% { opacity:0.85; }
+    88% { opacity:0.35; }
+    100% { transform:translateY(-108vh) translateX(18px); opacity:0; }
+  }
+
+  /* ===== Form field icons ===== */
+  .field-icon { font-size: 1.15rem; }
+  .input-icon-wrap input { padding-left: 2.75rem; }
+  .strength-bar { transition: background-color .25s ease; }
+  .status-icon-enter { animation: statusPop .22s ease; }
+  @keyframes statusPop { from { transform:scale(0.6); opacity:0; } to { transform:scale(1); opacity:1; } }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="min-h-screen flex items-center justify-center bg-slate-950 px-4 py-10 text-slate-100 relative overflow-hidden">
 
-  <!-- Ambient background glow -->
-  <div class="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl"></div>
-  <div class="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-blue-500/10 blur-3xl"></div>
+  <div class="auth-bg">
+    <div class="auth-orb auth-orb-1"></div>
+    <div class="auth-orb auth-orb-2"></div>
+    <div class="auth-orb auth-orb-3"></div>
+    <div class="auth-grid"></div>
+    <span class="auth-particle" style="left:8%;width:3px;height:3px;animation-duration:9s;animation-delay:0s;"></span>
+    <span class="auth-particle" style="left:18%;width:4px;height:4px;animation-duration:12s;animation-delay:1.5s;"></span>
+    <span class="auth-particle" style="left:30%;width:2px;height:2px;animation-duration:8s;animation-delay:3s;"></span>
+    <span class="auth-particle" style="left:47%;width:3px;height:3px;animation-duration:11s;animation-delay:0.8s;"></span>
+    <span class="auth-particle" style="left:62%;width:4px;height:4px;animation-duration:14s;animation-delay:2.2s;"></span>
+    <span class="auth-particle" style="left:74%;width:2px;height:2px;animation-duration:10s;animation-delay:4s;"></span>
+    <span class="auth-particle" style="left:85%;width:3px;height:3px;animation-duration:13s;animation-delay:1s;"></span>
+    <span class="auth-particle" style="left:93%;width:2px;height:2px;animation-duration:9.5s;animation-delay:2.8s;"></span>
+  </div>
 
-  <div class="w-full max-w-md relative">
+  <div class="w-full max-w-md relative z-10">
     <div class="bg-slate-900/95 border border-white/10 backdrop-blur-xl rounded-3xl shadow-2xl p-8 sm:p-9">
 
-      <!-- Logo / heading -->
-      <div class="mb-7 text-center">
-        <div class="text-4xl font-black tracking-tight text-white">AltaJobs <span class="text-cyan-300">.</span></div>
-        <p class="mt-2 text-sm text-slate-400">{{ t.get('register_subtitle', 'Create your account and start connecting with opportunities.') }}</p>
+      <!-- Animated logo -->
+      <div class="mb-7 flex flex-col items-center text-center">
+        <div class="brand-logo mb-3">
+          <span class="brand-mark"><i class='bx bxs-briefcase'></i></span>
+          <span class="brand-text">AltaJobs<span class="brand-dot">.</span></span>
+        </div>
+        <p class="text-sm text-slate-400">{{ t.get('register_subtitle', 'Create your account and start connecting with opportunities.') }}</p>
       </div>
 
       <form method="POST" action="{{ url_for('register') }}" class="space-y-5" id="registerForm" novalidate>
@@ -22,31 +100,27 @@
         <!-- Full name -->
         <div>
           <label for="full_name" class="block text-sm font-semibold text-slate-300 mb-2">{{ t.get('full_name', 'Full name') }}</label>
-          <div class="relative">
+          <div class="relative input-icon-wrap">
             <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14c-4.418 0-8 2.239-8 5v1h16v-1c0-2.761-3.582-5-8-5z"/>
-              </svg>
+              <i class='bx bx-id-card field-icon'></i>
             </span>
             <input id="full_name" name="full_name" type="text" autocomplete="name" required
                    placeholder="{{ t.get('full_name_placeholder', 'e.g. Abebe Kebede') }}"
-                   class="w-full rounded-2xl border border-white/10 bg-slate-950/80 pl-11 pr-4 py-3 text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20 transition" />
+                   class="w-full rounded-2xl border border-white/10 bg-slate-950/80 pr-4 py-3 text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20 transition" />
           </div>
         </div>
 
         <!-- Username -->
         <div>
           <label for="username" class="block text-sm font-semibold text-slate-300 mb-2">{{ t.username }}</label>
-          <div class="relative">
+          <div class="relative input-icon-wrap">
             <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A9 9 0 1118.879 6.196 9 9 0 015.12 17.804zM12 11a3 3 0 100-6 3 3 0 000 6z"/>
-              </svg>
+              <i class='bx bx-user field-icon'></i>
             </span>
             <input id="username" name="username" type="text" autocomplete="username" required minlength="3"
                    placeholder="{{ t.get('username_placeholder', 'Choose a username') }}"
-                   class="w-full rounded-2xl border border-white/10 bg-slate-950/80 pl-11 pr-11 py-3 text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20 transition" />
-            <span id="usernameStatusIcon" class="absolute inset-y-0 right-0 flex items-center pr-4"></span>
+                   class="w-full rounded-2xl border border-white/10 bg-slate-950/80 pr-11 py-3 text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20 transition" />
+            <span id="usernameStatusIcon" class="absolute inset-y-0 right-0 flex items-center pr-4 text-lg"></span>
           </div>
           <p id="usernameStatusText" class="mt-1.5 text-xs h-4"></p>
         </div>
@@ -54,27 +128,18 @@
         <!-- Password -->
         <div>
           <label for="password" class="block text-sm font-semibold text-slate-300 mb-2">{{ t.password }}</label>
-          <div class="relative">
+          <div class="relative input-icon-wrap">
             <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-12V7a4 4 0 10-8 0v4h8z"/>
-              </svg>
+              <i class='bx bx-lock-alt field-icon'></i>
             </span>
             <input id="password" name="password" type="password" autocomplete="new-password" required minlength="8"
                    placeholder="{{ t.get('password_placeholder', 'Create a strong password') }}"
-                   class="w-full rounded-2xl border border-white/10 bg-slate-950/80 pl-11 pr-11 py-3 text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20 transition" />
+                   class="w-full rounded-2xl border border-white/10 bg-slate-950/80 pr-11 py-3 text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20 transition" />
             <button type="button" data-toggle-for="password" aria-label="Toggle password visibility"
-                    class="toggle-eye absolute inset-y-0 right-0 flex items-center pr-4 text-slate-500 hover:text-cyan-300 transition">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5 eye-open">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/>
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-              </svg>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5 eye-closed hidden">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.243L9.88 9.88"/>
-              </svg>
+                    class="toggle-eye absolute inset-y-0 right-0 flex items-center pr-4 text-slate-500 hover:text-cyan-300 transition text-lg">
+              <i class='bx bx-show eye-icon'></i>
             </button>
           </div>
-          <!-- Strength meter -->
           <div class="mt-2 flex gap-1.5" id="strengthBars">
             <span class="h-1.5 flex-1 rounded-full bg-white/10 strength-bar"></span>
             <span class="h-1.5 flex-1 rounded-full bg-white/10 strength-bar"></span>
@@ -87,24 +152,16 @@
         <!-- Confirm password -->
         <div>
           <label for="confirm_password" class="block text-sm font-semibold text-slate-300 mb-2">{{ t.get('confirm_password', 'Confirm password') }}</label>
-          <div class="relative">
+          <div class="relative input-icon-wrap">
             <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-500">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
+              <i class='bx bx-shield-quarter field-icon'></i>
             </span>
             <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" required
                    placeholder="{{ t.get('confirm_password_placeholder', 'Re-enter your password') }}"
-                   class="w-full rounded-2xl border border-white/10 bg-slate-950/80 pl-11 pr-11 py-3 text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20 transition" />
+                   class="w-full rounded-2xl border border-white/10 bg-slate-950/80 pr-11 py-3 text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/20 transition" />
             <button type="button" data-toggle-for="confirm_password" aria-label="Toggle password visibility"
-                    class="toggle-eye absolute inset-y-0 right-0 flex items-center pr-4 text-slate-500 hover:text-cyan-300 transition">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5 eye-open">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/>
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-              </svg>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5 eye-closed hidden">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.243L9.88 9.88"/>
-              </svg>
+                    class="toggle-eye absolute inset-y-0 right-0 flex items-center pr-4 text-slate-500 hover:text-cyan-300 transition text-lg">
+              <i class='bx bx-show eye-icon'></i>
             </button>
           </div>
           <p id="matchText" class="mt-1.5 text-xs h-4"></p>
@@ -130,56 +187,51 @@ document.addEventListener('DOMContentLoaded', function () {
   var usernameInput = document.getElementById('username');
   var passwordInput = document.getElementById('password');
   var confirmInput = document.getElementById('confirm_password');
-  var submitBtn = document.getElementById('submitBtn');
   var usernameStatusIcon = document.getElementById('usernameStatusIcon');
   var usernameStatusText = document.getElementById('usernameStatusText');
   var matchText = document.getElementById('matchText');
   var strengthBars = document.querySelectorAll('.strength-bar');
   var strengthText = document.getElementById('strengthText');
 
-  var ICON_CHECK = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5 text-emerald-400"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>';
-  var ICON_CROSS = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5 text-rose-400"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>';
-  var ICON_SPIN = '<svg class="h-5 w-5 animate-spin text-slate-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>';
+  function iconHtml(cls, extraClass) {
+    return '<i class="bx ' + cls + ' status-icon-enter ' + (extraClass || '') + '"></i>';
+  }
 
   // --- Show / hide password toggles ---
   document.querySelectorAll('.toggle-eye').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var targetId = btn.getAttribute('data-toggle-for');
       var input = document.getElementById(targetId);
+      var icon = btn.querySelector('.eye-icon');
       var isHidden = input.type === 'password';
       input.type = isHidden ? 'text' : 'password';
-      btn.querySelector('.eye-open').classList.toggle('hidden', isHidden);
-      btn.querySelector('.eye-closed').classList.toggle('hidden', !isHidden);
+      icon.classList.toggle('bx-show', !isHidden);
+      icon.classList.toggle('bx-hide', isHidden);
     });
   });
 
   // --- Username availability check (debounced) ---
   var usernameTimer = null;
-  var usernameAvailable = null;
   usernameInput.addEventListener('input', function () {
     var value = usernameInput.value.trim();
     clearTimeout(usernameTimer);
     if (value.length < 3) {
-      usernameAvailable = null;
       usernameStatusIcon.innerHTML = '';
       usernameStatusText.textContent = '';
       return;
     }
-    usernameStatusIcon.innerHTML = ICON_SPIN;
+    usernameStatusIcon.innerHTML = iconHtml('bx-loader-alt bx-spin', 'text-slate-500');
     usernameStatusText.textContent = '';
     usernameTimer = setTimeout(function () {
       fetch('/api/check-username?username=' + encodeURIComponent(value))
         .then(function (res) { return res.json(); })
         .then(function (data) {
-          usernameAvailable = !!data.available;
-          usernameStatusIcon.innerHTML = usernameAvailable ? ICON_CHECK : ICON_CROSS;
+          var available = !!data.available;
+          usernameStatusIcon.innerHTML = iconHtml(available ? 'bx-check-circle' : 'bx-x-circle', available ? 'text-emerald-400' : 'text-rose-400');
           usernameStatusText.textContent = data.message || '';
-          usernameStatusText.className = 'mt-1.5 text-xs h-4 ' + (usernameAvailable ? 'text-emerald-400' : 'text-rose-400');
+          usernameStatusText.className = 'mt-1.5 text-xs h-4 ' + (available ? 'text-emerald-400' : 'text-rose-400');
         })
-        .catch(function () {
-          usernameAvailable = null;
-          usernameStatusIcon.innerHTML = '';
-        });
+        .catch(function () { usernameStatusIcon.innerHTML = ''; });
     }, 400);
   });
 
@@ -208,17 +260,10 @@ document.addEventListener('DOMContentLoaded', function () {
       strengthText.className = 'mt-1.5 text-xs text-slate-400';
     }
   }
-  passwordInput.addEventListener('input', function () {
-    updateStrength();
-    checkMatch();
-  });
+  passwordInput.addEventListener('input', function () { updateStrength(); checkMatch(); });
 
-  // --- Confirm password match ---
   function checkMatch() {
-    if (confirmInput.value.length === 0) {
-      matchText.textContent = '';
-      return;
-    }
+    if (confirmInput.value.length === 0) { matchText.textContent = ''; return; }
     var matches = passwordInput.value === confirmInput.value;
     matchText.textContent = matches ? '{{ t.get("passwords_match", "Passwords match") }}' : '{{ t.get("passwords_no_match", "Passwords do not match") }}';
     matchText.className = 'mt-1.5 text-xs h-4 ' + (matches ? 'text-emerald-400' : 'text-rose-400');
