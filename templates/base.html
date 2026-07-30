@@ -120,12 +120,16 @@
 {% if current_user %}
 <header class="topbar">
   <div class="topbar-inner">
-    <a href="{{ url_for('feed') }}" class="brand flex items-center">
-      <span class="text-2xl font-extrabold tracking-wider bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500 bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]">AltaJobs</span><span class="text-2xl font-extrabold text-indigo-400">.</span>
+    <a href="{{ url_for('feed') }}" class="brand" aria-label="AltaJobs home">
+      <span class="brand-mark">A</span>
+      <span class="brand-copy">
+        <span class="brand-name">AltaJobs</span>
+        <span class="brand-tag">Find work</span>
+      </span>
     </a>
 
     <div class="topbar-actions">
-      <button type="button" class="topbar-icon-btn" id="headerSearchToggle" aria-label="Search" aria-controls="headerSearchPanel">
+      <button type="button" class="topbar-icon-btn" id="headerSearchToggle" aria-label="Search" aria-controls="headerSearchPanel" aria-expanded="false">
         <i class='bx bx-search'></i>
       </button>
 
@@ -137,7 +141,7 @@
           <span class="topbar-badge pulse">{{ alert_count if alert_count < 10 else '9+' }}</span>
           {% endif %}
         </button>
-        <div class="topbar-popover" id="headerNotifications" role="dialog" aria-label="Recent notifications">
+        <div class="topbar-popover" id="headerNotifications" role="dialog" aria-label="Recent notifications" aria-hidden="true">
           <div class="notifications-head">
             <div>
               <div class="notifications-title">Recent activity</div>
@@ -154,8 +158,13 @@
         </div>
       </div>
 
-      <button type="button" class="topbar-avatar-btn" id="headerSidebarToggle" aria-label="Open menu" aria-controls="headerSidebarDrawer" aria-expanded="false">
-        <i class='bx bx-menu'></i>
+      <button type="button" class="topbar-avatar-btn" id="headerSidebarToggle" aria-label="Open account menu" aria-controls="headerSidebarDrawer" aria-expanded="false">
+        {% set user_name = (current_user.get('full_name') or current_user.get('username') or 'U') %}
+        {% if current_user.get('avatar') %}
+          <img src="{{ photo_url(current_user.get('avatar')) }}" alt="{{ user_name }}">
+        {% else %}
+          <span>{{ user_name[0] }}</span>
+        {% endif %}
       </button>
     </div>
   </div>

@@ -550,10 +550,15 @@ document.addEventListener("DOMContentLoaded", function () {
       searchPanel.classList.remove("open");
       searchPanel.setAttribute("aria-hidden", "true");
     }
+    if (searchToggle) searchToggle.setAttribute("aria-expanded", "false");
   };
 
   const closePopover = function () {
-    if (bellPopover) bellPopover.classList.remove("open");
+    if (bellPopover) {
+      bellPopover.classList.remove("open");
+      bellPopover.setAttribute("aria-hidden", "true");
+    }
+    if (bellToggle) bellToggle.setAttribute("aria-expanded", "false");
   };
 
   const lockState = { modal: false, drawer: false };
@@ -580,6 +585,7 @@ document.addEventListener("DOMContentLoaded", function () {
       sidebarDrawer.setAttribute("aria-hidden", "true");
     }
     if (sidebarOverlay) sidebarOverlay.classList.remove("open");
+    if (avatarToggle) avatarToggle.setAttribute("aria-expanded", "false");
     document.body.classList.remove("drawer-open");
     lockState.drawer = false;
     syncScrollLock();
@@ -589,6 +595,7 @@ document.addEventListener("DOMContentLoaded", function () {
     searchToggle.addEventListener("click", function () {
       const isOpen = searchPanel.classList.toggle("open");
       searchPanel.setAttribute("aria-hidden", isOpen ? "false" : "true");
+      searchToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
       if (isOpen && searchInput) { searchInput.focus(); }
     });
   }
@@ -597,33 +604,34 @@ document.addEventListener("DOMContentLoaded", function () {
     bellToggle.addEventListener("click", function (e) {
       e.stopPropagation();
       const isOpen = bellPopover.classList.toggle("open");
+      bellToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      bellPopover.setAttribute("aria-hidden", isOpen ? "false" : "true");
       if (isOpen) {
         closeSearch();
         closeSidebar();
-        // Load recent notifications and mark them read
         try {
-          fetch('/api/notifications')
+          fetch('/api/notifications', { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(r => r.json())
             .then(data => {
               const list = document.querySelector('.notification-list');
               if (!list) return;
               list.innerHTML = '';
               if (data.notifications && data.notifications.length) {
-                data.notifications.forEach(function(n){
+                data.notifications.forEach(function (n) {
                   const row = document.createElement('div');
                   row.className = 'notification-row' + (n.is_read ? '' : ' unread');
-                  row.innerHTML = `<i class="bx ${n.icon}"></i><div class="notification-body"><div class="notification-msg">${n.message}</div><div class="notification-time">${n.created_at}</div></div>`;
+                  row.innerHTML = '<i class="bx ' + (n.icon || 'bx-bell') + '"></i><div class="notification-body"><div class="notification-msg">' + (n.message || '') + '</div><div class="notification-time">' + (n.created_at || '') + '</div></div>';
                   list.appendChild(row);
                 });
               } else {
                 list.innerHTML = '<div class="notification-empty"><i class="bx bx-bell"></i><span>No recent activity</span></div>';
               }
-              // mark read on server
               fetch('/api/notifications/mark-read', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-              // remove badge if present
-              const badge = document.querySelector('.topbar-badge'); if (badge) badge.remove();
-            }).catch(()=>{});
-        } catch(e){}
+              const badge = document.querySelector('.topbar-badge');
+              if (badge) badge.remove();
+            })
+            .catch(function () {});
+        } catch (e) {}
       }
     });
   }
@@ -633,6 +641,7 @@ document.addEventListener("DOMContentLoaded", function () {
       e.stopPropagation();
       const isOpen = sidebarDrawer.classList.toggle("open");
       sidebarDrawer.setAttribute("aria-hidden", isOpen ? "false" : "true");
+      avatarToggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
       sidebarOverlay.classList.toggle("open", isOpen);
       document.body.classList.toggle("drawer-open", isOpen);
       lockState.drawer = isOpen ? 1 : 0;
@@ -975,10 +984,15 @@ document.addEventListener("DOMContentLoaded", function () {
           .then((r) => r.json())
           .then((data) => {
             if (data.success) {
-              const countEl = document.querySelector(
-                `.js-repost-btn[data-post-id="${currentRepostPostId}"] .repost-count`
+              const repostBtn = document.querySelector(
+                `.js-repost-btn[data-post-id="${currentRepostPostId}"]`
               );
+              const countEl = repostBtn ? repostBtn.querySelector('.repost-count') : null;
               if (countEl) countEl.textContent = data.share_count;
+              if (repostBtn) {
+                repostBtn.classList.add('reposted');
+                repostBtn.setAttribute('aria-pressed', 'true');
+              }
               quickBtn.innerHTML = '<i class="bx bx-check"></i> Reposted!';
               try { triggerHaptic(); } catch(e){}
               setTimeout(closeRepostModal, 600);

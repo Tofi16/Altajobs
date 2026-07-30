@@ -42,19 +42,20 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 16px;
+    gap: 12px;
+    min-width: 0;
   }
   .xpost-headline {
     display: flex;
     align-items: center;
-    gap: 11px;
-    flex-wrap: wrap;
+    gap: 10px;
     min-width: 0;
+    flex: 1 1 auto;
   }
   .xpost-avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    border-radius: 999px;
     flex-shrink: 0;
     overflow: hidden;
     background: linear-gradient(135deg, #D4AF37, #8B6F3D);
@@ -64,7 +65,8 @@
     text-decoration: none;
     display: grid;
     place-items: center;
-    box-shadow: 0 0 0 2px #10131b, 0 0 0 3px rgba(212, 175, 55, 0.4);
+    border: 1px solid rgba(255,255,255,0.12);
+    object-fit: cover;
   }
   .xpost-avatar img {
     width: 100%;
@@ -73,30 +75,37 @@
     display: block;
   }
   .xpost-author {
-    display: grid;
-    gap: 3px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     min-width: 0;
+    flex: 1 1 auto;
   }
   .xpost-name-wrap {
     display: flex;
     align-items: center;
     gap: 6px;
+    min-width: 0;
   }
   .xpost-name {
     font-weight: 700;
     letter-spacing: -0.01em;
     color: #F5E6C8;
     text-decoration: none;
-    font-size: 0.98rem;
+    font-size: 0.95rem;
+    line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .xpost-meta {
     color: #8B95A8;
-    font-size: 0.81rem;
+    font-size: 0.78rem;
     line-height: 1.4;
     font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .xpost-dot::before {
     content: "·";
@@ -110,9 +119,9 @@
     flex-shrink: 0;
   }
   .xpost-badge .verification-badge {
-    width: 17px;
-    height: 17px;
-    filter: drop-shadow(0 0 4px rgba(212, 175, 55, 0.5));
+    width: 16px;
+    height: 16px;
+    filter: drop-shadow(0 0 4px rgba(29, 155, 240, 0.22));
   }
   .xpost-badge .verification-badge svg {
     width: 100%;
@@ -121,9 +130,80 @@
   .xpost-head-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .xpost-menu-btn {
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: #9aa4b2;
+    border-radius: 10px;
+    transition: background-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+    cursor: pointer;
+    padding: 0;
+  }
+  .xpost-menu-btn:hover,
+  .xpost-menu-btn:focus-visible {
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    outline: none;
+  }
+  .xpost-menu-btn:active {
+    transform: scale(0.96);
+  }
+  .xpost-menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 50;
+    min-width: 176px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(13, 17, 23, 0.98);
+    box-shadow: 0 16px 36px rgba(0,0,0,0.4);
+    padding: 8px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    display: none;
+  }
+  .xpost-menu.open {
+    display: block;
+  }
+  .xpost-menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 10px;
+    border-radius: 10px;
+    color: #e5e7eb;
+    background: transparent;
+    border: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.16s ease, color 0.16s ease;
+  }
+  .xpost-menu-item:hover,
+  .xpost-menu-item:focus-visible {
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    outline: none;
+  }
+  .xpost-menu-item.danger {
+    color: #fb7185;
+  }
+  .xpost-menu-item.danger:hover,
+  .xpost-menu-item.danger:focus-visible {
+    color: #fda4af;
+    background: rgba(251, 113, 133, 0.08);
   }
   .xpost-follow-chip {
     border: 1px solid rgba(212, 175, 55, 0.3);
@@ -176,53 +256,51 @@
     border: 1px solid rgba(212, 175, 55, 0.18);
   }
   .xpost-content {
-    color: #C9CFDB;
+    color: #e5e7eb;
     font-size: 0.95rem;
-    line-height: 1.68;
-    margin: 2px 0 8px;
+    line-height: 1.65;
+    margin: 0 0 10px;
     white-space: pre-wrap;
     word-break: break-word;
     letter-spacing: 0.001em;
   }
   .xpost-content.xpost-clamped {
     display: -webkit-box;
-    -webkit-line-clamp: 5;
+    -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
   .xpost-seemore {
     background: none;
     border: none;
-    color: #D4AF37;
+    color: #38bdf8;
     font-weight: 700;
-    font-size: 0.88rem;
+    font-size: 0.86rem;
     cursor: pointer;
     padding: 0;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     display: inline-flex;
     align-items: center;
     transition: color 0.15s ease;
   }
-  .xpost-seemore:hover { color: #E8C766; }
-  .xpost-seemore.hidden {
-    display: none;
-  }
+  .xpost-seemore:hover { color: #7dd3fc; }
+  .xpost-seemore.hidden { display: none; }
   .xpost-photo-wrap {
-    border-radius: 14px;
+    border-radius: 18px;
     overflow: hidden;
-    box-shadow: inset 0 0 0 1px rgba(212, 175, 55, 0.08);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
   }
   .xpost-photo {
     width: 100%;
     height: auto;
-    max-height: 420px;
+    max-height: 450px;
     object-fit: cover;
     display: block;
   }
-  .media-grid { display: grid; gap: 3px; border-radius: 14px; overflow: hidden; }
+  .media-grid { display: grid; gap: 3px; border-radius: 18px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); margin: 8px 0 0; }
   .media-grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .media-grid-1 { grid-template-columns: 1fr; }
-  .media-grid-1 img { max-height: 420px; }
+  .media-grid-1 img { max-height: 450px; }
   .media-grid-2 { grid-template-columns: 1fr 1fr; aspect-ratio: 16/9; }
   .media-grid-3 { grid-template-columns: 1fr 1fr; aspect-ratio: 16/9; }
   .media-grid-3 .mg-left { grid-row: span 2; }
@@ -234,85 +312,81 @@
     color: #F5E6C8; font-weight: 800; font-size: 1.3rem;
   }
 
-  /* ── Action row: understated, icon-forward, gold-on-interact ── */
+  /* ── Action row: one clean horizontal bar on mobile ── */
   .xpost-actions {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
     align-items: center;
-    justify-content: flex-start;
-    margin-top: 6px;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    margin-top: 10px;
     padding-top: 12px;
-    border-top: 1px solid rgba(255,255,255,0.05);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    overflow-x: hidden;
   }
   .xpost-action,
   .xpost-follow-btn {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    border: 1px solid transparent;
+    justify-content: center;
+    gap: 6px;
+    border: 0;
     background: transparent;
-    color: #8B95A8;
-    font-size: 0.88rem;
+    color: #94a3b8;
+    font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
-    padding: 8px 12px;
+    padding: 0;
     border-radius: 10px;
     text-decoration: none;
-    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
-    min-height: 40px;
+    transition: color 0.16s ease, transform 0.16s ease;
+    min-height: 44px;
     line-height: 1;
     white-space: nowrap;
   }
-  .xpost-action:hover {
-    background: rgba(255,255,255,0.04);
-    color: #C9CFDB;
+  .xpost-action:hover,
+  .xpost-action:focus-visible {
+    color: #f8fafc;
+    outline: none;
   }
-  .xpost-follow-btn:hover {
-    transform: translateY(-1px);
-  }
+  .xpost-action:active { transform: scale(0.96); }
   .xpost-action svg,
   .xpost-action i,
   .xpost-follow-btn svg,
   .xpost-follow-btn i {
-    width: 1.05rem;
-    height: 1.05rem;
+    width: 1.08rem;
+    height: 1.08rem;
     flex-shrink: 0;
   }
-  .xpost-action .like-count,
-  .xpost-action .comment-count,
-  .xpost-action .repost-count {
+  .xpost-action-count {
     color: inherit;
-    font-size: 0.87rem;
+    font-size: 0.8rem;
     font-weight: 700;
+    line-height: 1;
   }
-
-  /* Like: gold-tinted rose fill, spring pop on activation */
   .xpost-action.like {
-    transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
-  }
-  .xpost-action.like [data-lucide],
-  .xpost-action.like i {
-    transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: color 0.16s ease, transform 0.16s ease;
   }
   .xpost-action.like.liked {
-    color: #E88A9A;
-    background: rgba(232, 138, 154, 0.1);
+    color: #fb7185;
   }
-  .xpost-action.like.liked [data-lucide],
-  .xpost-action.like.liked i {
+  .xpost-action.like.liked svg {
     fill: currentColor;
-    transform: scale(1.12);
+    stroke: currentColor;
+    transform: scale(1.06);
   }
-  .xpost-action.like:active [data-lucide],
-  .xpost-action.like:active i {
-    transform: scale(0.85);
+  .xpost-action.comment:hover { color: #38bdf8; }
+  .xpost-action.repost:hover { color: #818cf8; }
+  .xpost-action.share:hover { color: #38bdf8; }
+  .xpost-action.save:hover,
+  .xpost-action.save.saved { color: #38bdf8; }
+  .xpost-action.save.saved svg {
+    fill: currentColor;
+    stroke: currentColor;
   }
-  .xpost-action.like:hover { color: #E88A9A; }
-  .xpost-action.comment:hover { color: #D4AF37; }
-  .xpost-action.repost:hover { color: #A78BFA; }
-  .xpost-action.share:hover { color: #D4AF37; }
-  .xpost-action.save:hover { color: #D4AF37; }
+  .xpost-action.repost.reposted {
+    color: #818cf8;
+  }
 
   .xpost-follow-btn {
     border: 1px solid rgba(212, 175, 55, 0.3);
@@ -357,36 +431,36 @@
   .xpost-comment-panel.open,
   .xpost-share-panel.open {
     margin-top: 10px;
-    padding-top: 14px;
+    padding-top: 12px;
   }
   .xpost-comment-summary {
     font-size: 0.8rem;
-    color: #8B95A8;
+    color: #94a3b8;
     margin-bottom: 10px;
     font-weight: 600;
   }
   .xpost-comment-list {
     display: grid;
     gap: 7px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     max-height: 220px;
     overflow-y: auto;
   }
   .xpost-comment-item {
-    background: rgba(255,255,255,0.025);
+    background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.04);
     border-radius: 12px;
-    padding: 8px 12px;
+    padding: 8px 10px;
     font-size: 0.86rem;
     line-height: 1.5;
   }
   .xpost-comment-author {
     font-weight: 700;
-    color: #E8C766;
+    color: #38bdf8;
     margin-right: 6px;
   }
   .xpost-comment-text {
-    color: #C9CFDB;
+    color: #e5e7eb;
   }
   .xpost-comment-row {
     display: flex;
@@ -396,34 +470,37 @@
     align-items: center;
     gap: 8px;
     width: 100%;
-    background: rgba(255,255,255,0.03);
+    background: #161b22;
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 999px;
-    padding: 5px 5px 5px 16px;
-    transition: border-color 0.15s ease;
+    padding: 6px 8px 6px 14px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
   .xpost-comment-row .comment-input:focus-within {
-    border-color: rgba(212, 175, 55, 0.35);
+    border-color: rgba(56, 189, 248, 0.45);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
   }
   .xpost-comment-input {
     flex: 1;
     background: transparent;
     border: none;
     outline: none;
-    color: #F5E6C8;
-    font-size: 0.88rem;
+    color: #f8fafc;
+    font-size: 0.9rem;
     min-width: 0;
   }
-  .xpost-comment-input::placeholder { color: #4a5163; }
+  .xpost-comment-input::placeholder { color: #64748b; }
   .xpost-comment-submit {
     flex-shrink: 0;
-    background: linear-gradient(135deg, #D4AF37, #B8933F);
-    color: #241a06;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #38bdf8, #2563eb);
+    color: #fff;
     border: none;
     border-radius: 999px;
-    padding: 8px 16px;
-    font-weight: 800;
-    font-size: 0.82rem;
     cursor: pointer;
     transition: opacity 0.15s ease, transform 0.15s ease;
   }
@@ -523,7 +600,7 @@
             <div class="xpost-name-wrap">
               <a href="{{ url_for('profile', user_id=post.user_id) }}" class="xpost-name">{{ item.author_name }}</a>
               {% if post.verification_tier and post.verification_tier != 'none' %}
-                <span id="user-badge-{{ post.user_id }}" class="xpost-badge">{{ verification_badge_svg(post) }}</span>
+                <span id="user-badge-{{ post.user_id }}" class="xpost-badge" aria-label="Verified user">{{ verification_badge_svg(post) }}</span>
               {% endif %}
             </div>
             <div id="user-meta-{{ post.user_id }}" class="xpost-meta">
@@ -538,29 +615,34 @@
         </div>
         <div class="xpost-head-actions">
           {% if current_user and post.user_id != current_user['id'] %}
-                <button type="button" data-action="follow" class="js-follow-btn xpost-follow-btn" data-user-id="{{ post.user_id }}"
-                  data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
+            <button type="button" data-action="follow" class="js-follow-btn xpost-follow-btn" data-user-id="{{ post.user_id }}"
+              data-follow-label="{{ t.follow }}" data-following-label="{{ t.unfollow }}">
               <span class="follow-label">{{ t.unfollow if item.following else t.follow }}</span>
             </button>
           {% endif %}
           <div class="relative" data-dropdown>
-            <button type="button" data-action="toggle-menu" class="xpost-menu-btn p-1 rounded-full hover:bg-white/5" aria-label="More options">
-              <i data-lucide="more-horizontal" class="w-5 h-5 text-neutral-400"></i>
+            <button type="button" data-action="toggle-menu" class="xpost-menu-btn" aria-label="More options" aria-expanded="false">
+              <i data-lucide="more-horizontal" class="w-5 h-5"></i>
             </button>
-            <div class="hidden absolute right-0 top-full mt-2 w-44 bg-zinc-900 border border-white/10 rounded-xl shadow-xl z-50 py-1" data-dropdown-menu aria-hidden="true">
-              <button type="button" class="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-2" onclick="navigator.clipboard && navigator.clipboard.writeText('{{ url_for('post_detail', post_id=post.id, _external=True) }}')">
-                <i data-lucide="link" class="w-4 h-4"></i> Copy Link
+            <div class="xpost-menu" data-dropdown-menu aria-hidden="true">
+              <button type="button" class="xpost-menu-item js-post-copy-link" data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}">
+                <i data-lucide="link" class="w-4 h-4"></i>
+                <span>Copy Link</span>
               </button>
-              <button type="button" class="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-2 js-share-btn" data-post-id="{{ post.id }}" data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}">
-                <i data-lucide="share-2" class="w-4 h-4"></i> Share
+              <button type="button" class="xpost-menu-item js-share-btn" data-post-id="{{ post.id }}" data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}">
+                <i data-lucide="share-2" class="w-4 h-4"></i>
+                <span>Share</span>
               </button>
-              <button type="button" class="w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 flex items-center gap-2 text-orange-400" onclick="openReportDrawer('post', {{ post.id }})">
-                <i data-lucide="flag" class="w-4 h-4"></i> Report Post
+              <button type="button" class="xpost-menu-item" data-action="report-post" data-post-id="{{ post.id }}">
+                <i data-lucide="flag" class="w-4 h-4"></i>
+                <span>Report Post</span>
               </button>
               {% if current_user and (post.user_id == current_user['id'] or current_user['is_admin']) %}
-              <hr class="border-white/10 my-1" />
-              <form method="POST" action="{{ url_for('delete_post', post_id=post.id) }}" class="px-4 py-1">
-                <button type="submit" class="w-full text-left text-sm text-red-500 hover:bg-white/5 flex items-center gap-2"><i data-lucide="trash-2" class="w-4 h-4"></i> Delete</button>
+              <form method="POST" action="{{ url_for('delete_post', post_id=post.id) }}" class="mt-1">
+                <button type="submit" class="xpost-menu-item danger">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  <span>Delete</span>
+                </button>
               </form>
               {% endif %}
             </div>
@@ -573,9 +655,7 @@
       {% endif %}
 
       {% if post.content %}
-        <a href="{{ url_for('post_detail', post_id=post.id) }}" style="text-decoration: none; color: inherit;">
-          <p class="xpost-content xpost-clamped js-xpost-content">{{ post.content }}</p>
-        </a>
+        <div class="xpost-content xpost-clamped js-xpost-content">{{ post.content }}</div>
         <button type="button" class="xpost-seemore js-xpost-seemore hidden"
                 data-see-more="{{ t.see_more if t.see_more is defined else 'See more' }}"
                 data-see-less="{{ t.see_less if t.see_less is defined else 'See less' }}">{{ t.see_more if t.see_more is defined else 'See more' }}</button>
@@ -596,25 +676,25 @@
       {% endif %}
       {% if media_count and media_count > 0 %}
         {% if media_count == 1 %}
-          <div class="media-grid media-grid-1">
+          <div class="media-grid media-grid-1 rounded-2xl overflow-hidden border border-gray-800/80 my-3">
             <div class="media-item">
-              <img src="{{ photo_url(media_urls[0]) if media_urls[0] is not none else photo_url(post.photo) }}" loading="lazy" decoding="async" alt="" class="xpost-photo" data-full="{{ photo_url(media_urls[0]) if media_urls[0] is not none else photo_url(post.photo) }}">
+              <img src="{{ photo_url(media_urls[0]) if media_urls[0] is not none else photo_url(post.photo) }}" loading="lazy" decoding="async" alt="" class="xpost-photo w-full h-auto max-h-[450px] object-cover" data-full="{{ photo_url(media_urls[0]) if media_urls[0] is not none else photo_url(post.photo) }}">
             </div>
           </div>
         {% elif media_count == 2 %}
-          <div class="media-grid media-grid-2">
+          <div class="media-grid media-grid-2 rounded-2xl overflow-hidden border border-gray-800/80 my-3">
             {% for m in media_urls[:2] %}
               <div class="media-item"><img src="{{ photo_url(m) }}" loading="lazy" decoding="async" alt="" data-full="{{ photo_url(m) }}"></div>
             {% endfor %}
           </div>
         {% elif media_count == 3 %}
-          <div class="media-grid media-grid-3">
+          <div class="media-grid media-grid-3 rounded-2xl overflow-hidden border border-gray-800/80 my-3">
             <div class="media-item mg-left"><img src="{{ photo_url(media_urls[0]) }}" loading="lazy" decoding="async" alt="" data-full="{{ photo_url(media_urls[0]) }}"></div>
             <div class="media-item mg-right"><img src="{{ photo_url(media_urls[1]) }}" loading="lazy" decoding="async" alt="" data-full="{{ photo_url(media_urls[1]) }}"></div>
             <div class="media-item mg-right"><img src="{{ photo_url(media_urls[2]) }}" loading="lazy" decoding="async" alt="" data-full="{{ photo_url(media_urls[2]) }}"></div>
           </div>
         {% else %}
-          <div class="media-grid media-grid-4">
+          <div class="media-grid media-grid-4 rounded-2xl overflow-hidden border border-gray-800/80 my-3">
             {% for m in media_urls[:4] %}
               <div class="media-item"><img src="{{ photo_url(m) }}" loading="lazy" decoding="async" alt="" data-full="{{ photo_url(m) }}"></div>
             {% endfor %}
@@ -628,52 +708,41 @@
         {% endif %}
       {% endif %}
 
-      <div class="xpost-actions flex items-center gap-6 mt-3">
-        <div class="actions-left" style="display:flex;gap:8px;align-items:center;">
-          <button type="button" data-action="like" class="js-like-btn xpost-action like {{ 'liked' if item.liked }}" data-post-id="{{ post.id }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}">
-            <i data-lucide="heart"></i>
-            <span class="like-count count">{{ item.like_count }}</span>
+      <div class="xpost-actions">
+        <div class="flex items-center gap-2 min-w-0">
+          <button type="button" data-action="like" class="js-like-btn xpost-action like {{ 'liked' if item.liked }}" data-post-id="{{ post.id }}" data-like-label="{{ t.like }}" data-liked-label="{{ t.liked }}" aria-label="Like post">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-6.5-4.35-8.3-8.08a4.9 4.9 0 0 1 8.3-4.9 4.9 4.9 0 0 1 8.3 4.9C18.5 15.65 12 20 12 20Z"></path></svg>
+            <span class="xpost-action-count like-count count">{{ item.like_count }}</span>
           </button>
 
-          <button type="button" class="js-comment-toggle xpost-action comment" data-post-id="{{ post.id }}" aria-expanded="false">
-            <i data-lucide="message-circle"></i>
-            <span class="comment-count count">{{ item.comment_count }}</span>
+          <button type="button" class="js-comment-toggle xpost-action comment" data-post-id="{{ post.id }}" aria-expanded="false" aria-label="Comment on post">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10"></path><path d="M7 11h6"></path><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-5 4v-4H6a2 2 0 0 1-2-2Z"></path></svg>
+            <span class="xpost-action-count comment-count count">{{ item.comment_count }}</span>
           </button>
 
-          <button type="button" class="js-repost-btn xpost-action repost" data-post-id="{{ post.id }}" title="Repost">
-            <i data-lucide="repeat"></i>
-            <span class="repost-count count">{{ post.share_count or 0 }}</span>
+          <button type="button" class="js-repost-btn xpost-action repost" data-post-id="{{ post.id }}" title="Repost" aria-label="Repost post">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h10"></path><path d="M17 7v10"></path><path d="M7 17v-10"></path><path d="M7 17h10"></path></svg>
+            <span class="xpost-action-count repost-count count">{{ post.share_count or 0 }}</span>
           </button>
         </div>
 
-        <div class="actions-right" style="display:flex;gap:8px;align-items:center;">
-          <button type="button" class="js-share-btn xpost-action share feed-share-btn" data-post-id="{{ post.id }}" data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}" title="Share">
-            <i data-lucide="share-2"></i>
+        <div class="flex items-center gap-2">
+          <button type="button" class="js-share-btn xpost-action share feed-share-btn" data-post-id="{{ post.id }}" data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}" title="Share" aria-label="Share post">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 12v7"></path><path d="M16 5v7"></path><path d="m5 8 7-4 7 4"></path><path d="M8 12h8"></path></svg>
           </button>
-          <button type="button" class="js-save-btn xpost-action save" data-post-id="{{ post.id }}" title="Save">
-            <i data-lucide="bookmark"></i>
+          <button type="button" class="js-save-btn xpost-action save" data-post-id="{{ post.id }}" title="Save" aria-label="Save post">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h12a1 1 0 0 1 1 1v15l-7-4-7 4V5a1 1 0 0 1 1-1Z"></path></svg>
           </button>
         </div>
         {% if post.category == 'job_offer' %}
-          <a href="{{ url_for('post_detail', post_id=post.id) }}" class="apply-now-btn">Apply Now</a>
+          <a href="{{ url_for('post_detail', post_id=post.id) }}" class="apply-now-btn">Apply</a>
         {% endif %}
       </div>
       
-      <!-- Inline share panel (hidden by default) -->
       <div class="xpost-share-panel feed-share-panel mt-3" aria-hidden="true">
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <button type="button" class="post-action copy-link" data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}">Copy link</button>
           <button type="button" class="post-action native-share js-share-native" data-post-url="{{ url_for('post_detail', post_id=post.id, _external=True) }}">Share…</button>
-        </div>
-      </div>
-      <div class="xpost-comment-panel feed-comment-box mt-4" aria-hidden="true">
-        <div class="xpost-comment-summary text-neutral-400 text-sm">{{ item.comment_count }} {{ t.comments if t.comments is defined else 'comments' }}</div>
-        <div class="xpost-comment-list"></div>
-        <div class="xpost-comment-row feed-comment-row">
-          <div class="comment-input feed-comment-box">
-            <input type="text" class="xpost-comment-input" placeholder="Write a comment..." aria-label="Write a comment">
-            <button type="button" class="comment-send-btn xpost-comment-submit feed-comment-send-btn" data-post-id="{{ post.id }}">Send</button>
-          </div>
         </div>
       </div>
     </div>

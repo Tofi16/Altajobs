@@ -2101,10 +2101,16 @@ def login_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
         uid = session.get("user_id")
-        if not uid:
+        def _unauth_response():
+            # For XHR/API calls return JSON 401 so client JS can handle it.
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or (request.path and request.path.startswith('/api/')):
+                return jsonify({"error": "not_authenticated"}), 401
             # Do NOT pass next= so that after logout→login the user always
             # lands on Home/Feed, not on the last page they were viewing.
             return redirect(url_for("login"))
+
+        if not uid:
+            return _unauth_response()
 
         db = get_db()
         placeholder = "%s" if not getattr(db, "is_sqlite", False) else "?"
@@ -2114,12 +2120,12 @@ def login_required(f):
         ).fetchone()
         if not user:
             session.pop("user_id", None)
-            return redirect(url_for("login"))
+            return _unauth_response()
 
         if is_currently_banned(user):
             session.pop("user_id", None)
             flash("account_banned")
-            return redirect(url_for("login"))
+            return _unauth_response()
 
         return f(*args, **kwargs)
     return wrapper
@@ -2134,6 +2140,9 @@ def admin_required(f):
             if _get_row_value(user, "role") == "admin":
                 is_admin = True
         if not user or not is_admin:
+            # For AJAX/API calls return JSON 403 so client JS can handle it.
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or (request.path and request.path.startswith('/api/')):
+                return jsonify({'error': 'forbidden'}), 403
             abort(403)
         return f(*args, **kwargs)
     return wrapper
@@ -2374,50 +2383,9 @@ def get_verification_tier(user):
 # ----------------------- Social API endpoints ----------------------------
 
 
-@app.route('/api/follow/<int:user_id>', methods=['POST'])
-@login_required
-def api_toggle_follow_basic(user_id):
-    db = get_db()
-    me = get_current_user()
-    if not me:
-        return jsonify({'error': 'not_authenticated'}), 401
-    try:
-        existing = db.execute(
-            "SELECT id FROM follows WHERE follower_id = ? AND followed_id = ?",
-            (me['id'], user_id),
-        ).fetchone()
-        if existing:
-            db.execute("DELETE FROM follows WHERE id = ?", (existing['id'],))
-            db.commit()
-            following = False
-        else:
-            db.execute(
-                "INSERT INTO follows (follower_id, followed_id) VALUES (?, ?)",
-                (me['id'], user_id),
-            )
-            db.commit()
-            following = True
-
-        followers_count = db.execute(
-            "SELECT COUNT(*) c FROM follows WHERE followed_id = ?",
-            (user_id,),
-        ).fetchone()["c"]
-        your_following_count = db.execute(
-            "SELECT COUNT(*) c FROM follows WHERE follower_id = ?",
-            (me['id'],),
-        ).fetchone()["c"]
-
-        return jsonify({
-            'following': following,
-            'followers_count': int(followers_count or 0),
-            'your_following_count': int(your_following_count or 0),
-        })
-    except Exception:
-        try:
-            db.rollback()
-        except Exception:
-            pass
-        return jsonify({'error': 'db_error'}), 500
+# Consolidated `/api/follow/<user_id>` endpoint lives later in this file as
+# `api_toggle_follow` (includes notification handling). The earlier basic
+# handler was removed to avoid duplicate route registration.
 
 
 @app.route('/api/like/<int:post_id>', methods=['POST'])
@@ -3893,7 +3861,7 @@ def login():
     )
 
 
-@app.route("/logout")
+@app.route("/logout", methods=["GET", "POST"])
 def logout():
     session.pop("user_id", None)
     return redirect(url_for("login"))

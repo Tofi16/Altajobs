@@ -1,273 +1,383 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
-  .feed-create-post-card {
-    border-radius: 28px;
-    background: rgba(15, 23, 42, 0.82);
+  .feed-page { overflow-x: hidden; }
+  .feed-composer {
+    background: #0d1117;
     border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 30px 70px rgba(15, 23, 42, 0.22);
-    padding: 24px;
-    transition: transform .2s ease, border-color .2s ease, background .2s ease;
+    border-radius: 1.25rem;
+    box-shadow: 0 12px 28px rgba(2, 8, 23, 0.24);
+    padding: 1rem;
+    margin-bottom: 1rem;
   }
-  .feed-create-post-card:hover {
-    transform: translateY(-1px);
-    border-color: rgba(56, 189, 248, 0.24);
-    background: rgba(15, 23, 42, 0.88);
+  .feed-composer textarea {
+    scrollbar-width: none;
   }
-  .feed-creator-top {
-    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18px;
-  }
-  .feed-creator-user {
-    display: flex; align-items: center; gap: 14px; min-width: 0;
-  }
-  .feed-creator-avatar {
-    width: 56px; height: 56px; flex-shrink: 0; border-radius: 999px; overflow: hidden;
-    border: 1px solid rgba(255,255,255,0.1); background: linear-gradient(135deg,#0ea5e9,#22c55e);
-    color: #0f172a; font-weight: 800; display: grid; place-items: center;
-  }
-  .feed-creator-avatar img { width: 100%; height: 100%; object-fit: cover; }
-  .feed-creator-copy {
-    min-width: 0;
-  }
-  .feed-creator-label { display: block; font-size: 0.72rem; letter-spacing: 0.28em; text-transform: uppercase; color: #94a3b8; }
-  .feed-creator-title { margin-top: 4px; font-size: 1.4rem; font-weight: 800; color: #f8fafc; line-height: 1.1; }
-  .feed-creator-area {
-    margin-top: 20px; border-radius: 28px; background: rgba(15, 23, 42, 0.94);
-    border: 1px solid rgba(255,255,255,0.08); padding: 20px;
-  }
-  .feed-creator-textarea {
-    width: 100%; min-height: 132px; resize: none; border: none;
-    background: transparent; color: #e2e8f0; font-size: 0.98rem; line-height: 1.7;
-    padding: 0; outline: none; overflow-wrap: break-word; white-space: pre-wrap;
-  }
-  .feed-creator-textarea::placeholder { color: #94a3b8; }
-  .feed-creator-controls {
-    margin-top: 18px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px;
-  }
-  .feed-creator-pill {
-    border-radius: 999px; border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(255,255,255,0.04); color: #cbd5e1; padding: 10px 16px;
-    font-size: 0.78rem; font-weight: 700; transition: background .15s ease, border-color .15s ease;
-  }
-  .feed-creator-pill:hover { background: rgba(255,255,255,0.08); border-color: rgba(56,189,248,0.22); }
-  .feed-creator-post {
-    border-radius: 999px; background: #14b8a6; color: #0f172a;
-    font-size: 0.92rem; font-weight: 800; padding: 12px 24px;
-    transition: background .15s ease, transform .15s ease;
-  }
-  .feed-creator-post:hover { background: #0f766e; transform: translateY(-1px); }
-  .feed-create-footer {
-    margin-top: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
-  }
-  .feed-compose-media-label {
-    display: inline-flex; align-items: center; gap: 8px; border-radius: 999px;
-    padding: 10px 16px; font-size: 0.82rem; font-weight: 700;
-    background: rgba(255,255,255,0.05); color: #cbd5e1;
-    border: 1px solid rgba(255,255,255,0.08); cursor: pointer;
-    transition: background .18s ease, color .18s ease, transform .18s ease;
-  }
-  .feed-compose-media-label:hover { background: rgba(255,255,255,0.1); }
-  .feed-photo-name { color: #94a3b8; font-size: 0.85rem; min-width: 0; }
-  .feed-create-post-card { position: sticky; top: 1rem; z-index: 8; }
-  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-  .feed-filters { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 22px; }
-  .filter-pill {
-    border-radius: 999px; border: 1px solid rgba(255,255,255,0.08);
-    background: rgba(255,255,255,0.04); color: #cbd5e1;
-    padding: 10px 16px; font-size: 0.82rem; font-weight: 700; transition: background .18s ease, color .18s ease;
-  }
-  .filter-pill:hover { background: rgba(255,255,255,0.08); }
-  .filter-pill.active {
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(234, 88, 12, 0.16));
-    color: #f8fafc;
-    border-color: rgba(245, 158, 11, 0.3);
-  }
-
-  /* ── Post composer (create post box) ── */
-  .post-composer {
-    border-radius: 20px;
-    background: rgba(17, 20, 28, 0.92);
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    box-shadow: 0 18px 32px rgba(0, 0, 0, 0.22);
-    padding: 16px;
-  }
-  .post-composer-top {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .post-composer-avatar {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    flex-shrink: 0;
+  .feed-composer textarea::-webkit-scrollbar { display: none; }
+  .feed-skeleton-card {
+    background: linear-gradient(180deg, rgba(13,17,23,0.95), rgba(9,12,17,0.96));
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 1rem;
+    padding: 1rem;
+    margin-bottom: 0.9rem;
     overflow: hidden;
-    background: linear-gradient(135deg, #f59e0b, #ea580c);
-    color: #1c1006;
-    font-weight: 800;
+  }
+  .feed-skeleton-row {
     display: flex;
     align-items: center;
-    justify-content: center;
-    border: 2px solid rgba(245, 158, 11, 0.35);
+    gap: 0.75rem;
+    margin-bottom: 0.8rem;
   }
-  .post-composer-avatar img { width: 100%; height: 100%; object-fit: cover; }
-  .post-composer-input-wrap { flex: 1; min-width: 0; }
-  .post-composer-input {
-    width: 100%;
+  .feed-skeleton-avatar,
+  .feed-skeleton-line,
+  .feed-skeleton-block,
+  .feed-skeleton-icon {
+    background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.12) 37%, rgba(255,255,255,0.05) 63%);
+    background-size: 400% 100%;
+    animation: feed-shimmer 1.35s ease infinite;
     border-radius: 999px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.08);
-    padding: 11px 18px;
-    color: #f1f5f9;
-    font-size: 0.94rem;
-    outline: none;
-    transition: border-color 0.15s ease, background 0.15s ease;
   }
-  .post-composer-input:focus {
-    background: rgba(255,255,255,0.07);
-    border-color: rgba(245, 158, 11, 0.35);
+  .feed-skeleton-avatar {
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 999px;
+    flex-shrink: 0;
   }
-  .post-composer-input::placeholder { color: #64748b; }
-
-  .post-composer-preview {
-    margin-top: 14px;
-    position: relative;
-    border-radius: 16px;
-    overflow: hidden;
-    max-height: 280px;
-    border: 1px solid rgba(255,255,255,0.08);
+  .feed-skeleton-line {
+    height: 0.7rem;
+    flex: 1;
   }
-  .post-composer-preview img {
-    width: 100%;
-    max-height: 280px;
-    object-fit: cover;
-    display: block;
+  .feed-skeleton-line.short { width: 38%; }
+  .feed-skeleton-block {
+    height: 4rem;
+    border-radius: 0.9rem;
+    margin-bottom: 0.8rem;
   }
-  .post-composer-preview-remove {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: rgba(0,0,0,0.55);
-    color: #fff;
-    border: none;
-    font-size: 1.1rem;
-    line-height: 1;
-    cursor: pointer;
+  .feed-skeleton-actions {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(4px);
+    gap: 0.5rem;
+    margin-top: 0.4rem;
   }
-  .post-composer-preview-remove:hover { background: rgba(0,0,0,0.75); }
-
-  .post-composer-footer {
-    margin-top: 14px;
+  .feed-skeleton-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 999px;
+  }
+  @keyframes feed-shimmer {
+    0% { background-position: 100% 50%; }
+    100% { background-position: 0 50%; }
+  }
+  .feed-empty-state {
+    border: 1px dashed rgba(255,255,255,0.1);
+    border-radius: 1.1rem;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    color: #cbd5e1;
+    background: rgba(13,17,23,0.5);
+  }
+  .feed-empty-state svg { margin: 0 auto 0.75rem; color: #38bdf8; }
+  .feed-comments-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 8, 23, 0.72);
+    backdrop-filter: blur(6px);
+    z-index: 40;
+  }
+  .feed-comments-drawer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    max-height: 85vh;
+    background: #0d1117;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    border-radius: 1.25rem 1.25rem 0 0;
+    padding: 0.85rem 1rem 1rem;
+    box-shadow: 0 -20px 40px rgba(2, 8, 23, 0.45);
+    transform: translateY(100%);
+    transition: transform 0.28s ease;
+    overflow-y: auto;
+  }
+  .feed-comments-drawer.open { transform: translateY(0); }
+  .feed-comments-handle {
+    width: 3rem;
+    height: 0.35rem;
+    background: #374151;
+    border-radius: 999px;
+    margin: 0 auto 0.75rem;
+  }
+  .feed-comments-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(255,255,255,0.06);
+    gap: 0.8rem;
+    margin-bottom: 0.85rem;
   }
-  .post-composer-media-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: #94a3b8;
-    font-size: 0.86rem;
-    font-weight: 700;
-    cursor: pointer;
-    padding: 8px 14px;
-    border-radius: 999px;
-    transition: background 0.15s ease, color 0.15s ease;
-  }
-  .post-composer-media-btn:hover { background: rgba(245, 158, 11, 0.1); color: #fbbf24; }
-  .post-composer-media-btn svg { width: 19px; height: 19px; }
-  .post-composer-submit {
-    background: #f59e0b;
-    color: #1c1006;
+  .feed-comments-title { font-size: 1rem; font-weight: 700; color: #f8fafc; margin: 0; }
+  .feed-comments-subtitle { font-size: 0.8rem; color: #94a3b8; margin: 0.2rem 0 0; }
+  .feed-comments-close {
+    width: 2.5rem;
+    height: 2.5rem;
     border: none;
     border-radius: 999px;
-    padding: 10px 24px;
-    font-weight: 800;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: background 0.15s ease, transform 0.15s ease;
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
   }
-  .post-composer-submit:hover { background: #fbbf24; transform: translateY(-1px); }
+  .feed-comments-list {
+    display: grid;
+    gap: 0.7rem;
+    padding-bottom: 0.8rem;
+  }
+  .feed-comment-item {
+    display: flex;
+    gap: 0.7rem;
+    align-items: flex-start;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 0.9rem;
+    padding: 0.7rem;
+  }
+  .feed-comment-avatar {
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #38bdf8, #2563eb);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .feed-comment-body { min-width: 0; }
+  .feed-comment-meta { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.2rem; }
+  .feed-comment-meta strong { color: #f8fafc; font-size: 0.84rem; }
+  .feed-comment-meta span { color: #64748b; font-size: 0.74rem; }
+  .feed-comment-body p { margin: 0; color: #e2e8f0; font-size: 0.9rem; line-height: 1.45; }
+  .feed-comments-input-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    margin-top: 0.2rem;
+  }
+  .feed-comments-input-row input {
+    flex: 1;
+    min-height: 2.8rem;
+    background: #161b22;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 999px;
+    padding: 0 0.9rem;
+    color: #f8fafc;
+    font-size: 0.92rem;
+  }
+  .feed-comments-input-row input:focus { outline: none; border-color: rgba(56,189,248,0.4); }
+  .feed-comments-send {
+    min-height: 2.8rem;
+    padding: 0 1rem;
+    border: none;
+    border-radius: 999px;
+    background: #38bdf8;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+  .feed-comments-send:disabled { opacity: 0.6; cursor: progress; }
+  .feed-comment-skeleton { display: flex; gap: 0.7rem; align-items: center; padding: 0.7rem 0; }
+  .feed-comment-skeleton .feed-skeleton-avatar { width: 2.2rem; height: 2.2rem; }
+  .feed-comment-skeleton .feed-skeleton-line { height: 0.65rem; }
+  .feed-composer-textarea {
+    width: 100%;
+    min-height: 4.5rem;
+    resize: none;
+    background: transparent;
+    border: none;
+    color: #f8fafc;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    padding: 0;
+    outline: none;
+    overflow: hidden;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .feed-composer-textarea::placeholder { color: #64748b; }
+  .feed-composer-preview {
+    margin-top: 0.85rem;
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    max-height: 16rem;
+  }
+  .feed-composer-preview img {
+    width: 100%;
+    max-height: 16rem;
+    object-fit: cover;
+    display: block;
+  }
+  .feed-composer-preview-remove {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    width: 2rem;
+    height: 2rem;
+    border: none;
+    border-radius: 999px;
+    background: rgba(2, 8, 23, 0.72);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .feed-composer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-top: 0.85rem;
+    margin-top: 0.85rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .feed-composer-attach {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #38bdf8;
+    background: transparent;
+    border: none;
+    padding: 0.65rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    min-height: 2.75rem;
+    transition: background-color 0.16s ease, color 0.16s ease;
+    cursor: pointer;
+  }
+  .feed-composer-attach:hover,
+  .feed-composer-attach:focus-visible {
+    background: rgba(56, 189, 248, 0.12);
+    color: #7dd3fc;
+    outline: none;
+  }
+  .feed-composer-submit {
+    min-height: 2.75rem;
+    padding: 0.65rem 1.2rem;
+    border: none;
+    border-radius: 999px;
+    background: #38bdf8;
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    box-shadow: 0 10px 20px rgba(56, 189, 248, 0.2);
+    transition: background-color 0.16s ease, transform 0.16s ease, opacity 0.16s ease;
+    cursor: pointer;
+  }
+  .feed-composer-submit:hover,
+  .feed-composer-submit:focus-visible {
+    background: #0ea5e9;
+    transform: translateY(-1px);
+    outline: none;
+  }
+  .feed-composer-submit:disabled {
+    opacity: 0.6;
+    cursor: progress;
+    transform: none;
+  }
+  .feed-filters {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.2rem 0 0.7rem;
+    margin-bottom: 0.9rem;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .feed-filters::-webkit-scrollbar { display: none; }
+  .feed-filter-pill {
+    flex-shrink: 0;
+    min-height: 2.75rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: #161b22;
+    color: #94a3b8;
+    padding: 0.55rem 0.95rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    transition: all 0.16s ease;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .feed-filter-pill:hover,
+  .feed-filter-pill:focus-visible {
+    color: #f8fafc;
+    border-color: rgba(255,255,255,0.16);
+    outline: none;
+  }
+  .feed-filter-pill.active {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+    border-color: rgba(56, 189, 248, 0.44);
+    box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.14);
+    font-weight: 700;
+  }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 </style>
 
 <div class="mx-auto max-w-4xl px-4 py-6 text-slate-200 feed-page">
-  <section id="feedCreateCard" class="max-w-3xl mx-auto w-full mb-6">
-    <form id="composeForm" method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data" class="post-composer">
-      <div class="post-composer-top">
-        <div class="post-composer-avatar">
-          {% if current_user['avatar'] %}
-            <img src="{{ photo_url(current_user['avatar']) }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}">
-          {% else %}
-            <span>{{ (current_user['full_name'] or current_user['username'])[0] }}</span>
-          {% endif %}
-        </div>
-        <div class="post-composer-input-wrap">
-          <label for="composeTextarea" class="sr-only">What's on your mind?</label>
-          <input id="composeTextarea" name="content" placeholder="What's on your mind, {{ current_user['full_name'] or current_user['username'] }}?" aria-label="What's on your mind?" class="post-composer-input" />
+  <section id="feedCreateCard" class="max-w-3xl mx-auto w-full mb-3 sm:mb-4">
+    <form id="composeForm" method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data" class="feed-composer">
+      <div class="flex items-start gap-3">
+        <img class="h-10 w-10 rounded-full border border-gray-700/60 object-cover" src="{{ photo_url(current_user['avatar']) if current_user['avatar'] else '' }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}">
+        <div class="min-w-0 flex-1">
+          <label for="composeTextarea" class="sr-only">Write something</label>
+          <textarea id="composeTextarea" name="content" rows="1" placeholder="Share a job, skill, or insight..." aria-label="Write a post" class="feed-composer-textarea"></textarea>
           <input type="hidden" name="post_type" id="composePostType" value="general">
           <input type="hidden" name="current_filter" id="composeCurrentFilter" value="{{ active_filter or 'all' }}">
         </div>
       </div>
 
-      <div id="composePreviewWrap" class="post-composer-preview" hidden>
+      <div id="composePreviewWrap" class="feed-composer-preview" hidden>
         <img id="composePreviewImg" src="" alt="Selected photo preview">
-        <button type="button" id="composePreviewRemove" class="post-composer-preview-remove" aria-label="Remove photo">&times;</button>
+        <button type="button" id="composePreviewRemove" class="feed-composer-preview-remove" aria-label="Remove photo">×</button>
       </div>
 
-      <div class="post-composer-footer">
-        <label for="composePhotoInput" class="post-composer-media-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7M16 3v4M8 3v4M3 11h18"/></svg>
-          <span>Photo</span>
+      <div class="feed-composer-actions">
+        <div class="flex items-center gap-1 sm:gap-2">
+          <button type="button" class="feed-composer-attach" data-attachment="photo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2-2h10l2 2h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <span>Photo</span>
+          </button>
+          <button type="button" class="feed-composer-attach" data-attachment="job">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M3 7h18"></path><path d="M5 7v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7"></path><path d="M9 7V5h6v2"></path></svg>
+            <span>Job</span>
+          </button>
+          <button type="button" class="feed-composer-attach" data-attachment="skill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M12 3 4 7v5c0 5 3.6 8.2 8 9 4.4-.8 8-4 8-9V7l-8-4Z"></path></svg>
+            <span>Skill</span>
+          </button>
+          <label for="composePhotoInput" class="sr-only">Attach photo</label>
           <input type="file" name="photo" accept="image/*" id="composePhotoInput" class="sr-only">
-        </label>
-        <button type="submit" id="composeSubmitButton" class="post-composer-submit">Post</button>
+        </div>
+        <button type="submit" id="composeSubmitButton" class="feed-composer-submit">Post</button>
       </div>
     </form>
   </section>
 
-  <script>
-  (function () {
-    var input = document.getElementById('composePhotoInput');
-    var wrap = document.getElementById('composePreviewWrap');
-    var img = document.getElementById('composePreviewImg');
-    var removeBtn = document.getElementById('composePreviewRemove');
-    if (!input) return;
-
-    input.addEventListener('change', function () {
-      var file = input.files && input.files[0];
-      if (!file) { wrap.hidden = true; return; }
-      var reader = new FileReader();
-      reader.onload = function (e) {
-        img.src = e.target.result;
-        wrap.hidden = false;
-      };
-      reader.readAsDataURL(file);
-    });
-
-    if (removeBtn) {
-      removeBtn.addEventListener('click', function () {
-        input.value = '';
-        img.src = '';
-        wrap.hidden = true;
-      });
-    }
-  })();
-  </script>
-
-  <section class="feed-filters" id="feedFilters">
-    <button type="button" class="filter-pill {{ 'active' if active_filter == 'all' or not active_filter }}" data-filter="all">All</button>
-    <button type="button" class="filter-pill {{ 'active' if active_filter == 'job' }}" data-filter="job">Jobs Only 💼</button>
-    <button type="button" class="filter-pill {{ 'active' if active_filter == 'experience' }}" data-filter="experience">Experiences 💬</button>
+  <section class="feed-filters" id="feedFilters" aria-label="Feed filters">
+    <button type="button" class="feed-filter-pill {{ 'active' if active_filter == 'all' or not active_filter }}" data-filter="all">All</button>
+    <button type="button" class="feed-filter-pill {{ 'active' if active_filter == 'job' }}" data-filter="job">Jobs Only</button>
+    <button type="button" class="feed-filter-pill {{ 'active' if active_filter == 'experience' }}" data-filter="experience">Experiences</button>
   </section>
 
   <!-- Removed two empty skeleton boxes that cluttered the top of the feed -->
@@ -293,9 +403,10 @@
         <strong>Debug:</strong> {{ db_warning_message }}
       </div>
     {% endif %}
-    <div class="empty-state-note" id="noPostsMsg">
-      <i class='bx bx-news'></i>
-      <span>{{ t.no_posts }}</span>
+    <div class="feed-empty-state" id="noPostsMsg">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-8 w-8" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2-2h10l2 2h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+      <div class="font-semibold text-white">No posts here yet</div>
+      <div class="text-sm text-slate-400 mt-1">Be the first to share something with your network.</div>
     </div>
   {% endif %}
   <div class="empty-state-note empty-state-note-hidden" id="noFilterResultsMsg">
@@ -313,6 +424,7 @@
     <button type="button" id="feedLoadMoreBtn" class="btn-primary">Load more posts</button>
   {% endif %}
   <div id="feedLoadMoreSpinner" class="feed-load-more-spinner" hidden aria-live="polite">Loading…</div>
+  <div id="feedInfiniteSentinel" class="feed-pagination-sentinel" aria-hidden="true"></div>
 </div>
 
 <script>
@@ -323,6 +435,16 @@
   var spinner = document.getElementById('feedLoadMoreSpinner');
   var filterBar = document.getElementById('feedFilters');
   var emptyMsg = document.getElementById('noFilterResultsMsg');
+  var composerForm = document.getElementById('composeForm');
+  var composerTextarea = document.getElementById('composeTextarea');
+  var composerInput = document.getElementById('composePhotoInput');
+  var composerPreviewWrap = document.getElementById('composePreviewWrap');
+  var composerPreviewImg = document.getElementById('composePreviewImg');
+  var composerPreviewRemove = document.getElementById('composePreviewRemove');
+  var composerSubmit = document.getElementById('composeSubmitButton');
+  var composePostType = document.getElementById('composePostType');
+  var composeCurrentFilter = document.getElementById('composeCurrentFilter');
+  var sentinel = document.getElementById('feedInfiniteSentinel');
   if (!wrap || !container) return;
 
   var page = parseInt(wrap.dataset.page || '1', 10);
@@ -365,10 +487,162 @@
     });
   }
 
+  function clearSkeletons() {
+    container.querySelectorAll('.feed-skeleton-card').forEach(function (node) {
+      node.remove();
+    });
+  }
+
+  function renderSkeletons(count, mode) {
+    clearSkeletons();
+    var fragment = document.createDocumentFragment();
+    for (var i = 0; i < count; i += 1) {
+      var card = document.createElement('div');
+      card.className = 'feed-skeleton-card';
+      card.innerHTML = [
+        '<div class="feed-skeleton-row">',
+        '  <div class="feed-skeleton-avatar"></div>',
+        '  <div class="feed-skeleton-line"></div>',
+        '  <div class="feed-skeleton-line short"></div>',
+        '</div>',
+        '<div class="feed-skeleton-block"></div>',
+        '<div class="feed-skeleton-actions">',
+        '  <div class="feed-skeleton-icon"></div>',
+        '  <div class="feed-skeleton-icon"></div>',
+        '  <div class="feed-skeleton-icon"></div>',
+        '</div>'
+      ].join('');
+      fragment.appendChild(card);
+    }
+    if (mode === 'replace') {
+      container.innerHTML = '';
+      container.appendChild(fragment);
+    } else {
+      container.appendChild(fragment);
+    }
+  }
+
+  function refreshComposerPreview() {
+    if (!composerPreviewWrap || !composerPreviewImg) return;
+    composerPreviewWrap.hidden = true;
+    composerPreviewImg.src = '';
+  }
+
+  function syncComposerType() {
+    if (!composePostType || !composeCurrentFilter) return;
+    var raw = composeCurrentFilter.value || 'all';
+    var nextType = raw === 'job' ? 'job' : (raw === 'experience' ? 'skill' : 'general');
+    composePostType.value = nextType;
+  }
+
+  function resizeComposerTextarea() {
+    if (!composerTextarea) return;
+    composerTextarea.style.height = 'auto';
+    composerTextarea.style.height = Math.min(composerTextarea.scrollHeight, 220) + 'px';
+  }
+
+  function refreshFeedUI() {
+    if (window.refreshPostSeeMoreButtons) {
+      window.refreshPostSeeMoreButtons();
+    }
+    if (typeof refreshLucideIcons === 'function') {
+      refreshLucideIcons(container);
+    }
+  }
+
+  function refreshEmptyState(hasPosts) {
+    if (emptyMsg) {
+      emptyMsg.style.display = hasPosts ? 'none' : 'block';
+    }
+  }
+
+  if (composerTextarea) {
+    composerTextarea.addEventListener('input', resizeComposerTextarea);
+    resizeComposerTextarea();
+  }
+
+  if (composerInput) {
+    composerInput.addEventListener('change', function () {
+      var file = composerInput.files && composerInput.files[0];
+      if (!composerPreviewWrap || !composerPreviewImg) return;
+      if (!file) {
+        refreshComposerPreview();
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        composerPreviewImg.src = e.target.result;
+        composerPreviewWrap.hidden = false;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (composerPreviewRemove) {
+    composerPreviewRemove.addEventListener('click', function () {
+      if (composerInput) composerInput.value = '';
+      refreshComposerPreview();
+    });
+  }
+
+  if (composerForm) {
+    composerForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!composerTextarea) return;
+      var content = composerTextarea.value.trim();
+      var hasFile = composerInput && composerInput.files && composerInput.files.length > 0;
+      if (!content && !hasFile) return;
+
+      syncComposerType();
+      if (composerSubmit) {
+        composerSubmit.disabled = true;
+        composerSubmit.textContent = 'Posting…';
+      }
+
+      var formData = new FormData(composerForm);
+      fetch(composerForm.action, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          if (data && data.success && data.html) {
+            composerForm.reset();
+            syncComposerType();
+            refreshComposerPreview();
+            if (composerTextarea) {
+              composerTextarea.value = '';
+              resizeComposerTextarea();
+            }
+            prependUniquePosts(data.html);
+            refreshFeedUI();
+            if (typeof window.showToast === 'function') {
+              window.showToast('Post published', 'success');
+            }
+          } else if (typeof window.showToast === 'function') {
+            window.showToast('Could not publish your post', 'error');
+          }
+        })
+        .catch(function () {
+          if (typeof window.showToast === 'function') {
+            window.showToast('Could not publish your post', 'error');
+          }
+        })
+        .finally(function () {
+          if (composerSubmit) {
+            composerSubmit.disabled = false;
+            composerSubmit.textContent = 'Post';
+          }
+        });
+    });
+  }
+
   function loadNextPage() {
     if (isFetching || loading || !hasNext) return;
     isFetching = true;
     loading = true;
+    renderSkeletons(2, 'append');
     if (btn) btn.hidden = true;
     if (spinner) spinner.hidden = false;
 
@@ -376,14 +650,10 @@
       .then(function (res) { return res.json(); })
       .then(function (data) {
         if (data && data.success) {
+          clearSkeletons();
           if (data.html) {
             appendUniquePosts(data.html);
-            if (window.refreshPostSeeMoreButtons) {
-              window.refreshPostSeeMoreButtons();
-            }
-            if (typeof refreshLucideIcons === 'function') {
-              refreshLucideIcons(container);
-            }
+            refreshFeedUI();
           }
           page = data.page;
           hasNext = !!data.has_next;
@@ -392,35 +662,35 @@
         }
       })
       .catch(function () {
-        // Network hiccup: leave the button visible so the user can retry manually.
+        clearSkeletons();
+        if (typeof window.showToast === 'function') {
+          window.showToast('Network issue, retrying…', 'error');
+        }
       })
       .finally(function () {
         isFetching = false;
         loading = false;
+        clearSkeletons();
         if (spinner) spinner.hidden = true;
         if (btn) btn.hidden = !hasNext;
       });
   }
 
-  // Backend-enforced filter pills: re-query the server for page 1 of the
-  // chosen post_type (job / experience / all) instead of just hiding
-  // already-loaded cards client-side, so pagination past page 1 also stays
-  // strictly within the chosen filter.
   if (filterBar) {
     filterBar.addEventListener('click', function (e) {
-      var pill = e.target.closest('.filter-pill');
+      var pill = e.target.closest('.feed-filter-pill');
       if (!pill || loading) return;
 
       var newType = pill.dataset.filter === 'all' ? 'all' : pill.dataset.filter;
-      filterBar.querySelectorAll('.filter-pill').forEach(function (p) { p.classList.remove('active'); });
+      filterBar.querySelectorAll('.feed-filter-pill').forEach(function (p) { p.classList.remove('active'); });
       pill.classList.add('active');
       if (newType === activeType) return;
 
       activeType = newType;
-      var composeCurrentFilter = document.getElementById('composeCurrentFilter');
       if (composeCurrentFilter) composeCurrentFilter.value = activeType;
+      syncComposerType();
       loading = true;
-      container.style.opacity = '0.5';
+      renderSkeletons(3, 'replace');
       if (btn) btn.hidden = true;
       if (spinner) spinner.hidden = false;
 
@@ -437,19 +707,19 @@
             });
             page = 1;
             hasNext = !!data.has_next;
-            if (window.refreshPostSeeMoreButtons) {
-              window.refreshPostSeeMoreButtons();
-            }
-            if (typeof refreshLucideIcons === 'function') {
-              refreshLucideIcons(container);
-            }
-            if (emptyMsg) emptyMsg.style.display = data.has_posts ? 'none' : 'block';
+            refreshFeedUI();
+            refreshEmptyState(!!data.has_posts);
+          }
+        })
+        .catch(function () {
+          if (typeof window.showToast === 'function') {
+            window.showToast('Network issue, retrying…', 'error');
           }
         })
         .finally(function () {
           isFetching = false;
           loading = false;
-          container.style.opacity = '';
+          clearSkeletons();
           if (spinner) spinner.hidden = true;
           if (btn) btn.hidden = !hasNext;
         });
@@ -460,14 +730,13 @@
     btn.addEventListener('click', loadNextPage);
   }
 
-  // Infinite scroll: also auto-load once the button nears the viewport.
-  if ('IntersectionObserver' in window) {
+  if ('IntersectionObserver' in window && sentinel) {
     var observer = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         if (entry.isIntersecting) loadNextPage();
       });
     }, { rootMargin: '600px 0px' });
-    observer.observe(wrap);
+    observer.observe(sentinel);
   }
 })();
 </script>
@@ -485,6 +754,23 @@
   <div class="sheet-title">Or send directly to…</div>
   <div class="sheet-follower-list" id="repostFollowerList">
     <div class="sheet-empty-note">Loading your followers…</div>
+  </div>
+</div>
+
+<div class="feed-comments-backdrop" id="feedCommentsBackdrop" hidden></div>
+<div class="feed-comments-drawer" id="feedCommentsDrawer" role="dialog" aria-modal="true" aria-label="Comments" aria-hidden="true">
+  <div class="feed-comments-handle"></div>
+  <div class="feed-comments-header">
+    <div>
+      <h3 class="feed-comments-title">Comments</h3>
+      <p class="feed-comments-subtitle" id="feedCommentsSubtitle">Loading comments…</p>
+    </div>
+    <button type="button" class="feed-comments-close" id="feedCommentsCloseBtn" aria-label="Close comments">×</button>
+  </div>
+  <div class="feed-comments-list" id="feedCommentsList"></div>
+  <div class="feed-comments-input-row">
+    <input type="text" id="feedCommentsInput" placeholder="Write a comment..." aria-label="Write a comment">
+    <button type="button" class="feed-comments-send" id="feedCommentsSendBtn">Send</button>
   </div>
 </div>
 
@@ -677,59 +963,57 @@
 {% endblock %}
 
 <script>
-// Inline feed interactions: toggle comment and share panels per-post
-(function(){
-  function setPanelState(panel, open){
-    if(!panel) return;
-    if(open){
+(function () {
+  function setPanelState(panel, open) {
+    if (!panel) return;
+    if (open) {
       panel.classList.add('open');
-      panel.setAttribute('aria-hidden','false');
-      // allow transition from 0 to full height
+      panel.setAttribute('aria-hidden', 'false');
       panel.style.maxHeight = panel.scrollHeight + 'px';
-      setTimeout(function(){ panel.style.maxHeight = ''; }, 350);
+      setTimeout(function () { panel.style.maxHeight = ''; }, 350);
     } else {
       panel.style.maxHeight = panel.scrollHeight + 'px';
-      requestAnimationFrame(function(){ panel.style.maxHeight = '0px'; panel.classList.remove('open'); panel.setAttribute('aria-hidden','true'); });
+      requestAnimationFrame(function () {
+        panel.style.maxHeight = '0px';
+        panel.classList.remove('open');
+        panel.setAttribute('aria-hidden', 'true');
+      });
     }
   }
 
-  document.addEventListener('click', function(e){
-    var cbtn = e.target.closest('.js-comment-toggle');
-    if(cbtn){
-      e.preventDefault();
-      var postId = cbtn.dataset.postId;
-      var panel = document.querySelector('#post-' + postId + ' .xpost-comment-panel');
-      if(panel) setPanelState(panel, !panel.classList.contains('open'));
-      return;
-    }
-
+  document.addEventListener('click', function (e) {
     var sbtn = e.target.closest('.js-share-btn');
-    if(sbtn){
-      // allow existing inline share-copy behavior to run, but also toggle inline share panel
+    if (sbtn) {
+      e.preventDefault();
       var postId = sbtn.dataset.postId;
       var panel = document.querySelector('#post-' + postId + ' .xpost-share-panel');
-      if(panel){
+      if (panel) {
         setPanelState(panel, !panel.classList.contains('open'));
       }
       return;
     }
 
-    // copy link from inline share panel
     var copyBtn = e.target.closest('.post-action.copy-link');
-    if(copyBtn){
+    if (copyBtn) {
       var url = copyBtn.dataset.postUrl;
-      if(navigator.clipboard && url){ navigator.clipboard.writeText(url); }
-      var panel = copyBtn.closest('.xpost-share-panel'); if(panel) setPanelState(panel, false);
+      if (navigator.clipboard && url) {
+        navigator.clipboard.writeText(url);
+      }
+      var panel = copyBtn.closest('.xpost-share-panel');
+      if (panel) setPanelState(panel, false);
       return;
     }
 
     var nativeBtn = e.target.closest('.js-share-native');
-    if(nativeBtn){
+    if (nativeBtn) {
       var url = nativeBtn.dataset.postUrl;
-      if(navigator.share){ navigator.share({ title: document.title, url: url }).catch(function(){}); }
-      else if(navigator.clipboard && url){ navigator.clipboard.writeText(url); }
-      var panel = nativeBtn.closest('.xpost-share-panel'); if(panel) setPanelState(panel, false);
-      return;
+      if (navigator.share) {
+        navigator.share({ title: document.title, url: url }).catch(function () {});
+      } else if (navigator.clipboard && url) {
+        navigator.clipboard.writeText(url);
+      }
+      var panel = nativeBtn.closest('.xpost-share-panel');
+      if (panel) setPanelState(panel, false);
     }
   });
 })();

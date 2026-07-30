@@ -29,6 +29,8 @@
     }, 2200);
   }
 
+  window.showToast = showToast;
+
   /* ─── Like ────────────────────────────────────────────────────── */
   document.addEventListener('click', function (e) {
     var btn = e.target.closest('.js-like-btn, [data-action="like"]');
@@ -90,7 +92,14 @@
     btn.disabled = true;
 
     post('/api/follow/' + userId)
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        if (!r.ok) throw new Error('network');
+        var ct = r.headers.get('content-type') || '';
+        if (ct.indexOf('application/json') === -1) {
+          return r.text().then(function () { throw new Error('invalid_response'); });
+        }
+        return r.json();
+      })
       .then(function (data) {
         if (data.error) throw new Error(data.error);
         btn.classList.toggle('following', !!data.following);
@@ -118,114 +127,161 @@
       });
   });
 
-  /* ─── Comment panel toggle ────────────────────────────────────── */
-  function setPanelHeight(panel, open) {
-    if (!panel) return;
-    if (open) {
-      panel.classList.add('open');
-      panel.setAttribute('aria-hidden', 'false');
-      panel.style.maxHeight = panel.scrollHeight + 64 + 'px'; // +64 for input
-      var input = panel.querySelector('input, textarea');
-      if (input) setTimeout(function () { input.focus(); }, 80);
-    } else {
-      panel.style.maxHeight = panel.scrollHeight + 'px';
-      requestAnimationFrame(function () {
-        panel.style.maxHeight = '0';
-        panel.classList.remove('open');
-        panel.setAttribute('aria-hidden', 'true');
-      });
+  /* ─── Comment drawer ─────────────────────────────────────────── */
+  var commentsDrawer = document.getElementById('feedCommentsDrawer');
+  var commentsBackdrop = document.getElementById('feedCommentsBackdrop');
+  var commentsList = document.getElementById('feedCommentsList');
+  var commentsInput = document.getElementById('feedCommentsInput');
+  var commentsSendBtn = document.getElementById('feedCommentsSendBtn');
+  var commentsSubtitle = document.getElementById('feedCommentsSubtitle');
+  var commentsCloseBtn = document.getElementById('feedCommentsCloseBtn');
+  var activeCommentPostId = null;
+
+  function setCommentsDrawerOpen(open) {
+    if (!commentsDrawer || !commentsBackdrop) return;
+    commentsDrawer.classList.toggle('open', !!open);
+    commentsDrawer.setAttribute('aria-hidden', open ? 'false' : 'true');
+    commentsBackdrop.hidden = !open;
+    document.body.style.overflow = open ? 'hidden' : '';
+  }
+
+  function renderCommentsSkeletons() {
+    if (!commentsList) return;
+    commentsList.innerHTML = [
+      '<div class="feed-comment-skeleton"><div class="feed-skeleton-avatar"></div><div style="flex:1"><div class="feed-skeleton-line"></div><div class="feed-skeleton-line short"></div></div></div>',
+      '<div class="feed-comment-skeleton"><div class="feed-skeleton-avatar"></div><div style="flex:1"><div class="feed-skeleton-line"></div><div class="feed-skeleton-line short"></div></div></div>'
+    ].join('');
+  }
+
+  function renderEmptyComments() {
+    if (!commentsList) return;
+    commentsList.innerHTML = '<div class="feed-empty-state" style="padding:1rem;">No comments yet. Start the conversation.</div>';
+  }
+
+  function renderCommentsList(comments) {
+    if (!commentsList) return;
+    if (!comments || !comments.length) {
+      renderEmptyComments();
+      return;
     }
+    var html = '';
+    comments.forEach(function (comment) {
+      var name = comment.full_name || comment.username || 'You';
+      var initials = (name || 'Y').split(/\s+/).slice(0, 2).map(function (part) { return part.charAt(0).toUpperCase(); }).join('');
+      var when = formatTime(comment.created_at);
+      html += '<div class="feed-comment-item"><div class="feed-comment-avatar">' + escapeHtml(initials || 'Y') + '</div><div class="feed-comment-body"><div class="feed-comment-meta"><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(when || '') + '</span></div><p>' + escapeHtml(comment.content || '') + '</p></div></div>';
+    });
+    commentsList.innerHTML = html;
+  }
+
+  function openCommentsDrawer(postId) {
+    if (!commentsDrawer || !commentsBackdrop || !postId) return;
+    activeCommentPostId = postId;
+    setCommentsDrawerOpen(true);
+    if (commentsSubtitle) commentsSubtitle.textContent = 'Loading comments…';
+    renderCommentsSkeletons();
+    if (commentsInput) commentsInput.value = '';
+    fetch('/api/v1/posts/' + postId + '/comments?limit=20', {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin',
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && data.comments) {
+          renderCommentsList(data.comments);
+          if (commentsSubtitle) commentsSubtitle.textContent = (data.comments.length || 0) + ' comment' + ((data.comments.length === 1) ? '' : 's');
+        } else {
+          renderEmptyComments();
+          if (commentsSubtitle) commentsSubtitle.textContent = 'No comments yet';
+        }
+      })
+      .catch(function () {
+        renderEmptyComments();
+        if (commentsSubtitle) commentsSubtitle.textContent = 'Unable to load comments';
+        showToast('Could not load comments right now.', 'error');
+      });
   }
 
   document.addEventListener('click', function (e) {
     var btn = e.target.closest('.js-comment-toggle');
     if (!btn) return;
     e.preventDefault();
-    var postId = btn.dataset.postId;
-    var article = document.getElementById('post-' + postId);
-    if (!article) return;
-    var panel = article.querySelector('.xpost-comment-panel');
-    var isOpen = panel && panel.classList.contains('open');
-    setPanelHeight(panel, !isOpen);
-    btn.setAttribute('aria-expanded', (!isOpen).toString());
+    e.stopPropagation();
+    openCommentsDrawer(btn.dataset.postId);
   });
 
-  /* ─── Comment submit ──────────────────────────────────────────── */
-  document.addEventListener('click', function (e) {
-    var sendBtn = e.target.closest('.xpost-comment-submit, .comment-send-btn');
-    if (!sendBtn) return;
-    e.preventDefault();
-    var postId = sendBtn.dataset.postId;
-    var article = document.getElementById('post-' + postId);
-    if (!article) return;
-    var input = article.querySelector('.xpost-comment-input');
-    if (!input || !input.value.trim()) return;
-    var content = input.value.trim();
-    input.value = '';
-    sendBtn.disabled = true;
+  if (commentsCloseBtn) {
+    commentsCloseBtn.addEventListener('click', function () {
+      setCommentsDrawerOpen(false);
+      activeCommentPostId = null;
+    });
+  }
 
-    fetch('/post/' + postId + '/comment', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      credentials: 'same-origin',
-      body: 'content=' + encodeURIComponent(content),
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        if (!data.success) throw new Error(data.error || 'failed');
-        // Append new comment to panel
-        var commentList = article.querySelector('.xpost-comment-list');
-        if (!commentList) {
-          commentList = document.createElement('div');
-          commentList.className = 'xpost-comment-list';
-          var row = article.querySelector('.xpost-comment-row');
-          if (row) row.parentNode.insertBefore(commentList, row);
-        }
-        var div = document.createElement('div');
-        div.className = 'xpost-comment-item';
-        div.innerHTML =
-          '<span class="xpost-comment-author">' + escapeHtml(data.author || 'You') + '</span>' +
-          '<span class="xpost-comment-text">' + escapeHtml(content) + '</span>';
-        commentList.appendChild(div);
-        // Update count
-        var countEl = article.querySelector('.comment-count, .xpost-comment-summary');
-        if (countEl && data.comment_count !== undefined) {
-          if (countEl.classList.contains('xpost-comment-summary')) {
-            countEl.textContent = data.comment_count + ' comments';
-          } else {
+  if (commentsBackdrop) {
+    commentsBackdrop.addEventListener('click', function () {
+      setCommentsDrawerOpen(false);
+      activeCommentPostId = null;
+    });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && commentsDrawer && commentsDrawer.classList.contains('open')) {
+      setCommentsDrawerOpen(false);
+      activeCommentPostId = null;
+    }
+  });
+
+  if (commentsSendBtn) {
+    commentsSendBtn.addEventListener('click', function () {
+      if (!activeCommentPostId || !commentsInput || !commentsInput.value.trim()) return;
+      var content = commentsInput.value.trim();
+      commentsInput.value = '';
+      commentsSendBtn.disabled = true;
+      fetch('/api/v1/posts/' + activeCommentPostId + '/comments', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({ content: content })
+      })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          if (!data || !data.success) throw new Error('failed');
+          var commentItem = document.createElement('div');
+          commentItem.className = 'feed-comment-item';
+          var initials = 'YO';
+          commentItem.innerHTML = '<div class="feed-comment-avatar">' + escapeHtml(initials) + '</div><div class="feed-comment-body"><div class="feed-comment-meta"><strong>You</strong><span>just now</span></div><p>' + escapeHtml(content) + '</p></div>';
+          if (commentsList) {
+            if (!commentsList.querySelector('.feed-comment-item')) {
+              commentsList.innerHTML = '';
+            }
+            commentsList.insertBefore(commentItem, commentsList.firstChild);
+          }
+          var countEl = document.querySelector('.js-comment-toggle[data-post-id="' + activeCommentPostId + '"] .comment-count');
+          if (countEl && data.comment_count !== undefined) {
             countEl.textContent = data.comment_count;
           }
-        }
-        // Re-measure panel height
-        var panel = article.querySelector('.xpost-comment-panel');
-        if (panel && panel.classList.contains('open')) {
-          panel.style.maxHeight = panel.scrollHeight + 'px';
-        }
-      })
-      .catch(function () {
-        input.value = content; // restore on error
-        showToast('Could not post comment. Try again.', 'error');
-      })
-      .finally(function () {
-        sendBtn.disabled = false;
-      });
-  });
+          if (commentsSubtitle) commentsSubtitle.textContent = (data.comment_count || 0) + ' comment' + ((data.comment_count === 1) ? '' : 's');
+        })
+        .catch(function () {
+          showToast('Could not post comment. Try again.', 'error');
+        })
+        .finally(function () {
+          commentsSendBtn.disabled = false;
+        });
+    });
+  }
 
-  /* ─── Comment input: send on Enter ───────────────────────────── */
-  document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Enter') return;
-    var input = e.target;
-    if (!input.classList.contains('xpost-comment-input')) return;
-    e.preventDefault();
-    var article = input.closest('article[id^="post-"]');
-    if (!article) return;
-    var postId = article.id.replace('post-', '');
-    var sendBtn = article.querySelector('.xpost-comment-submit[data-post-id="' + postId + '"]');
-    if (sendBtn) sendBtn.click();
-  });
+  if (commentsInput) {
+    commentsInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (commentsSendBtn) commentsSendBtn.click();
+      }
+    });
+  }
 
   /* ─── See More / See Less ─────────────────────────────────────── */
   function refreshSeeMoreButtons() {
@@ -243,21 +299,40 @@
   document.addEventListener('click', function (e) {
     var btn = e.target.closest('.js-xpost-seemore');
     if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
     var content = btn.previousElementSibling;
     if (!content) return;
     var expanded = content.classList.toggle('xpost-clamped');
-    // toggle returns true when class was ADDED (i.e. now clamped)
     btn.textContent = expanded
       ? (btn.dataset.seeMore || 'See more')
       : (btn.dataset.seeLess || 'See less');
   });
 
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.js-save-btn');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var postId = btn.dataset.postId;
+    if (!postId) return;
+    var wasSaved = btn.classList.contains('saved');
+    btn.classList.toggle('saved', !wasSaved);
+    fetch('/post/' + postId + '/save', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    }).catch(function () {
+      btn.classList.toggle('saved', wasSaved);
+      showToast('Could not update save state.', 'error');
+    });
+  });
+
   window.refreshPostSeeMoreButtons = refreshSeeMoreButtons;
   document.addEventListener('DOMContentLoaded', refreshSeeMoreButtons);
 
-  /* ─── Notifications ───────────────────────────────────────────── */
+  /* ─── Notifications badge ───────────────────────────────────── */
   var bellBtn = document.getElementById('headerBellToggle');
-  var popover = document.getElementById('headerNotifications');
 
   function loadNotifications() {
     fetch('/api/notifications', {
@@ -267,8 +342,6 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var count = data.unread_count || 0;
-
-        // Update / create the badge on the bell button
         var badge = bellBtn ? bellBtn.querySelector('.topbar-badge') : null;
         if (count > 0) {
           if (!badge && bellBtn) {
@@ -280,57 +353,8 @@
         } else if (badge) {
           badge.remove();
         }
-
-        // Populate popover list
-        var list = popover ? popover.querySelector('.notification-list') : null;
-        if (!list) return;
-        if (!data.notifications || data.notifications.length === 0) {
-          list.innerHTML = '<div class="notification-empty"><i class="bx bx-bell"></i><span>No notifications yet.</span></div>';
-          return;
-        }
-        list.innerHTML = data.notifications.map(function (n) {
-          return '<div class="notif-item' + (n.is_read ? '' : ' notif-item--unread') + '">' +
-            '<i class="bx ' + (n.icon || 'bx-bell') + ' notif-icon"></i>' +
-            '<div class="notif-body">' +
-              '<p class="notif-msg">' + escapeHtml(n.message) + '</p>' +
-              '<span class="notif-time">' + formatTime(n.created_at) + '</span>' +
-            '</div></div>';
-        }).join('');
       })
-      .catch(function () {
-        var list = popover ? popover.querySelector('.notification-list') : null;
-        if (list) list.innerHTML = '<div class="notification-empty"><i class="bx bx-error-circle"></i><span>Could not load notifications.</span></div>';
-      });
-  }
-
-  // Toggle popover open/close on bell click, mark-read on open
-  if (bellBtn && popover) {
-    bellBtn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      var willOpen = !popover.classList.contains('open');
-      // close any other open popovers first
-      document.querySelectorAll('.topbar-popover.open').forEach(function (p) { p.classList.remove('open'); });
-      popover.classList.toggle('open', willOpen);
-      bellBtn.setAttribute('aria-expanded', willOpen.toString());
-      if (willOpen) {
-        loadNotifications();
-        fetch('/api/notifications/mark-read', {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'X-Requested-With': 'XMLHttpRequest' },
-        }).then(function () {
-          var badge = bellBtn.querySelector('.topbar-badge');
-          if (badge) badge.remove();
-        }).catch(function () {});
-      }
-    });
-
-    document.addEventListener('click', function (e) {
-      if (popover.classList.contains('open') && !popover.contains(e.target) && e.target !== bellBtn) {
-        popover.classList.remove('open');
-        bellBtn.setAttribute('aria-expanded', 'false');
-      }
-    });
+      .catch(function () {});
   }
 
   // Initial badge load + poll every 45s (does not mark as read, just refreshes count)
@@ -343,30 +367,73 @@
   document.addEventListener('click', function (e) {
     var toggleBtn = e.target.closest('[data-action="toggle-menu"]');
     if (toggleBtn) {
+      e.preventDefault();
+      e.stopPropagation();
       var dropdown = toggleBtn.closest('[data-dropdown]');
       if (!dropdown) return;
       var menu = dropdown.querySelector('[data-dropdown-menu]');
       if (!menu) return;
-      var isOpen = !menu.classList.contains('hidden');
-      // Close all others first
-      document.querySelectorAll('[data-dropdown-menu]').forEach(function (m) {
-        m.classList.add('hidden');
-        m.setAttribute('aria-hidden', 'true');
+      var isOpen = menu.classList.contains('open');
+      document.querySelectorAll('.xpost-menu.open').forEach(function (openMenu) {
+        openMenu.classList.remove('open');
+        openMenu.setAttribute('aria-hidden', 'true');
+      });
+      document.querySelectorAll('[data-action="toggle-menu"]').forEach(function (btn) {
+        btn.setAttribute('aria-expanded', 'false');
       });
       if (!isOpen) {
-        menu.classList.remove('hidden');
+        menu.classList.add('open');
         menu.setAttribute('aria-hidden', 'false');
+        toggleBtn.setAttribute('aria-expanded', 'true');
       }
-      e.stopPropagation();
       return;
     }
-    // Click outside: close all dropdowns
+
     if (!e.target.closest('[data-dropdown]')) {
-      document.querySelectorAll('[data-dropdown-menu]').forEach(function (m) {
-        m.classList.add('hidden');
-        m.setAttribute('aria-hidden', 'true');
+      document.querySelectorAll('.xpost-menu.open').forEach(function (menu) {
+        menu.classList.remove('open');
+        menu.setAttribute('aria-hidden', 'true');
+      });
+      document.querySelectorAll('[data-action="toggle-menu"]').forEach(function (btn) {
+        btn.setAttribute('aria-expanded', 'false');
       });
     }
+  });
+
+  document.addEventListener('click', function (e) {
+    var copyBtn = e.target.closest('.js-post-copy-link');
+    if (!copyBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var url = copyBtn.dataset.postUrl || '';
+    if (!url) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () {
+        showToast('Link copied', 'success');
+      }).catch(function () {
+        showToast('Could not copy link', 'error');
+      });
+    } else {
+      showToast('Could not copy link', 'error');
+    }
+    document.querySelectorAll('.xpost-menu.open').forEach(function (menu) {
+      menu.classList.remove('open');
+      menu.setAttribute('aria-hidden', 'true');
+    });
+  });
+
+  document.addEventListener('click', function (e) {
+    var reportBtn = e.target.closest('[data-action="report-post"]');
+    if (!reportBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (window.openReportDrawer) {
+      window.openReportDrawer('post', reportBtn.dataset.postId);
+    }
+    document.querySelectorAll('.xpost-menu.open').forEach(function (menu) {
+      menu.classList.remove('open');
+      menu.setAttribute('aria-hidden', 'true');
+    });
   });
 
   /* ─── Helpers ─────────────────────────────────────────────────── */
