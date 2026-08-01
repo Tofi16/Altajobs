@@ -600,7 +600,7 @@
             <div class="xpost-name-wrap">
               <a href="{{ url_for('profile', user_id=post.user_id) }}" class="xpost-name">{{ item.author_name }}</a>
               {% if post.verification_tier and post.verification_tier != 'none' %}
-                <span id="user-badge-{{ post.user_id }}" class="xpost-badge" aria-label="Verified user" title="Verified">
+                <span id="user-badge-{{ post.user_id }}" class="xpost-badge xpost-badge--{{ post.verification_tier }}" aria-label="Verified user" title="{{ 'Gold Verified' if post.verification_tier == 'gold' else 'Verified' }}">
                   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                     <path class="xpost-badge-rosette" d="M22 12c0-1.35-.83-2.53-2.06-3.04.43-1.31.09-2.74-.93-3.76s-2.45-1.36-3.76-.93C14.75 3.03 13.57 2.2 12 2.2s-2.75.83-3.25 2.07c-1.31-.43-2.74-.09-3.76.93s-1.36 2.45-.93 3.76C2.83 9.47 2 10.65 2 12s.83 2.53 2.06 3.04c-.43 1.31-.09 2.74.93 3.76s2.45 1.36 3.76.93C9.25 20.97 10.43 21.8 12 21.8s2.75-.83 3.25-2.07c1.31.43 2.74.09 3.76-.93s1.36-2.45.93-3.76C21.17 14.53 22 13.35 22 12Z"></path>
                     <path class="xpost-badge-check" d="m7.7 12.3 2.7 2.7 5.9-6"></path>

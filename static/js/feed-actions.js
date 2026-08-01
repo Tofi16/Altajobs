@@ -57,15 +57,15 @@
     if (btn.dataset.inflight === '1') return;
     btn.dataset.inflight = '1';
 
-    // Optimistic update
     var wasLiked = btn.classList.contains('liked');
     var countEl = btn.querySelector('.like-count, .count');
     var currentCount = parseInt((countEl && countEl.textContent) || '0', 10) || 0;
-    btn.classList.toggle('liked', !wasLiked);
-    if (countEl) countEl.textContent = wasLiked ? Math.max(0, currentCount - 1) : currentCount + 1;
 
     post('/api/like/' + postId)
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        if (!r.ok) throw new Error('like_request_failed');
+        return r.json();
+      })
       .then(function (data) {
         if (data.error) throw new Error(data.error);
         btn.classList.toggle('liked', !!data.liked);
@@ -79,9 +79,6 @@
         }
       })
       .catch(function () {
-        // revert optimistic update
-        btn.classList.toggle('liked', wasLiked);
-        if (countEl) countEl.textContent = currentCount;
         showToast('Could not update like. Try again.', 'error');
       })
       .finally(function () {
@@ -117,9 +114,6 @@
     if (btn.dataset.inflight === '1') return;
     btn.dataset.inflight = '1';
 
-    // Optimistic update
-    btn.classList.toggle('following', !wasFollowing);
-    if (labelEl) labelEl.textContent = wasFollowing ? followLabel : followingLabel;
     btn.disabled = true;
 
     post('/api/follow/' + userId)
@@ -354,8 +348,6 @@
     if (btn.dataset.inflight === '1') return;
     btn.dataset.inflight = '1';
     var wasSaved = btn.classList.contains('saved');
-    btn.classList.toggle('saved', !wasSaved);
-    btn.setAttribute('aria-pressed', String(!wasSaved));
     btn.disabled = true;
     fetch('/post/' + postId + '/save', {
       method: 'POST',
@@ -363,7 +355,8 @@
       headers: { 'X-Requested-With': 'XMLHttpRequest' },
     }).then(function (r) {
       if (!r.ok) throw new Error('network');
-      // server returns redirect; assume success on 2xx
+      btn.classList.toggle('saved', !wasSaved);
+      btn.setAttribute('aria-pressed', String(!wasSaved));
     }).catch(function () {
       btn.classList.toggle('saved', wasSaved);
       btn.setAttribute('aria-pressed', String(wasSaved));
@@ -385,10 +378,8 @@
     if (btn.dataset.inflight === '1') return;
     btn.dataset.inflight = '1';
     btn.disabled = true;
-    // optimistic: increment any nearby share count element
     var countEl = btn.querySelector('.count') || document.querySelector('.js-share-count[data-post-id="' + postId + '"]');
     var current = parseInt((countEl && countEl.textContent) || '0', 10) || 0;
-    if (countEl) countEl.textContent = current + 1;
     postJson('/api/post/' + postId + '/repost')
       .then(function (data) {
         if (!data || !data.success) throw new Error('failed');

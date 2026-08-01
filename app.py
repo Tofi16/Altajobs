@@ -3274,8 +3274,8 @@ from markupsafe import Markup
 _VERIFICATION_BADGE_SVG = {
     "blue": '''<span class="verification-badge verification-badge--blue" title="Verified">
             <svg viewBox="0 0 22 22" aria-hidden="true" focusable="false" width="18" height="18">
-                <circle cx="11" cy="11" r="8.5" fill="#1D9BF0"/>
-                <path fill="#fff" d="M9.323 14.416l-3.5-3.5 1.415-1.415 2.085 2.085 4.939-4.939 1.415 1.415z"/>
+                <path fill="#1D9BF0" d="M22 12c0-1.35-.83-2.53-2.06-3.04.43-1.31.09-2.74-.93-3.76s-2.45-1.36-3.76-.93C14.75 3.03 13.57 2.2 12 2.2s-2.75.83-3.25 2.07c-1.31-.43-2.74-.09-3.76.93s-1.36 2.45-.93 3.76C2.83 9.47 2 10.65 2 12s.83 2.53 2.06 3.04c-.43 1.31-.09 2.74.93 3.76s2.45 1.36 3.76.93C9.25 20.97 10.43 21.8 12 21.8s2.75-.83 3.25-2.07c1.31.43 2.74.09 3.76-.93s1.36-2.45.93-3.76C21.17 14.53 22 13.35 22 12Z"/>
+                <path fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="m7.7 12.3 2.7 2.7 5.9-6"/>
             </svg>
         </span>''',
     "gold": '''<span class="verification-badge verification-badge--gold" title="Verified Organization">
@@ -3286,8 +3286,8 @@ _VERIFICATION_BADGE_SVG = {
                         <stop offset="100%" stop-color="#C9A227"/>
                     </linearGradient>
                 </defs>
-                <circle cx="11" cy="11" r="8.5" fill="url(#g_tier_gold)"/>
-                <path fill="#3B2A00" d="M9.323 14.416l-3.5-3.5 1.415-1.415 2.085 2.085 4.939-4.939 1.415 1.415z"/>
+                <path fill="url(#g_tier_gold)" d="M22 12c0-1.35-.83-2.53-2.06-3.04.43-1.31.09-2.74-.93-3.76s-2.45-1.36-3.76-.93C14.75 3.03 13.57 2.2 12 2.2s-2.75.83-3.25 2.07c-1.31-.43-2.74-.09-3.76.93s-1.36 2.45-.93 3.76C2.83 9.47 2 10.65 2 12s.83 2.53 2.06 3.04c-.43 1.31-.09 2.74.93 3.76s2.45 1.36 3.76.93C9.25 20.97 10.43 21.8 12 21.8s2.75-.83 3.25-2.07c1.31.43 2.74.09 3.76-.93s1.36-2.45.93-3.76C21.17 14.53 22 13.35 22 12Z"/>
+                <path fill="none" stroke="#3B2A00" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="m7.7 12.3 2.7 2.7 5.9-6"/>
             </svg>
         </span>''',
 }
@@ -5008,20 +5008,23 @@ def like_post(post_id):
     ).fetchone()
     if existing:
         db.execute("DELETE FROM likes WHERE id = ?", (existing["id"],))
+        db.commit()
         liked = False
     else:
         db.execute(
-            "INSERT INTO likes (post_id, user_id) VALUES (?, ?)",
-            (post_id, session["user_id"]),
+            "INSERT INTO likes (post_id, user_id, created_at) VALUES (?, ?, ?)",
+            (post_id, session["user_id"], datetime.datetime.utcnow().isoformat()),
         )
-        _notify_post_owner_on_like(db, post_id, session["user_id"])
+        db.commit()
         liked = True
-    db.commit()
+        _notify_post_owner_on_like(db, post_id, session["user_id"])
+        db.commit()
+
+    like_count = db.execute(
+        "SELECT COUNT(*) c FROM likes WHERE post_id = ?", (post_id,)
+    ).fetchone()["c"]
 
     if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json:
-        like_count = db.execute(
-            "SELECT COUNT(*) c FROM likes WHERE post_id = ?", (post_id,)
-        ).fetchone()["c"]
         return jsonify({"liked": liked, "like_count": like_count})
 
     return redirect(request.referrer or url_for("feed"))
@@ -5194,6 +5197,19 @@ def api_notifications_mark_read():
     except Exception as exc:
         print(f"Warning: could not mark notifications read: {exc}")
     return jsonify({"success": True})
+
+
+@app.route("/api/notifications/read", methods=["POST"])
+@login_required
+def api_notifications_read():
+    """Canonical JSON endpoint for marking the current user's notifications read."""
+    db = get_db()
+    db.execute(
+        "UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0",
+        (session["user_id"],),
+    )
+    db.commit()
+    return jsonify({"success": True, "unread_count": 0})
 
 
 @app.route("/api/followers-list")

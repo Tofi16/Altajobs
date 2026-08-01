@@ -56,8 +56,9 @@
     cursor: pointer;
   }
 
-  /* Compact "add listing" button next to the search bar (desktop) */
-  .add-listing-compact {
+  /* System-style add button for desktop and mobile */
+  .add-listing-compact,
+  .add-listing-fab {
     background: linear-gradient(135deg, var(--accent), var(--accent-dark));
     color: #fff;
     border: none;
@@ -67,14 +68,17 @@
     font-size: 0.85rem;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    justify-content: center;
+    gap: 8px;
     white-space: nowrap;
     cursor: pointer;
     transition: transform .16s ease, box-shadow .16s ease;
+    box-shadow: 0 10px 24px rgba(2, 6, 23, 0.24);
   }
-  .add-listing-compact:hover {
+  .add-listing-compact:hover,
+  .add-listing-fab:hover {
     transform: translateY(-1px);
-    box-shadow: 0 10px 18px rgba(29,155,240,0.22);
+    box-shadow: 0 12px 22px rgba(29,155,240,0.24);
   }
 
   /* Floating Action Button (mobile) */
@@ -82,23 +86,14 @@
     position: fixed;
     right: 20px;
     bottom: calc(84px + env(safe-area-inset-bottom));
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
-    color: #fff;
+    min-height: 52px;
+    padding: 0 16px;
     display: none;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    border: none;
-    box-shadow: 0 10px 24px rgba(2,6,23,0.4);
     z-index: 40;
-    cursor: pointer;
   }
   @media (max-width: 720px) {
     .add-listing-compact { display: none; }
-    .add-listing-fab { display: flex; }
+    .add-listing-fab { display: inline-flex; }
   }
 
   .category-pill {
@@ -383,6 +378,7 @@
   <!-- Floating Action Button — shown on small screens -->
   <button type="button" id="openListingFab" class="add-listing-fab" aria-label="Add listing">
     <i class='bx bx-plus'></i>
+    <span>Add listing</span>
   </button>
 
   <div id="addListingModal" class="fixed inset-0 bg-gray-950/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">

@@ -14,6 +14,7 @@
   .compose-avatar { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(255,255,255,.12); }
   .compose-input-area { min-width: 0; flex-grow: 1; }
   .compose-input-area .feed-composer-textarea { flex-grow: 1; font-size: 16px; }
+  .compose-input-area .feed-composer-textarea { min-height: 60px; }
   .feed-composer textarea {
     scrollbar-width: none;
   }
@@ -293,11 +294,36 @@
   }
   #composeSubmitButton.feed-composer-submit { padding: 8px 24px; border-radius: 9999px; font-weight: bold; }
   @media (max-width: 560px) {
-    .feed-composer { padding: 16px 12px; }
-    .feed-composer-actions { align-items: flex-start; }
-    .compose-action-group { gap: 8px; flex-wrap: wrap; }
-    .feed-composer-attach { padding-inline: 8px; }
-    .feed-composer-submit { padding-inline: 18px; }
+    .feed-composer { padding: 12px; }
+    .feed-composer-textarea { min-height: 60px; }
+    .feed-composer-actions {
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 8px;
+      overflow: hidden;
+    }
+    .compose-action-group {
+      flex: 1 1 auto;
+      flex-wrap: nowrap;
+      gap: 8px;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .feed-composer-attach {
+      flex: 0 1 auto;
+      min-width: 0;
+      padding-inline: 5px;
+      font-size: 0.72rem;
+      gap: 4px;
+      white-space: nowrap;
+    }
+    .feed-composer-attach svg { width: 15px; height: 15px; flex: 0 0 15px; }
+    .feed-composer-submit {
+      flex: 0 0 auto;
+      min-height: 36px;
+      padding: 6px 14px;
+      font-size: 0.78rem;
+    }
   }
   .feed-composer-filename {
     margin-top: 0.5rem;

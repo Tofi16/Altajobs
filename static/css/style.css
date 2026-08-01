@@ -604,33 +604,6 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   color: #2b1b00;
 }
 
-/* Back to top button */
-.back-to-top {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, rgba(29,155,240,0.95), rgba(17,100,180,0.95));
-  color: #fff;
-  border: none;
-  display: inline-grid;
-  place-items: center;
-  font-size: 18px;
-  box-shadow: 0 8px 20px rgba(29,155,240,0.18);
-  z-index: 99999;
-  cursor: pointer;
-  opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 0.18s ease, transform 0.18s ease;
-}
-.back-to-top.show {
-  opacity: 1;
-  transform: translateY(0);
-}
-.back-to-top:focus { outline: 3px solid rgba(29,155,240,0.22); }
-
 /* ---------- User Badge Styles (Gamification) ---------- */
 .user-badge {
   display: inline-flex;

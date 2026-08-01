@@ -505,6 +505,12 @@
 .feed-card.xpost .xpost-badge-rosette {
   fill: #1d9bf0;
 }
+.feed-card.xpost .xpost-badge--gold .xpost-badge-rosette {
+  fill: #f5b72f;
+}
+.feed-card.xpost .xpost-badge--gold .xpost-badge-check {
+  stroke: #2b1b00;
+}
 .feed-card.xpost .xpost-badge-check {
   fill: none;
   stroke: #fff;

@@ -49,38 +49,6 @@ document.addEventListener('click', function (e) {
   }
 }, true);
 
-// Back to top button behavior
-(function(){
-  function ensureBackToTop(){
-    var btn = document.getElementById('backToTopBtn');
-    if (!btn) return null;
-    var visible = false;
-    function update(){
-      var y = window.scrollY || window.pageYOffset || (document.scrollingElement || document.documentElement).scrollTop;
-      if (y > 220) {
-        if (!visible) { btn.classList.add('show'); visible = true; }
-      } else {
-        if (visible) { btn.classList.remove('show'); visible = false; }
-      }
-    }
-    window.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update, { passive: true });
-    window.addEventListener('load', update, { passive: true });
-    document.addEventListener('DOMContentLoaded', update);
-    // ensure initial visibility state is correct
-    try { update(); } catch(e){}
-    btn.addEventListener('click', function(e){
-      e.preventDefault(); e.stopPropagation();
-      try { if (typeof window.closeAllModals === 'function') window.closeAllModals(); } catch(e){}
-      try { closeAllBottomSheets(); } catch(e){}
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-    btn.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click(); } });
-    return btn;
-  }
-  try { ensureBackToTop(); } catch(e){}
-})();
-
 // Boxed action ripple and interactions for professional feed
 (function(){
   function createRipple(el, clientX, clientY){
@@ -644,9 +612,13 @@ document.addEventListener("DOMContentLoaded", function () {
               } else {
                 list.innerHTML = '<div class="notification-empty"><i class="bx bx-bell"></i><span>No recent activity</span></div>';
               }
-              fetch('/api/notifications/mark-read', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-              const badge = document.querySelector('.topbar-badge');
-              if (badge) badge.remove();
+              fetch('/api/notifications/read', { method: 'POST', credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function (readResponse) {
+                  if (!readResponse.ok) throw new Error('notification_read_failed');
+                  const badge = document.querySelector('.topbar-badge');
+                  if (badge) badge.remove();
+                })
+                .catch(function () {});
             })
             .catch(function () {});
         } catch (e) {}
