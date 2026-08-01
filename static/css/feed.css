@@ -240,6 +240,446 @@
 .menu-icon { width:18px; height:18px; display:inline-block; vertical-align:middle; margin-right:8px; stroke:currentColor; }
 .xpost-menu-item svg { width:18px; height:18px; stroke:currentColor }
 
+.feed-action-icons {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  color: #888;
+}
+.xpost-actions > .feed-action-icons { gap: 20px; }
+
+/* Minimal interaction footer. Keep each control fixed-size and non-growing. */
+.interaction-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  margin-top: 12px;
+}
+.interaction-left,
+.interaction-right {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.interaction-left { gap: 20px; }
+.interaction-right { gap: 15px; }
+.interaction-btn {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 28px;
+  min-height: 28px;
+  max-width: max-content;
+  padding: 4px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  text-align: center;
+  transition: color .16s ease, background-color .16s ease;
+}
+.interaction-btn svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.interaction-btn:hover,
+.interaction-btn:focus-visible {
+  color: #e5e7eb;
+  background: rgba(255,255,255,.08);
+  outline: none;
+}
+.interaction-btn.liked { color: #ef476f; }
+.interaction-btn.liked svg { animation: interaction-like-pop .2s ease; }
+.interaction-btn.reposted { color: #22c55e; }
+.interaction-btn.saved { color: #f59e0b; }
+.interaction-btn.saved svg { fill: currentColor; }
+@keyframes interaction-like-pop {
+  50% { transform: scale(1.1); }
+}
+
+/* Exact stable interaction bar specification. */
+.post-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 15px;
+  gap: 12px;
+  margin-top: 12px;
+}
+.post-actions-left,
+.post-actions-right {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.post-actions-left { gap: 20px; }
+.post-actions-right { gap: 15px; }
+.post-actions-bar .post-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: 6px;
+  min-width: 36px;
+  min-height: 36px;
+  max-width: max-content;
+  padding: 8px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #a1a1a1;
+  cursor: pointer;
+  box-sizing: border-box;
+  text-align: center;
+  touch-action: manipulation;
+  transition: color .16s ease, background-color .16s ease;
+}
+.post-actions-bar .post-action-btn svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.post-actions-bar .post-action-btn:hover,
+.post-actions-bar .post-action-btn:focus-visible {
+  color: #e5e7eb;
+  background-color: rgba(255, 255, 255, 0.05);
+  outline: none;
+}
+.post-actions-bar .post-action-btn.liked { color: #38bdf8; }
+.post-actions-bar .post-action-btn.reposted { color: #22c55e; }
+.post-actions-bar .post-action-btn.saved { color: #f59e0b; }
+.post-actions-bar .post-action-btn.saved svg { fill: currentColor; }
+.post-actions-bar .post-action-btn:active {
+  transform: none;
+}
+
+/* Shape normalization for feed cards and their controls. */
+.feed-card.xpost {
+  border-radius: 16px;
+}
+.feed-page .feed-card.xpost {
+  border-radius: 16px;
+}
+.feed-card.xpost .xpost-avatar {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  flex: 0 0 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+}
+.feed-card.xpost .xpost-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  object-fit: cover;
+  aspect-ratio: 1 / 1;
+}
+.feed-card.xpost .xpost-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  flex: 0 0 18px;
+  margin-left: 4px;
+  vertical-align: middle;
+  line-height: 0;
+  overflow: visible;
+}
+.feed-card.xpost .xpost-badge .verification-badge,
+.feed-card.xpost .xpost-badge .verification-badge--blue,
+.feed-card.xpost .xpost-badge .verification-badge--gold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  line-height: 0;
+  vertical-align: middle;
+}
+.feed-card.xpost .xpost-badge svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  flex: 0 0 18px;
+  aspect-ratio: 1 / 1;
+}
+.feed-card.xpost .xpost-follow-btn {
+  min-width: 90px;
+  min-height: 34px;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  text-align: center;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+.post-actions-bar .post-action-btn svg {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px;
+  min-height: 20px;
+  max-width: 20px;
+  max-height: 20px;
+  aspect-ratio: 1 / 1;
+  flex: 0 0 20px;
+}
+.post-actions-bar .post-action-btn svg path {
+  fill: none;
+  stroke: currentColor;
+}
+.post-actions-bar .post-action-btn.saved svg path {
+  fill: currentColor;
+  stroke: currentColor;
+}
+.feed-card.xpost .xpost-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 18px;
+}
+.feed-card.xpost .xpost-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  padding: 0;
+  line-height: 0;
+  vertical-align: middle;
+  position: relative;
+  top: 0;
+  transform: none;
+}
+.feed-card.xpost .xpost-badge svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  overflow: visible;
+}
+.feed-card.xpost .xpost-badge-rosette {
+  fill: #1d9bf0;
+}
+.feed-card.xpost .xpost-badge-check {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@media (max-width: 560px) {
+  .post-actions-bar { padding: 15px; }
+  .post-actions-left { gap: 20px; }
+  .post-actions-right { gap: 15px; }
+}
+
+/* Responsive post-card header and contained action footer. */
+.feed-page .feed-card.xpost .xpost-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.feed-page .feed-card.xpost .xpost-headline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.feed-page .feed-card.xpost .xpost-author {
+  min-width: 0;
+  overflow: hidden;
+}
+.feed-page .feed-card.xpost .xpost-name-wrap,
+.feed-page .feed-card.xpost .xpost-meta {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.feed-page .feed-card.xpost .xpost-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.feed-page .feed-card.xpost .post-actions-bar {
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  padding: 12px 15px 3px;
+  margin-top: 14px;
+}
+.feed-page .feed-card.xpost .post-actions-left,
+.feed-page .feed-card.xpost .post-actions-right {
+  align-items: center;
+  flex: 0 0 auto;
+}
+@media (max-width: 640px) {
+  .feed-page .feed-card.xpost .xpost-head {
+    align-items: flex-start;
+  }
+  .feed-page .feed-card.xpost .xpost-headline {
+    gap: 8px;
+  }
+  .feed-page .feed-card.xpost .xpost-head-actions {
+    gap: 5px;
+  }
+  .feed-page .feed-card.xpost .xpost-follow-btn {
+    min-width: 78px;
+    padding-inline: 10px;
+  }
+  .feed-page .feed-card.xpost .post-actions-bar {
+    padding-inline: 8px;
+  }
+  .feed-page .feed-card.xpost .post-actions-left {
+    gap: 12px;
+  }
+  .feed-page .feed-card.xpost .post-actions-right {
+    gap: 10px;
+  }
+}
+
+/* Feed-only action sizing: compact controls without oversized/oval buttons */
+.xpost .xpost-action {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 7px 9px;
+  border-radius: 9px;
+}
+.xpost .xpost-follow-btn {
+  min-width: 76px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 9px;
+}
+.xpost .xpost-action svg { width: 19px; height: 19px; }
+
+/* Stable feed controls: state changes must never resize or scale the buttons. */
+.xpost-head-actions,
+.xpost-actions,
+.xpost-actions > div,
+.feed-action-icons {
+  display: flex;
+  align-items: center;
+}
+.xpost-head-actions { flex: 0 0 auto; }
+.xpost-actions { justify-content: space-between; }
+.xpost-actions > div,
+.feed-action-icons { flex: 0 0 auto; }
+.xpost .xpost-action,
+.xpost .xpost-follow-btn {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: max-content;
+  box-sizing: border-box;
+  text-align: center;
+  transform: none;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease;
+}
+.feed-card .xpost-action,
+.feed-card .js-follow-btn,
+.action-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.action-ripple {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  transform: scale(0);
+  opacity: 0;
+  z-index: 0;
+}
+.xpost .action-ripple.show {
+  transform: scale(1);
+  opacity: 0;
+  transition: transform .42s ease, opacity .42s ease;
+}
+.xpost .xpost-action > :not(.action-ripple),
+.xpost .xpost-follow-btn > :not(.action-ripple) {
+  position: relative;
+  z-index: 1;
+}
+.xpost .xpost-action:hover,
+.xpost .xpost-action:active,
+.xpost .xpost-action:focus,
+.xpost .xpost-follow-btn:hover,
+.xpost .xpost-follow-btn:active,
+.xpost .xpost-follow-btn:focus,
+.xpost .xpost-action.pressed,
+.xpost .xpost-action.action-clicked,
+.xpost .xpost-follow-btn.pressed,
+.xpost .xpost-follow-btn.action-clicked {
+  transform: none;
+  width: auto;
+  max-width: max-content;
+  padding: 7px 9px;
+}
+.xpost .xpost-follow-btn,
+.xpost .xpost-follow-btn:hover,
+.xpost .xpost-follow-btn:active,
+.xpost .xpost-follow-btn:focus,
+.xpost .xpost-follow-btn.pressed,
+.xpost .xpost-follow-btn.action-clicked {
+  min-width: 90px;
+  padding: 6px 12px;
+}
+
+@media (max-width: 640px) {
+  .xpost .xpost-action { min-width: 34px; min-height: 34px; padding: 6px 7px; }
+  .xpost .xpost-follow-btn { min-width: 90px; min-height: 32px; padding: 6px 9px; }
+}
+
 /* Distinct color states */
 .pc-action-btn.liked, .pc-action-btn.liked svg { color: #ef4444; filter: drop-shadow(0 6px 14px rgba(239,68,68,0.14)); }
 .pc-action-btn.bookmarked, .pc-action-btn.bookmarked svg { color: #f59e0b; filter: drop-shadow(0 6px 14px rgba(245,158,11,0.12)); }

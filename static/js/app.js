@@ -18,79 +18,36 @@ window.openTab = function (tabName) {
   });
 };
 
-// ---------- AJAX Follow button (instant, no reload) ----------
-function updateFollowButtonLabel(button, following, followLabel, followingLabel) {
-  const labelEl = button.querySelector('.follow-label');
-  const text = following ? followingLabel : followLabel;
-  if (labelEl) {
-    labelEl.textContent = text;
-  } else {
-    button.textContent = text;
-  }
-  button.classList.toggle('following', !!following);
-  button.setAttribute('aria-pressed', String(!!following));
-}
-
-// Prevent duplicate concurrent follow/like requests per target
-window._pendingFollowRequests = window._pendingFollowRequests || {};
+// Prevent duplicate concurrent like requests per target.
 window._pendingLikeRequests = window._pendingLikeRequests || {};
 
 // Capture-phase click guard for action buttons to prevent accidental navigation/scrolls
 document.addEventListener('click', function (e) {
   try {
     var target = e.target;
-    var btn = target.closest && target.closest('.js-like-btn, .js-follow-btn, .js-repost-btn, .js-save-btn, .js-share-btn, .js-comment-toggle');
+    var btn = target.closest && target.closest('.js-like-btn, .js-follow-btn, .js-repost-btn, .js-save-btn, .js-share-btn, .js-comment-toggle, [data-action="toggle-menu"]');
     if (btn) {
       // If the button is inside a <form> we should not forcibly prevent default
       // because the form handler/suggestion page relies on native submit behavior.
       if (btn.closest && btn.closest('form')) return;
       // prevent default navigation that can cause a scroll-to-top (e.g. anchors or form submits)
       e.preventDefault();
-      e.stopPropagation();
+      if (btn.matches && btn.matches('[data-action="toggle-menu"]')) btn.blur();
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
+      const restore = function () {
+        window.scrollTo(scrollX, scrollY);
+        if (document.scrollingElement) document.scrollingElement.scrollTop = scrollY;
+      };
+      requestAnimationFrame(restore);
+      setTimeout(restore, 0);
+      setTimeout(restore, 100);
+      setTimeout(restore, 500);
     }
   } catch (err) {
     // ignore
   }
 }, true);
-
-document.addEventListener("click", async function (e) {
-  const btn = e.target.closest(".js-follow-btn");
-  if (!btn) return;
-  e.preventDefault();
-  e.stopPropagation();
-  e.stopImmediatePropagation();
-
-  const userId = btn.dataset.userId;
-  if (window._pendingFollowRequests[userId]) return;
-  const followLabel = btn.dataset.followLabel || "Follow";
-  const followingLabel = btn.dataset.followingLabel || "Following";
-  const buttons = Array.from(document.querySelectorAll(`.js-follow-btn[data-user-id="${userId}"]`));
-  buttons.forEach((followBtn) => { followBtn.disabled = true; });
-  window._pendingFollowRequests[userId] = true;
-  try {
-    const res = await fetch(`/api/follow/${userId}`, { method: "POST" });
-    const data = await res.json();
-    triggerHaptic();
-    const following = !!data.following;
-    buttons.forEach((followBtn) => {
-      updateFollowButtonLabel(followBtn, following, followLabel, followingLabel);
-    });
-
-    const followersCountEl = document.getElementById('profileFollowersCount');
-    const followingCountEl = document.getElementById('profileFollowingCount');
-    if (followersCountEl && typeof data.followers_count === 'number') {
-      followersCountEl.textContent = data.followers_count;
-    }
-    if (followingCountEl && typeof data.your_following_count === 'number') {
-      followingCountEl.textContent = data.your_following_count;
-    }
-  } catch (err) {
-    console.error("Follow toggle failed", err);
-  } finally {
-    buttons.forEach((followBtn) => { followBtn.disabled = false; });
-    window._pendingFollowRequests[userId] = false;
-  }
-});
 
 // Back to top button behavior
 (function(){
@@ -131,6 +88,10 @@ document.addEventListener("click", async function (e) {
     var rect = el.getBoundingClientRect();
     var r = document.createElement('span');
     r.className = 'action-ripple';
+    r.style.position = 'absolute';
+    r.style.display = 'block';
+    r.style.pointerEvents = 'none';
+    r.style.borderRadius = '50%';
     var size = Math.max(rect.width, rect.height) * 1.8;
     r.style.width = r.style.height = size + 'px';
     r.style.left = (clientX - rect.left - size/2) + 'px';
@@ -475,7 +436,9 @@ document.addEventListener("DOMContentLoaded", function () {
     button.addEventListener('click', function () {
       typeButtons.forEach(function (btn) { btn.classList.remove('active'); });
       this.classList.add('active');
-      if (composePostType) composePostType.value = this.dataset.postType || 'general';
+      if (composePostType) {
+        composePostType.value = this.dataset.postType === 'experience' ? 'skill' : (this.dataset.postType || 'general');
+      }
     });
   });
 
@@ -634,6 +597,8 @@ document.addEventListener("DOMContentLoaded", function () {
   };
 
   const closeSidebar = function () {
+    const drawerWasOpen = Boolean(sidebarDrawer && sidebarDrawer.classList.contains("open"));
+    if (!drawerWasOpen && !lockState.drawer) return;
     if (sidebarDrawer) {
       sidebarDrawer.classList.remove("open");
       sidebarDrawer.setAttribute("aria-hidden", "true");
@@ -715,10 +680,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const clickedBellToggle = bellToggle && bellToggle.contains(e.target);
     const clickedDrawer = sidebarDrawer && sidebarDrawer.contains(e.target);
     const clickedAvatar = headerAvatarLink && headerAvatarLink.contains(e.target);
+    const clickedPostMenu = e.target.closest && e.target.closest('[data-action="toggle-menu"], [data-dropdown-menu]');
 
     if (!clickedInsideSearch && !clickedSearchToggle) closeSearch();
     if (!clickedBell && !clickedBellToggle) closePopover();
-    if (!clickedDrawer && !clickedAvatar) closeSidebar();
+    if (!clickedPostMenu && !clickedDrawer && !clickedAvatar) closeSidebar();
   });
 
   document.addEventListener("keydown", function (e) {

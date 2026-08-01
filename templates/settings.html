@@ -63,7 +63,23 @@
     <!-- (Quick menu removed — settings actions are listed inline below) -->
   </div>
 
-  <!-- Top quick action cards removed to avoid duplication with global drawer -->
+  {% if current_user and current_user['is_admin'] %}
+    <section class="settings-card settings-admin-card" aria-labelledby="admin-dashboard-heading">
+      <div class="mb-3">
+        <div class="settings-card-title" id="admin-dashboard-heading">Admin</div>
+      </div>
+      <a href="{{ url_for('admin_panel') }}" class="settings-row">
+        <div class="settings-row-left">
+          <div class="settings-icon"><i class='bx bx-shield-quarter text-emerald-400 text-lg'></i></div>
+          <div>
+            <div class="settings-row-title">Admin Dashboard</div>
+            <div class="settings-row-subtitle">Manage users, moderation, payments, and platform activity</div>
+          </div>
+        </div>
+        <i class='bx bx-chevron-right text-slate-400'></i>
+      </a>
+    </section>
+  {% endif %}
 
   <div class="space-y-6">
     <!-- Preferences -->

@@ -69,6 +69,7 @@
       .then(function (data) {
         if (data.error) throw new Error(data.error);
         btn.classList.toggle('liked', !!data.liked);
+        btn.setAttribute('aria-pressed', String(!!data.liked));
         if (countEl) countEl.textContent = data.like_count;
         // sync heart icon fill
         var icon = btn.querySelector('[data-lucide]');
@@ -92,10 +93,17 @@
   document.addEventListener('click', function (e) {
     var btn = e.target.closest('.js-follow-btn, [data-action="follow"]');
     if (!btn) return;
+    e.preventDefault();
     // skip if inside a <form> — let the form handle it (follow_suggestions page)
     if (btn.closest('form')) return;
-    e.preventDefault();
     e.stopPropagation();
+
+    // Keep the viewport fixed even when the browser focuses a button below the fold.
+    var scrollX = window.scrollX;
+    var scrollY = window.scrollY;
+    btn.blur();
+    window.scrollTo(scrollX, scrollY);
+    requestAnimationFrame(function () { window.scrollTo(scrollX, scrollY); });
 
     var userId = btn.dataset.userId;
     if (!userId) return;
@@ -126,6 +134,7 @@
       .then(function (data) {
         if (data.error) throw new Error(data.error);
         btn.classList.toggle('following', !!data.following);
+        btn.setAttribute('aria-pressed', String(!!data.following));
         if (labelEl) labelEl.textContent = data.following ? followingLabel : followLabel;
 
         // Update follower count on profile page if present
@@ -136,14 +145,10 @@
         // Update all follow buttons for the same user across the page
         document.querySelectorAll('.js-follow-btn[data-user-id="' + userId + '"], [data-action="follow"][data-user-id="' + userId + '"]').forEach(function (b) {
           b.classList.toggle('following', !!data.following);
+          b.setAttribute('aria-pressed', String(!!data.following));
           var lbl = b.querySelector('.follow-label') || b;
           if (lbl) lbl.textContent = data.following ? followingLabel : followLabel;
         });
-      })
-      .catch(function () {
-        btn.classList.toggle('following', wasFollowing);
-        if (labelEl) labelEl.textContent = wasFollowing ? followingLabel : followLabel;
-        showToast('Could not update follow. Try again.', 'error');
       })
       .catch(function () {
         btn.classList.toggle('following', wasFollowing);
@@ -350,6 +355,7 @@
     btn.dataset.inflight = '1';
     var wasSaved = btn.classList.contains('saved');
     btn.classList.toggle('saved', !wasSaved);
+    btn.setAttribute('aria-pressed', String(!wasSaved));
     btn.disabled = true;
     fetch('/post/' + postId + '/save', {
       method: 'POST',
@@ -360,6 +366,7 @@
       // server returns redirect; assume success on 2xx
     }).catch(function () {
       btn.classList.toggle('saved', wasSaved);
+      btn.setAttribute('aria-pressed', String(wasSaved));
       showToast('Could not update save state.', 'error');
     }).finally(function () {
       btn.disabled = false;
@@ -472,11 +479,31 @@
   });
 
   /* ─── Dropdown menus (More options) ──────────────────────────── */
+  document.addEventListener('pointerdown', function (e) {
+    var menuButton = e.target.closest('[data-action="toggle-menu"]');
+    if (!menuButton) return;
+    e.preventDefault();
+    menuButton.blur();
+  }, true);
+  document.addEventListener('mousedown', function (e) {
+    var menuButton = e.target.closest('[data-action="toggle-menu"]');
+    if (!menuButton) return;
+    e.preventDefault();
+    menuButton.blur();
+  }, true);
+
   document.addEventListener('click', function (e) {
     var toggleBtn = e.target.closest('[data-action="toggle-menu"]');
     if (toggleBtn) {
       e.preventDefault();
       e.stopPropagation();
+      var menuScrollX = window.scrollX;
+      var menuScrollY = window.scrollY;
+      toggleBtn.blur();
+      window.scrollTo(menuScrollX, menuScrollY);
+      requestAnimationFrame(function () { window.scrollTo(menuScrollX, menuScrollY); });
+      setTimeout(function () { window.scrollTo(menuScrollX, menuScrollY); }, 0);
+      setTimeout(function () { window.scrollTo(menuScrollX, menuScrollY); }, 100);
       var dropdown = toggleBtn.closest('[data-dropdown]');
       if (!dropdown) return;
       var menu = dropdown.querySelector('[data-dropdown-menu]');

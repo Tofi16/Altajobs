@@ -173,7 +173,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 60;
+  z-index: 9999;
   background: rgba(9, 14, 24, 0.86);
   border-bottom: 1px solid rgba(148, 163, 184, 0.16);
   backdrop-filter: blur(18px);
@@ -181,6 +181,8 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   box-shadow: 0 10px 32px rgba(2, 6, 23, 0.24);
 }
 .topbar-inner {
+  position: relative;
+  z-index: 9999;
   width: min(100%, 860px);
   margin: 0 auto;
   padding: 10px 14px 12px;
@@ -188,7 +190,7 @@ input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; marg
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  overflow: hidden;
+  overflow: visible;
 }
 .brand {
   display: inline-flex;
@@ -1844,11 +1846,63 @@ html[dir="rtl"] .fab { right: auto; left: 18px; }
 }
 .xpost-action,
 .xpost-follow-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  min-width: 36px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+  font-size: 0.82rem;
+  font-weight: 700;
   border-color: rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
   color: #cbd5e1;
   touch-action: manipulation;
   user-select: none;
+}
+.xpost-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.xpost-follow-btn {
+  min-width: 76px;
+  min-height: 34px;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+.xpost-follow-btn.following {
+  color: #7dd3fc;
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.3);
+}
+.xpost-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.xpost-actions > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.xpost-action svg {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+}
+.xpost-action.saved { color: #fbbf24; }
+.xpost-action.saved svg { fill: rgba(251, 191, 36, 0.18); }
+@media (max-width: 560px) {
+  .xpost-head { align-items: flex-start; }
+  .xpost-head-actions { gap: 5px; }
+  .xpost-follow-btn { min-width: 70px; padding-inline: 9px; }
+  .xpost-action { min-width: 34px; padding-inline: 7px; }
 }
 .xpost-action:hover,
 .xpost-follow-btn:hover {

@@ -5,11 +5,15 @@
   .feed-composer {
     background: #0d1117;
     border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 1.25rem;
+    border-radius: 16px;
     box-shadow: 0 12px 28px rgba(2, 8, 23, 0.24);
-    padding: 1rem;
+    padding: 16px;
     margin-bottom: 1rem;
   }
+  .compose-input-row { display: flex; align-items: flex-start; gap: 12px; }
+  .compose-avatar { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(255,255,255,.12); }
+  .compose-input-area { min-width: 0; flex-grow: 1; }
+  .compose-input-area .feed-composer-textarea { flex-grow: 1; font-size: 16px; }
   .feed-composer textarea {
     scrollbar-width: none;
   }
@@ -247,6 +251,12 @@
     margin-top: 0.85rem;
     border-top: 1px solid rgba(255,255,255,0.06);
   }
+  .compose-action-group { display: flex; align-items: center; gap: 16px; min-width: 0; }
+  .feed-creator-pill.active {
+    background: rgba(56, 189, 248, 0.14);
+    color: #7dd3fc;
+    box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.28);
+  }
   .feed-composer-attach {
     display: inline-flex;
     align-items: center;
@@ -269,10 +279,10 @@
     outline: none;
   }
   .feed-composer-submit {
-    min-height: 2.75rem;
-    padding: 0.65rem 1.2rem;
+    min-height: 40px;
+    padding: 8px 24px;
     border: none;
-    border-radius: 999px;
+    border-radius: 9999px;
     background: #38bdf8;
     color: #fff;
     font-size: 0.82rem;
@@ -280,6 +290,14 @@
     box-shadow: 0 10px 20px rgba(56, 189, 248, 0.2);
     transition: background-color 0.16s ease, transform 0.16s ease, opacity 0.16s ease;
     cursor: pointer;
+  }
+  #composeSubmitButton.feed-composer-submit { padding: 8px 24px; border-radius: 9999px; font-weight: bold; }
+  @media (max-width: 560px) {
+    .feed-composer { padding: 16px 12px; }
+    .feed-composer-actions { align-items: flex-start; }
+    .compose-action-group { gap: 8px; flex-wrap: wrap; }
+    .feed-composer-attach { padding-inline: 8px; }
+    .feed-composer-submit { padding-inline: 18px; }
   }
   .feed-composer-filename {
     margin-top: 0.5rem;
@@ -383,9 +401,9 @@
 <div class="mx-auto max-w-4xl px-4 py-6 text-slate-200 feed-page">
   <section id="feedCreateCard" class="max-w-3xl mx-auto w-full mb-3 sm:mb-4">
     <form id="composeForm" method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data" class="feed-composer">
-      <div class="flex items-start gap-3">
-        <img class="h-10 w-10 rounded-full border border-gray-700/60 object-cover" src="{{ photo_url(current_user['avatar']) if current_user['avatar'] else '' }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}">
-        <div class="min-w-0 flex-1">
+      <div class="compose-input-row">
+        <img class="compose-avatar" src="{{ photo_url(current_user['avatar']) if current_user['avatar'] else '' }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}">
+        <div class="compose-input-area">
           <label for="composeTextarea" class="sr-only">Write something</label>
           <textarea id="composeTextarea" name="content" rows="1" placeholder="Share a job, skill, or insight..." aria-label="Write a post" class="feed-composer-textarea"></textarea>
           <input type="hidden" name="post_type" id="composePostType" value="general">
@@ -399,7 +417,7 @@
       </div>
 
       <div id="composeActions" class="feed-composer-actions">
-        <div class="flex items-center gap-1 sm:gap-2">
+        <div class="compose-action-group">
           <button type="button" class="feed-composer-attach" data-attachment="photo">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2-2h10l2 2h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
             <span>Photo</span>
@@ -408,7 +426,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M3 7h18"></path><path d="M5 7v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7"></path><path d="M9 7V5h6v2"></path></svg>
             <span>Job</span>
           </button>
-          <button type="button" class="feed-composer-attach feed-creator-pill" data-post-type="skill">
+          <button type="button" class="feed-composer-attach feed-creator-pill" data-post-type="experience">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M12 3 4 7v5c0 5 3.6 8.2 8 9 4.4-.8 8-4 8-9V7l-8-4Z"></path></svg>
             <span>Skill</span>
           </button>
