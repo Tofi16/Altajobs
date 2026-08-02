@@ -18,8 +18,9 @@ window.openTab = function (tabName) {
   });
 };
 
-// Prevent duplicate concurrent like requests per target.
-window._pendingLikeRequests = window._pendingLikeRequests || {};
+// Like requests are owned by feed-actions.js (.js-like-btn handler).
+// app.js only adds haptic feedback (triggerLikeButton, below) and the
+// double-tap-to-like gesture on top of that real button.
 
 // Capture-phase click guard for action buttons to prevent accidental navigation/scrolls
 document.addEventListener('click', function (e) {
@@ -71,27 +72,25 @@ document.addEventListener('click', function (e) {
   }
 
   document.addEventListener('pointerdown', function(e){
-    var btn = e.target.closest('.feed-card .xpost-action, .feed-card .js-follow-btn');
+    var btn = e.target.closest('.feed-card .feed-action, .feed-card .feed-follow-btn');
     if (!btn) return;
     btn.classList.add('pressed');
     try { createRipple(btn, e.clientX || (e.touches && e.touches[0] && e.touches[0].clientX) || 0, e.clientY || 0); } catch(e){}
   }, { passive: true });
 
   document.addEventListener('pointerup', function(e){
-    var btn = e.target.closest('.feed-card .xpost-action, .feed-card .js-follow-btn');
+    var btn = e.target.closest('.feed-card .feed-action, .feed-card .feed-follow-btn');
     if (!btn) return;
     setTimeout(function(){ btn.classList.remove('pressed'); }, 140);
   });
 
   document.addEventListener('click', function(e){
-    var btn = e.target.closest('.feed-card .xpost-action, .feed-card .js-follow-btn');
+    var btn = e.target.closest('.feed-card .feed-action, .feed-card .feed-follow-btn');
     if (!btn) return;
     btn.classList.add('action-clicked');
     setTimeout(function(){ btn.classList.remove('action-clicked'); }, 360);
   });
 
-  // Enhance like animation hook: when server toggles liked, add just-liked class
-  // togglePostLike already adds .just-liked to the initiating btn; ensure it bubbles to visible boxed style
 })();
 
 // ---------- AJAX Like button (instant, no reload, no scroll jump) ----------
@@ -115,169 +114,20 @@ function triggerHaptic() {
   }
 }
 
-async function togglePostLike(btn, options) {
-  if (!btn) return;
-  const postId = btn.dataset.postId;
-  const likeLabel = btn.dataset.likeLabel || "Like";
-  const likedLabel = btn.dataset.likedLabel || "Liked";
-  const icon = btn.querySelector(".bx");
-  const countEl = btn.querySelector(".like-count");
-  const textEl = btn.querySelector(".like-text");
-  const card = btn.closest(".xpost");
-  const socialCount = card ? card.querySelector(".social-proof-count") : null;
-
-  if (window._pendingLikeRequests[postId]) return;
-  window._pendingLikeRequests[postId] = true;
-  btn.disabled = true;
-  try { triggerHaptic(); } catch(e){}
-  try {
-    const res = await fetch(`/api/like/${postId}`, { method: "POST", headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-    const data = await res.json();
-    const likeButtons = Array.from(document.querySelectorAll(`.js-like-btn[data-post-id="${postId}"]`));
-    likeButtons.forEach((likeBtn) => {
-      const iconEl = likeBtn.querySelector(".bx");
-      const textEl = likeBtn.querySelector(".like-text");
-      const countElLocal = likeBtn.querySelector(".like-count");
-      if (countElLocal) countElLocal.textContent = data.like_count;
-      likeBtn.classList.toggle("liked", !!data.liked);
-      if (data.liked) {
-        if (iconEl) { iconEl.classList.remove("bx-heart"); iconEl.classList.add("bxs-heart"); }
-        if (textEl) textEl.textContent = likedLabel;
-      } else {
-        if (iconEl) { iconEl.classList.remove("bxs-heart"); iconEl.classList.add("bx-heart"); }
-        if (textEl) textEl.textContent = likeLabel;
-      }
-    });
-    if (socialCount && typeof data.like_count === "number") {
-      socialCount.textContent = `${Math.max(data.like_count - 1, 0)} others`;
-    }
-    // animate all visible like buttons and provide short haptic feedback
-    likeButtons.forEach(function(likeBtn) {
-      try {
-        if (data.liked) likeBtn.classList.add('just-liked');
-        setTimeout(function(){ likeBtn.classList.remove('just-liked'); }, 420);
-      } catch (e) {}
-    });
-    if (options && options.fromDoubleTap) {
-      const overlay = card ? card.querySelector(".double-tap-heart") : null;
-      if (overlay) {
-        overlay.classList.remove("active");
-        void overlay.offsetWidth;
-        overlay.classList.add("active");
-        setTimeout(() => overlay.classList.remove("active"), 420);
-      }
-    }
-  } catch (err) {
-    console.error("Like toggle failed", err);
-  } finally {
-    btn.disabled = false;
-    window._pendingLikeRequests[postId] = false;
-  }
+// Like, comment-toggle, and see-more logic is owned by feed-actions.js.
+// This block only adds haptic feedback and the double-tap-to-like gesture
+// on top of the real .js-like-btn button (it never duplicates the fetch).
+function triggerLikeButton(btn) {
+  if (!btn || btn.dataset.inflight === '1') return;
+  try { triggerHaptic(); } catch (e) {}
+  btn.click();
 }
 
-document.addEventListener("click", function (e) {
-  const btn = e.target.closest(".js-like-btn");
-  if (btn) {
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    togglePostLike(btn);
-    return;
+document.addEventListener('click', function (e) {
+  var likeBtn = e.target.closest('.js-like-btn');
+  if (likeBtn) {
+    try { triggerHaptic(); } catch (err) {}
   }
-
-  const commentToggle = e.target.closest('.js-comment-toggle');
-  if (commentToggle) {
-    e.preventDefault();
-    const card = commentToggle.closest('.xpost');
-    const panel = card ? card.querySelector('.xpost-comment-panel') : null;
-    if (!panel) return;
-    const isOpen = panel.classList.toggle('open');
-    panel.setAttribute('aria-hidden', String(!isOpen));
-    commentToggle.setAttribute('aria-expanded', String(isOpen));
-    if (isOpen) {
-      const input = panel.querySelector('.xpost-comment-input');
-      if (input) input.focus();
-    }
-    triggerHaptic();
-    return;
-  }
-
-  const commentSubmit = e.target.closest('.xpost-comment-submit');
-  if (commentSubmit) {
-    e.preventDefault();
-    const postId = commentSubmit.dataset.postId;
-    const card = commentSubmit.closest('.xpost');
-    const input = card ? card.querySelector('.xpost-comment-input') : null;
-    if (!input || !postId) return;
-    const body = input.value.trim();
-    if (!body) {
-      input.focus();
-      return;
-    }
-    commentSubmit.disabled = true;
-    fetch('/post/' + postId + '/comment', {
-      method: 'POST',
-      headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ content: body }),
-    })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (data && data.success) {
-          const countEls = card.querySelectorAll('.comment-count');
-          countEls.forEach(function (el) { el.textContent = data.comment_count; });
-          const summary = card.querySelector('.xpost-comment-summary');
-          if (summary) {
-            summary.textContent = data.comment_count + ' ' + (data.comment_count === 1 ? 'comment' : 'comments');
-          }
-          input.value = '';
-        }
-      })
-      .catch(function (err) {
-        console.error('Post comment failed', err);
-      })
-      .finally(function () {
-        commentSubmit.disabled = false;
-      });
-    return;
-  }
-
-  const toggle = e.target.closest('.js-xpost-seemore');
-  if (!toggle) return;
-  e.preventDefault();
-  const post = toggle.closest('.xpost');
-  const content = post ? post.querySelector('.js-xpost-content') : null;
-  if (!content) return;
-  const expanded = content.classList.toggle('xpost-clamped') === false;
-  toggle.textContent = expanded ? toggle.dataset.seeLess || 'See less' : toggle.dataset.seeMore || 'See more';
-});
-
-function refreshPostSeeMoreButtons() {
-  document.querySelectorAll('.js-xpost-content').forEach(function (content) {
-    var card = content.closest('.xpost');
-    var toggle = card ? card.querySelector('.js-xpost-seemore') : null;
-    if (!toggle) return;
-    var computed = window.getComputedStyle(content);
-    var lineHeight = parseFloat(computed.lineHeight) || 20;
-    var maxHeight = lineHeight * 5 + 2;
-    var isOverflowing = content.scrollHeight > maxHeight;
-    if (isOverflowing) {
-      toggle.classList.remove('hidden');
-      toggle.textContent = content.classList.contains('xpost-clamped') ? (toggle.dataset.seeMore || 'See more') : (toggle.dataset.seeLess || 'See less');
-    } else {
-      toggle.classList.add('hidden');
-    }
-  });
-}
-window.refreshPostSeeMoreButtons = refreshPostSeeMoreButtons;
-
-document.addEventListener("dblclick", function (e) {
-  const media = e.target.closest(".xpost-photo-wrap, .xpost-photo, .post-media");
-  if (!media) return;
-  const card = media.closest(".xpost");
-  const btn = card ? card.querySelector(".js-like-btn") : null;
-  if (!btn) return;
-  e.preventDefault();
-  togglePostLike(btn, { fromDoubleTap: true });
 });
 
 // Touch-friendly double-tap detection for poster images (mobile)
@@ -293,9 +143,9 @@ document.addEventListener("dblclick", function (e) {
 
   document.addEventListener('pointerup', function(e){
     if (e.pointerType !== 'touch') return;
-    const media = e.target.closest('.xpost-photo-wrap, .xpost-photo, .post-media');
+    const media = e.target.closest('.feed-media');
     if (!media) return;
-    const card = media.closest('.xpost');
+    const card = media.closest('.feed-card');
     if (!card) return;
     const now = Date.now();
     const pt = getPoint(e);
@@ -307,7 +157,17 @@ document.addEventListener("dblclick", function (e) {
       const btn = card.querySelector('.js-like-btn');
       if (btn) {
         e.preventDefault(); e.stopPropagation();
-        togglePostLike(btn, { fromDoubleTap: true });
+        const wasLiked = btn.classList.contains('liked');
+        triggerLikeButton(btn);
+        if (!wasLiked) {
+          const overlay = card.querySelector('.double-tap-heart');
+          if (overlay) {
+            overlay.classList.remove('active');
+            void overlay.offsetWidth;
+            overlay.classList.add('active');
+            setTimeout(() => overlay.classList.remove('active'), 420);
+          }
+        }
       }
       lastTap.delete(media);
     } else {
@@ -320,11 +180,11 @@ document.addEventListener("dblclick", function (e) {
     mutations.forEach(function(m){
       m.addedNodes && m.addedNodes.forEach(function(n){
         if (!(n instanceof HTMLElement)) return;
-        if (n.matches && n.matches('.xpost')) {
+        if (n.matches && n.matches('.feed-card')) {
           ensureDoubleTapOverlay(n);
           refreshLucideIcons(n);
         } else {
-          n.querySelectorAll && n.querySelectorAll('.xpost').forEach(function(x){ ensureDoubleTapOverlay(x); refreshLucideIcons(x); });
+          n.querySelectorAll && n.querySelectorAll('.feed-card').forEach(function(x){ ensureDoubleTapOverlay(x); refreshLucideIcons(x); });
         }
       });
     });
@@ -335,7 +195,7 @@ document.addEventListener("dblclick", function (e) {
         var ov = document.createElement('div');
         ov.className = 'double-tap-heart';
         ov.innerHTML = '<i class="bx bxs-heart"></i>';
-        var mediaWrap = card.querySelector('.xpost-photo-wrap') || card.querySelector('.post-media') || card;
+        var mediaWrap = card.querySelector('.feed-media') || card;
         mediaWrap && mediaWrap.appendChild(ov);
       }
     } catch(e){}
@@ -846,7 +706,7 @@ document.addEventListener("DOMContentLoaded", function () {
     let debounceTimer = null;
     const filterFeedCards = function () {
       const query = (searchInput.value || "").trim().toLowerCase();
-      const cards = document.querySelectorAll(".xpost[data-post-type]");
+      const cards = document.querySelectorAll(".feed-card[data-post-type]");
       let visibleCount = 0;
       cards.forEach(function (card) {
         const text = (card.textContent || "").toLowerCase();

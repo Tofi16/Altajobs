@@ -91,7 +91,7 @@
 
   // Delegate clicks for media items and post menus
   document.addEventListener('click', function(e){
-    var img = e.target.closest('.media-item img, .xpost-photo, .pc-media img');
+    var img = e.target.closest('.feed-media__item img, .feed-media__img');
     if (img) {
       e.preventDefault();
       var src = img.getAttribute('data-full') || img.src || img.getAttribute('src');
@@ -112,7 +112,7 @@
     try { if (typeof window.closeAllModals === 'function') window.closeAllModals(); } catch(e){}
     try { closeAllBottomSheets(); } catch(e){}
     // Enhance media containers: add click cursor and data-full attributes
-    document.querySelectorAll('.media-grid img, .xpost-photo, .pc-media img').forEach(function(img){
+    document.querySelectorAll('.feed-media img').forEach(function(img){
       img.style.cursor = 'zoom-in';
       // ensure high-res preview if data attribute absent
       if (!img.getAttribute('data-full')) img.setAttribute('data-full', img.src);

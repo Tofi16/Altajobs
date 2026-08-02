@@ -1,761 +1,100 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
-  .feed-page { overflow-x: hidden; }
-  .feed-composer {
-    background: #0d1117;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 16px;
-    box-shadow: 0 12px 28px rgba(2, 8, 23, 0.24);
-    padding: 16px;
-    margin-bottom: 1rem;
-  }
-  .compose-input-row { display: flex; align-items: flex-start; gap: 12px; }
-  .compose-avatar { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(255,255,255,.12); }
-  .compose-input-area { min-width: 0; flex-grow: 1; }
-  .compose-input-area .feed-composer-textarea { flex-grow: 1; font-size: 16px; }
-  .compose-input-area .feed-composer-textarea { min-height: 60px; }
-  .feed-composer textarea {
-    scrollbar-width: none;
-  }
-  .feed-composer textarea::-webkit-scrollbar { display: none; }
-  .feed-skeleton-card {
-    background: linear-gradient(180deg, rgba(13,17,23,0.95), rgba(9,12,17,0.96));
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 1rem;
-    padding: 1rem;
-    margin-bottom: 0.9rem;
-    overflow: hidden;
-  }
-  .feed-skeleton-row {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.8rem;
-  }
-  .feed-skeleton-avatar,
-  .feed-skeleton-line,
-  .feed-skeleton-block,
-  .feed-skeleton-icon {
-    background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.12) 37%, rgba(255,255,255,0.05) 63%);
-    background-size: 400% 100%;
-    animation: feed-shimmer 1.35s ease infinite;
-    border-radius: 999px;
-  }
-  .feed-skeleton-avatar {
-    width: 2.6rem;
-    height: 2.6rem;
-    border-radius: 999px;
-    flex-shrink: 0;
-  }
-  .feed-skeleton-line {
-    height: 0.7rem;
-    flex: 1;
-  }
-  .feed-skeleton-line.short { width: 38%; }
-  .feed-skeleton-block {
-    height: 4rem;
-    border-radius: 0.9rem;
-    margin-bottom: 0.8rem;
-  }
-  .feed-skeleton-actions {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 0.4rem;
-  }
-  .feed-skeleton-icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 999px;
-  }
-  @keyframes feed-shimmer {
-    0% { background-position: 100% 50%; }
-    100% { background-position: 0 50%; }
-  }
-  .feed-empty-state {
-    border: 1px dashed rgba(255,255,255,0.1);
-    border-radius: 1.1rem;
-    padding: 1.5rem 1rem;
-    text-align: center;
-    color: #cbd5e1;
-    background: rgba(13,17,23,0.5);
-  }
-  .feed-empty-state svg { margin: 0 auto 0.75rem; color: #38bdf8; }
-  .feed-comments-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(2, 8, 23, 0.72);
-    backdrop-filter: blur(6px);
-    z-index: 40;
-  }
-  .feed-comments-drawer {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 50;
-    max-height: 85vh;
-    background: #0d1117;
-    border-top: 1px solid rgba(255,255,255,0.08);
-    border-radius: 1.25rem 1.25rem 0 0;
-    padding: 0.85rem 1rem 1rem;
-    box-shadow: 0 -20px 40px rgba(2, 8, 23, 0.45);
-    transform: translateY(100%);
-    transition: transform 0.28s ease;
-    overflow-y: auto;
-  }
-  .feed-comments-drawer.open { transform: translateY(0); }
-  .feed-comments-handle {
-    width: 3rem;
-    height: 0.35rem;
-    background: #374151;
-    border-radius: 999px;
-    margin: 0 auto 0.75rem;
-  }
-  .feed-comments-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.8rem;
-    margin-bottom: 0.85rem;
-  }
-  .feed-comments-title { font-size: 1rem; font-weight: 700; color: #f8fafc; margin: 0; }
-  .feed-comments-subtitle { font-size: 0.8rem; color: #94a3b8; margin: 0.2rem 0 0; }
-  .feed-comments-close {
-    width: 2.5rem;
-    height: 2.5rem;
-    border: none;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.06);
-    color: #fff;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
-  }
-  .feed-comments-list {
-    display: grid;
-    gap: 0.7rem;
-    padding-bottom: 0.8rem;
-  }
-  .feed-comment-item {
-    display: flex;
-    gap: 0.7rem;
-    align-items: flex-start;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 0.9rem;
-    padding: 0.7rem;
-  }
-  .feed-comment-avatar {
-    width: 2.2rem;
-    height: 2.2rem;
-    border-radius: 999px;
-    background: linear-gradient(135deg, #38bdf8, #2563eb);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8rem;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-  .feed-comment-body { min-width: 0; }
-  .feed-comment-meta { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.2rem; }
-  .feed-comment-meta strong { color: #f8fafc; font-size: 0.84rem; }
-  .feed-comment-meta span { color: #64748b; font-size: 0.74rem; }
-  .feed-comment-body p { margin: 0; color: #e2e8f0; font-size: 0.9rem; line-height: 1.45; }
-  .feed-comments-input-row {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding-top: 0.8rem;
-    border-top: 1px solid rgba(255,255,255,0.06);
-    margin-top: 0.2rem;
-  }
-  .feed-comments-input-row input {
-    flex: 1;
-    min-height: 2.8rem;
-    background: #161b22;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 999px;
-    padding: 0 0.9rem;
-    color: #f8fafc;
-    font-size: 0.92rem;
-  }
-  .feed-comments-input-row input:focus { outline: none; border-color: rgba(56,189,248,0.4); }
-  .feed-comments-send {
-    min-height: 2.8rem;
-    padding: 0 1rem;
-    border: none;
-    border-radius: 999px;
-    background: #38bdf8;
-    color: #fff;
-    font-weight: 700;
-    font-size: 0.9rem;
-  }
-  .feed-comments-send:disabled { opacity: 0.6; cursor: progress; }
-  .feed-comment-skeleton { display: flex; gap: 0.7rem; align-items: center; padding: 0.7rem 0; }
-  .feed-comment-skeleton .feed-skeleton-avatar { width: 2.2rem; height: 2.2rem; }
-  .feed-comment-skeleton .feed-skeleton-line { height: 0.65rem; }
-  .feed-composer-textarea {
-    width: 100%;
-    min-height: 4.5rem;
-    resize: none;
-    background: transparent;
-    border: none;
-    color: #f8fafc;
-    font-size: 0.95rem;
-    line-height: 1.55;
-    padding: 0;
-    outline: none;
-    overflow: hidden;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-  .feed-composer-textarea::placeholder { color: #64748b; }
-  .feed-composer-preview {
-    margin-top: 0.85rem;
-    position: relative;
-    overflow: hidden;
-    border-radius: 1rem;
-    border: 1px solid rgba(255,255,255,0.08);
-    max-height: 16rem;
-  }
-  .feed-composer-preview img {
-    width: 100%;
-    max-height: 16rem;
-    object-fit: cover;
-    display: block;
-  }
-  .feed-composer-preview-remove {
-    position: absolute;
-    top: 0.6rem;
-    right: 0.6rem;
-    width: 2rem;
-    height: 2rem;
-    border: none;
-    border-radius: 999px;
-    background: rgba(2, 8, 23, 0.72);
-    color: #fff;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-  }
-  .feed-composer-actions {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    padding-top: 0.85rem;
-    margin-top: 0.85rem;
-    border-top: 1px solid rgba(255,255,255,0.06);
-  }
-  .compose-action-group { display: flex; align-items: center; gap: 16px; min-width: 0; }
-  .feed-creator-pill.active {
-    background: rgba(56, 189, 248, 0.14);
-    color: #7dd3fc;
-    box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.28);
-  }
-  .feed-composer-attach {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    color: #38bdf8;
-    background: transparent;
-    border: none;
-    padding: 0.65rem 0.85rem;
-    border-radius: 999px;
-    font-size: 0.78rem;
-    font-weight: 600;
-    min-height: 2.75rem;
-    transition: background-color 0.16s ease, color 0.16s ease;
-    cursor: pointer;
-  }
-  .feed-composer-attach:hover,
-  .feed-composer-attach:focus-visible {
-    background: rgba(56, 189, 248, 0.12);
-    color: #7dd3fc;
-    outline: none;
-  }
-  .feed-composer-submit {
-    min-height: 40px;
-    padding: 8px 24px;
-    border: none;
-    border-radius: 9999px;
-    background: #38bdf8;
-    color: #fff;
-    font-size: 0.82rem;
-    font-weight: 700;
-    box-shadow: 0 10px 20px rgba(56, 189, 248, 0.2);
-    transition: background-color 0.16s ease, transform 0.16s ease, opacity 0.16s ease;
-    cursor: pointer;
-  }
-  #composeSubmitButton.feed-composer-submit { padding: 8px 24px; border-radius: 9999px; font-weight: bold; }
-  @media (max-width: 560px) {
-    .feed-composer { padding: 12px; }
-    .feed-composer-textarea { min-height: 60px; }
-    .feed-composer-actions {
-      flex-wrap: nowrap;
-      align-items: center;
-      gap: 8px;
-      overflow: hidden;
-    }
-    .compose-action-group {
-      flex: 1 1 auto;
-      flex-wrap: nowrap;
-      gap: 8px;
-      min-width: 0;
-      overflow: hidden;
-    }
-    .feed-composer-attach {
-      flex: 0 1 auto;
-      min-width: 0;
-      padding-inline: 5px;
-      font-size: 0.72rem;
-      gap: 4px;
-      white-space: nowrap;
-    }
-    .feed-composer-attach svg { width: 15px; height: 15px; flex: 0 0 15px; }
-    .feed-composer-submit {
-      flex: 0 0 auto;
-      min-height: 36px;
-      padding: 6px 14px;
-      font-size: 0.78rem;
-    }
-  }
-  .feed-composer-filename {
-    margin-top: 0.5rem;
-    color: #94a3b8;
-    font-size: 0.82rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .feed-composer-preview {
-    position: relative;
-    margin-top: 0.9rem;
-    border-radius: 1rem;
-    overflow: hidden;
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    background: rgba(15, 23, 42, 0.92);
-  }
-  .feed-composer-preview img {
-    width: 100%;
-    height: auto;
-    display: block;
-    object-fit: cover;
-    max-height: 260px;
-  }
-  .feed-composer-preview-remove {
-    position: absolute;
-    top: 0.7rem;
-    right: 0.7rem;
-    width: 32px;
-    height: 32px;
-    border: none;
-    border-radius: 999px;
-    background: rgba(15, 23, 42, 0.88);
-    color: #f8fafc;
-    font-size: 1.15rem;
-    line-height: 1;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22);
-  }
-  .feed-composer-preview-remove:hover,
-  .feed-composer-preview-remove:focus-visible {
-    background: rgba(15, 23, 42, 1);
-    outline: none;
-  }
-  .feed-composer-submit:hover,
-  .feed-composer-submit:focus-visible {
-    background: #0ea5e9;
-    transform: translateY(-1px);
-    outline: none;
-  }
-  .feed-composer-submit:disabled {
-    opacity: 0.6;
-    cursor: progress;
-    transform: none;
-  }
-  .feed-filters {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 0.2rem 0 0.7rem;
-    margin-bottom: 0.9rem;
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .feed-filters::-webkit-scrollbar { display: none; }
-  .feed-filter-pill {
-    flex-shrink: 0;
-    min-height: 2.75rem;
-    border: 1px solid rgba(255,255,255,0.08);
-    background: #161b22;
-    color: #94a3b8;
-    padding: 0.55rem 0.95rem;
-    border-radius: 999px;
-    font-size: 0.78rem;
-    font-weight: 600;
-    transition: all 0.16s ease;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .feed-filter-pill:hover,
-  .feed-filter-pill:focus-visible {
-    color: #f8fafc;
-    border-color: rgba(255,255,255,0.16);
-    outline: none;
-  }
-  .feed-filter-pill.active {
-    color: #38bdf8;
-    background: rgba(56, 189, 248, 0.15);
-    border-color: rgba(56, 189, 248, 0.44);
-    box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.14);
-    font-weight: 700;
-  }
-  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-</style>
 
-<div class="mx-auto max-w-4xl px-4 py-6 text-slate-200 feed-page">
-  <section id="feedCreateCard" class="max-w-3xl mx-auto w-full mb-3 sm:mb-4">
+<div class="feed-page">
+
+  <section id="feedCreateCard" class="feed-composer-wrap">
     <form id="composeForm" method="POST" action="{{ url_for('new_post') }}" enctype="multipart/form-data" class="feed-composer">
-      <div class="compose-input-row">
-        <img class="compose-avatar" src="{{ photo_url(current_user['avatar']) if current_user['avatar'] else '' }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}">
-        <div class="compose-input-area">
-          <label for="composeTextarea" class="sr-only">Write something</label>
-          <textarea id="composeTextarea" name="content" rows="1" placeholder="Share a job, skill, or insight..." aria-label="Write a post" class="feed-composer-textarea"></textarea>
+      <div class="feed-composer__row">
+        <img class="feed-composer__avatar" src="{{ photo_url(current_user['avatar']) if current_user['avatar'] else '' }}" loading="lazy" decoding="async" alt="{{ current_user['full_name'] or current_user['username'] }}">
+        <div class="feed-composer__field">
+          <label for="composeTextarea" class="feed-sr-only">Write something</label>
+          <textarea id="composeTextarea" name="content" rows="1" placeholder="Share a job, skill, or insight..." aria-label="Write a post" class="feed-composer__textarea"></textarea>
           <input type="hidden" name="post_type" id="composePostType" value="general">
           <input type="hidden" name="current_filter" id="composeCurrentFilter" value="{{ active_filter or 'all' }}">
         </div>
       </div>
 
-      <div id="composePreviewWrap" class="feed-composer-preview" hidden>
+      <div id="composePreviewWrap" class="feed-composer__preview" hidden>
         <img id="composePreviewImg" src="" alt="Selected photo preview">
-        <button type="button" id="composePreviewRemove" class="feed-composer-preview-remove" aria-label="Remove photo">×</button>
+        <button type="button" id="composePreviewRemove" class="feed-composer__preview-remove" aria-label="Remove photo">×</button>
       </div>
 
-      <div id="composeActions" class="feed-composer-actions">
-        <div class="compose-action-group">
-          <button type="button" class="feed-composer-attach" data-attachment="photo">
+      <div id="composeActions" class="feed-composer__actions">
+        <div class="feed-composer__tools">
+          <button type="button" class="feed-composer__tool" data-attachment="photo">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2-2h10l2 2h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
             <span>Photo</span>
           </button>
-          <button type="button" class="feed-composer-attach feed-creator-pill" data-post-type="job">
+          <button type="button" class="feed-composer__tool" data-post-type="job">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M3 7h18"></path><path d="M5 7v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7"></path><path d="M9 7V5h6v2"></path></svg>
             <span>Job</span>
           </button>
-          <button type="button" class="feed-composer-attach feed-creator-pill" data-post-type="experience">
+          <button type="button" class="feed-composer__tool" data-post-type="experience">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" aria-hidden="true"><path d="M12 3 4 7v5c0 5 3.6 8.2 8 9 4.4-.8 8-4 8-9V7l-8-4Z"></path></svg>
             <span>Skill</span>
           </button>
-          <label for="composePhotoInput" class="sr-only">Attach photo</label>
-          <input type="file" name="photo" accept="image/*" id="composePhotoInput" class="sr-only">
-          <div id="composePhotoName" class="feed-composer-filename" hidden></div>
+          <label for="composePhotoInput" class="feed-sr-only">Attach photo</label>
+          <input type="file" name="photo" accept="image/*" id="composePhotoInput" class="feed-sr-only">
+          <div id="composePhotoName" class="feed-composer__filename" hidden></div>
         </div>
-        <button type="submit" id="composeSubmitButton" class="feed-composer-submit">Post</button>
+        <button type="submit" id="composeSubmitButton" class="feed-composer__submit">Post</button>
       </div>
     </form>
   </section>
 
   <section class="feed-filters" id="feedFilters" aria-label="Feed filters">
-    <button type="button" class="feed-filter-pill {{ 'active' if active_filter == 'all' or not active_filter }}" data-filter="all">All</button>
-    <button type="button" class="feed-filter-pill {{ 'active' if active_filter == 'job' }}" data-filter="job">Jobs Only</button>
-    <button type="button" class="feed-filter-pill {{ 'active' if active_filter == 'experience' }}" data-filter="experience">Experiences</button>
+    <button type="button" class="feed-filter {{ 'active' if active_filter == 'all' or not active_filter }}" data-filter="all">All</button>
+    <button type="button" class="feed-filter {{ 'active' if active_filter == 'job' }}" data-filter="job">Jobs Only</button>
+    <button type="button" class="feed-filter {{ 'active' if active_filter == 'experience' }}" data-filter="experience">Experiences</button>
   </section>
 
-  <!-- Removed two empty skeleton boxes that cluttered the top of the feed -->
-
   {% if active_announcement %}
-  <div class="announcement-banner" id="announcementBanner">
-    <div class="announcement-banner-gradient"></div>
-    <div class="announcement-banner-content">
-      <div>
-        <div class="announcement-banner-tag">Live update</div>
-        <h3>{{ active_announcement['title'] }}</h3>
-        <p>{{ active_announcement['content'] }}</p>
-      </div>
-      <form method="POST" action="{{ url_for('dismiss_announcement', announcement_id=active_announcement['id']) }}" class="announcement-dismiss-form">
-        <button type="submit" class="announcement-dismiss-btn">Dismiss</button>
-      </form>
-    </div>
+  <div class="feed-announcement" id="announcementBanner">
+    <div class="feed-announcement__tag">Live update</div>
+    <h3>{{ active_announcement['title'] }}</h3>
+    <p>{{ active_announcement['content'] }}</p>
+    <form method="POST" action="{{ url_for('dismiss_announcement', announcement_id=active_announcement['id']) }}">
+      <button type="submit" class="feed-announcement__dismiss">Dismiss</button>
+    </form>
   </div>
   {% endif %}
+
   {% if not posts_data %}
     {% if db_warning_message %}
-      <div class="debug-banner">
-        <strong>Debug:</strong> {{ db_warning_message }}
-      </div>
+      <div class="feed-debug-banner"><strong>Debug:</strong> {{ db_warning_message }}</div>
     {% endif %}
     <div class="feed-empty-state" id="noPostsMsg">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="h-8 w-8" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2-2h10l2 2h2a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-      <div class="font-semibold text-white">No posts here yet</div>
-      <div class="text-sm text-slate-400 mt-1">Be the first to share something with your network.</div>
+      <div class="feed-empty-state__title">No posts here yet</div>
+      <div class="feed-empty-state__hint">Be the first to share something with your network.</div>
     </div>
   {% endif %}
-  <div class="empty-state-note empty-state-note-hidden" id="noFilterResultsMsg">
+
+  <div class="feed-empty-state feed-empty-state--filter" id="noFilterResultsMsg" style="display:none;">
     <i class='bx bx-filter-alt'></i>
     <span>No posts match this filter yet.</span>
   </div>
 
-<div id="feedPostsContainer">
-{% include "_feed_posts.html" %}
+  <div id="feedPostsContainer">
+    {% include "_feed_posts.html" %}
+  </div>
+
+  <div id="feedLoadMoreWrap" class="feed-pagination" data-page="{{ page }}" data-has-next="{{ '1' if has_next else '0' }}" data-filter="{{ active_filter or 'all' }}">
+    {% if has_next %}
+      <button type="button" id="feedLoadMoreBtn" class="feed-pagination__btn">Load more posts</button>
+    {% endif %}
+    <div id="feedLoadMoreSpinner" class="feed-pagination__spinner" hidden aria-live="polite">Loading…</div>
+    <div id="feedInfiniteSentinel" class="feed-pagination__sentinel" aria-hidden="true"></div>
+  </div>
+
 </div>
-</div>
 
-<div id="feedLoadMoreWrap" class="feed-pagination" data-page="{{ page }}" data-has-next="{{ '1' if has_next else '0' }}" data-filter="{{ active_filter or 'all' }}">
-  {% if has_next %}
-    <button type="button" id="feedLoadMoreBtn" class="btn-primary">Load more posts</button>
-  {% endif %}
-  <div id="feedLoadMoreSpinner" class="feed-load-more-spinner" hidden aria-live="polite">Loading…</div>
-  <div id="feedInfiniteSentinel" class="feed-pagination-sentinel" aria-hidden="true"></div>
-</div>
-
-<script>
-(function () {
-  var wrap = document.getElementById('feedLoadMoreWrap');
-  var container = document.getElementById('feedPostsContainer');
-  var btn = document.getElementById('feedLoadMoreBtn');
-  var spinner = document.getElementById('feedLoadMoreSpinner');
-  var filterBar = document.getElementById('feedFilters');
-  var emptyMsg = document.getElementById('noFilterResultsMsg');
-  var composerForm = document.getElementById('composeForm');
-  var composerTextarea = document.getElementById('composeTextarea');
-  var composerInput = document.getElementById('composePhotoInput');
-  var composerPreviewWrap = document.getElementById('composePreviewWrap');
-  var composerPreviewImg = document.getElementById('composePreviewImg');
-  var composerPreviewRemove = document.getElementById('composePreviewRemove');
-  var composerSubmit = document.getElementById('composeSubmitButton');
-  var composePostType = document.getElementById('composePostType');
-  var composeCurrentFilter = document.getElementById('composeCurrentFilter');
-  var sentinel = document.getElementById('feedInfiniteSentinel');
-  if (!wrap || !container) return;
-
-  var page = parseInt(wrap.dataset.page || '1', 10);
-  var hasNext = wrap.dataset.hasNext === '1';
-  var activeType = wrap.dataset.filter || 'all';
-  var loading = false;
-  var isFetching = false;
-  var renderedPostIds = new Set();
-  container.querySelectorAll('.xpost[data-post-id]').forEach(function (postNode) {
-    if (postNode.dataset.postId) {
-      renderedPostIds.add(postNode.dataset.postId.toString());
-    }
-  });
-
-  function appendUniquePosts(html) {
-    if (!html) return;
-    var fragment = document.createRange().createContextualFragment(html);
-    var nodes = Array.from(fragment.querySelectorAll('.xpost'));
-    nodes.forEach(function (postNode) {
-      var postId = postNode.dataset.postId;
-      if (!postId || renderedPostIds.has(postId.toString())) {
-        return;
-      }
-      renderedPostIds.add(postId.toString());
-      container.appendChild(postNode);
-    });
-  }
-
-  function prependUniquePosts(html) {
-    if (!html) return;
-    var fragment = document.createRange().createContextualFragment(html);
-    var nodes = Array.from(fragment.querySelectorAll('.xpost'));
-    nodes.reverse().forEach(function (postNode) {
-      var postId = postNode.dataset.postId;
-      if (!postId || renderedPostIds.has(postId.toString())) {
-        return;
-      }
-      renderedPostIds.add(postId.toString());
-      container.insertBefore(postNode, container.firstChild);
-    });
-  }
-
-  function clearSkeletons() {
-    container.querySelectorAll('.feed-skeleton-card').forEach(function (node) {
-      node.remove();
-    });
-  }
-
-  function renderSkeletons(count, mode) {
-    clearSkeletons();
-    var fragment = document.createDocumentFragment();
-    for (var i = 0; i < count; i += 1) {
-      var card = document.createElement('div');
-      card.className = 'feed-skeleton-card';
-      card.innerHTML = [
-        '<div class="feed-skeleton-row">',
-        '  <div class="feed-skeleton-avatar"></div>',
-        '  <div class="feed-skeleton-line"></div>',
-        '  <div class="feed-skeleton-line short"></div>',
-        '</div>',
-        '<div class="feed-skeleton-block"></div>',
-        '<div class="feed-skeleton-actions">',
-        '  <div class="feed-skeleton-icon"></div>',
-        '  <div class="feed-skeleton-icon"></div>',
-        '  <div class="feed-skeleton-icon"></div>',
-        '</div>'
-      ].join('');
-      fragment.appendChild(card);
-    }
-    if (mode === 'replace') {
-      container.innerHTML = '';
-      container.appendChild(fragment);
-    } else {
-      container.appendChild(fragment);
-    }
-  }
-
-  function refreshComposerPreview() {
-    if (!composerPreviewWrap || !composerPreviewImg) return;
-    composerPreviewWrap.hidden = true;
-    composerPreviewImg.src = '';
-  }
-
-  function syncComposerType() {
-    if (!composePostType || !composeCurrentFilter) return;
-    var raw = composeCurrentFilter.value || 'all';
-    var nextType = raw === 'job' ? 'job' : (raw === 'experience' ? 'skill' : 'general');
-    composePostType.value = nextType;
-  }
-
-  function resizeComposerTextarea() {
-    if (!composerTextarea) return;
-    composerTextarea.style.height = 'auto';
-    composerTextarea.style.height = Math.min(composerTextarea.scrollHeight, 220) + 'px';
-  }
-
-  function refreshFeedUI() {
-    if (window.refreshPostSeeMoreButtons) {
-      window.refreshPostSeeMoreButtons();
-    }
-    if (typeof refreshLucideIcons === 'function') {
-      refreshLucideIcons(container);
-    }
-  }
-
-  function refreshEmptyState(hasPosts) {
-    if (emptyMsg) {
-      emptyMsg.style.display = hasPosts ? 'none' : 'block';
-    }
-  }
-
-
-  function loadNextPage() {
-    if (isFetching || loading || !hasNext) return;
-    isFetching = true;
-    loading = true;
-    renderSkeletons(2, 'append');
-    if (btn) btn.hidden = true;
-    if (spinner) spinner.hidden = false;
-
-    fetch('/feed/page/' + (page + 1) + '?type=' + encodeURIComponent(activeType), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (data && data.success) {
-          clearSkeletons();
-          if (data.html) {
-            appendUniquePosts(data.html);
-            refreshFeedUI();
-          }
-          page = data.page;
-          hasNext = !!data.has_next;
-        } else {
-          hasNext = false;
-        }
-      })
-      .catch(function () {
-        clearSkeletons();
-        if (typeof window.showToast === 'function') {
-          window.showToast('Network issue, retrying…', 'error');
-        }
-      })
-      .finally(function () {
-        isFetching = false;
-        loading = false;
-        clearSkeletons();
-        if (spinner) spinner.hidden = true;
-        if (btn) btn.hidden = !hasNext;
-      });
-  }
-
-  if (filterBar) {
-    filterBar.addEventListener('click', function (e) {
-      var pill = e.target.closest('.feed-filter-pill');
-      if (!pill || loading) return;
-
-      var newType = pill.dataset.filter === 'all' ? 'all' : pill.dataset.filter;
-      filterBar.querySelectorAll('.feed-filter-pill').forEach(function (p) { p.classList.remove('active'); });
-      pill.classList.add('active');
-      if (newType === activeType) return;
-
-      activeType = newType;
-      if (composeCurrentFilter) composeCurrentFilter.value = activeType;
-      syncComposerType();
-      loading = true;
-      renderSkeletons(3, 'replace');
-      if (btn) btn.hidden = true;
-      if (spinner) spinner.hidden = false;
-
-      fetch('/feed/page/1?type=' + encodeURIComponent(activeType), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-          if (data && data.success) {
-            renderedPostIds.clear();
-            container.innerHTML = data.html || '';
-            container.querySelectorAll('.xpost[data-post-id]').forEach(function (postNode) {
-              if (postNode.dataset.postId) {
-                renderedPostIds.add(postNode.dataset.postId.toString());
-              }
-            });
-            page = 1;
-            hasNext = !!data.has_next;
-            refreshFeedUI();
-            refreshEmptyState(!!data.has_posts);
-          }
-        })
-        .catch(function () {
-          if (typeof window.showToast === 'function') {
-            window.showToast('Network issue, retrying…', 'error');
-          }
-        })
-        .finally(function () {
-          isFetching = false;
-          loading = false;
-          clearSkeletons();
-          if (spinner) spinner.hidden = true;
-          if (btn) btn.hidden = !hasNext;
-        });
-    });
-  }
-
-  if (btn) {
-    btn.addEventListener('click', loadNextPage);
-  }
-
-  if ('IntersectionObserver' in window && sentinel) {
-    var observer = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) loadNextPage();
-      });
-    }, { rootMargin: '600px 0px' });
-    observer.observe(sentinel);
-  }
-})();
-</script>
-
-<!-- Repost modal: "Send to chat/followers" -->
+<!-- Repost modal: send to chat / followers -->
 <div class="modal-overlay" id="repostModalOverlay"></div>
 <div class="modal-card" id="repostModal" role="dialog" aria-label="Send to chat/followers">
-  <div class="flex items-center justify-between gap-3 mb-3">
-    <h3 class="text-base font-extrabold text-slate-100">Send to chat / followers</h3>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;margin-bottom:0.75rem;">
+    <h3 style="margin:0;font-size:1rem;font-weight:800;color:var(--feed-text);">Send to chat / followers</h3>
     <button type="button" class="js-repost-modal-close repost-modal-close">&times;</button>
   </div>
   <button type="button" class="sheet-action" id="repostQuickBtn">
@@ -767,25 +106,27 @@
   </div>
 </div>
 
+<!-- Comments drawer -->
 <div class="feed-comments-backdrop" id="feedCommentsBackdrop" hidden></div>
 <div class="feed-comments-drawer" id="feedCommentsDrawer" role="dialog" aria-modal="true" aria-label="Comments" aria-hidden="true">
-  <div class="feed-comments-handle"></div>
-  <div class="feed-comments-header">
+  <div class="feed-comments-drawer__handle"></div>
+  <div class="feed-comments-drawer__header">
     <div>
-      <h3 class="feed-comments-title">Comments</h3>
-      <p class="feed-comments-subtitle" id="feedCommentsSubtitle">Loading comments…</p>
+      <h3 class="feed-comments-drawer__title">Comments</h3>
+      <p class="feed-comments-drawer__subtitle" id="feedCommentsSubtitle">Loading comments…</p>
     </div>
-    <button type="button" class="feed-comments-close" id="feedCommentsCloseBtn" aria-label="Close comments">×</button>
+    <button type="button" class="feed-comments-drawer__close" id="feedCommentsCloseBtn" aria-label="Close comments">×</button>
   </div>
   <div class="feed-comments-list" id="feedCommentsList"></div>
-  <div class="feed-comments-input-row">
-    <input type="text" id="feedCommentsInput" placeholder="Write a comment..." aria-label="Write a comment">
-    <button type="button" class="feed-comments-send" id="feedCommentsSendBtn">Send</button>
+  <div class="feed-comments-drawer__input-row">
+    <input type="text" id="feedCommentsInput" class="feed-comments-drawer__input" placeholder="Write a comment..." aria-label="Write a comment">
+    <button type="button" class="feed-comments-drawer__send" id="feedCommentsSendBtn">Send</button>
   </div>
 </div>
 
-<div class="bottom-sheet-overlay hidden" id="feedBottomSheetOverlay" style="display:none;"></div>
-<div class="bottom-sheet centered-modal hidden" id="feedPostActionsSheet" role="dialog" aria-label="Post options" style="display:none;">
+<!-- Post options sheet -->
+<div class="bottom-sheet-overlay" id="feedBottomSheetOverlay" style="display:none;"></div>
+<div class="bottom-sheet centered-modal" id="feedPostActionsSheet" role="dialog" aria-label="Post options" style="display:none;">
   <div class="bottom-sheet-handle"></div>
   <button type="button" class="sheet-action" id="feedCopyLinkBtn">
     <i class='bx bx-link-alt'></i> Copy Link
@@ -809,222 +150,6 @@
   <button type="button" class="sheet-action sheet-cancel" id="feedSheetCancelBtn">Cancel</button>
 </div>
 
-<script>
-(function () {
-  var overlay = document.getElementById('feedBottomSheetOverlay');
-  var sheet = document.getElementById('feedPostActionsSheet');
-  var copyBtn = document.getElementById('feedCopyLinkBtn');
-  var shareBtn = document.getElementById('feedShareBtn');
-  var deleteForm = document.getElementById('feedSheetDeleteForm');
-  var reportForm = document.getElementById('feedSheetReportForm');
-  var reportTarget = document.getElementById('feedSheetReportTargetId');
-  var cancelBtn = document.getElementById('feedSheetCancelBtn');
-  var currentPostUrl = null;
-  var currentPostId = null;
-
-  if (!overlay || !sheet) return;
-
-  document.addEventListener('DOMContentLoaded', function () {
-    [overlay, sheet].forEach(function (el) {
-      if (!el) return;
-      el.style.display = 'none';
-      el.classList.remove('open', 'active');
-      el.classList.add('hidden');
-    });
-  });
-
-  window.addEventListener('pageshow', function () {
-    [overlay, sheet].forEach(function (el) {
-      if (!el) return;
-      el.style.display = 'none';
-      el.classList.remove('open', 'active');
-      el.classList.add('hidden');
-    });
-  });
-
-  var isFeedMenuOpen = false;
-
-  function openFeedSheet(postId, postUrl, deleteUrl, canDelete, canReport) {
-    if (!isFeedMenuOpen) {
-      try { window.history.pushState({ feedMenuOpen: true }, '', window.location.href); } catch (e) {}
-    }
-    isFeedMenuOpen = true;
-    currentPostId = postId || '';
-    currentPostUrl = postUrl || window.location.origin + '/post/' + postId;
-    if (deleteForm) {
-      deleteForm.action = deleteUrl || '';
-      deleteForm.style.display = canDelete ? '' : 'none';
-    }
-    if (reportForm && reportTarget) {
-      reportForm.action = '{{ url_for('submit_report') }}';
-      reportTarget.value = currentPostId;
-      reportForm.style.display = canReport ? '' : 'none';
-    }
-    sheet.style.display = 'flex';
-    overlay.style.display = 'flex';
-    sheet.classList.remove('hidden');
-    overlay.classList.remove('hidden');
-    sheet.classList.add('open');
-    overlay.classList.add('open');
-  }
-
-  function closeFeedSheet(skipPop) {
-    if (!isFeedMenuOpen) return;
-    sheet.classList.remove('open');
-    overlay.classList.remove('open');
-    sheet.classList.add('hidden');
-    overlay.classList.add('hidden');
-    sheet.style.display = 'none';
-    overlay.style.display = 'none';
-    currentPostUrl = null;
-    currentPostId = null;
-    isFeedMenuOpen = false;
-    if (!skipPop && window.history.state && window.history.state.feedMenuOpen) {
-      try { window.history.back(); } catch (e) {}
-    }
-  }
-
-  document.addEventListener('click', function (e) {
-    var btn = e.target.closest('.js-post-menu-btn');
-    if (!btn) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    openFeedSheet(
-      btn.dataset.postId,
-      btn.dataset.postUrl,
-      btn.dataset.deleteUrl,
-      btn.dataset.canDelete === '1' || btn.dataset.canDelete === 'true',
-      btn.dataset.canReport === '1' || btn.dataset.canReport === 'true'
-    );
-  });
-
-  window.addEventListener('popstate', function (e) {
-    if (isFeedMenuOpen && !(e.state && e.state.feedMenuOpen)) {
-      closeFeedSheet(true);
-    }
-  });
-
-  if (copyBtn) {
-    copyBtn.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!currentPostUrl) return;
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(currentPostUrl).then(function () {
-          copyBtn.innerHTML = '<i class="bx bx-check"></i> Link copied!';
-          setTimeout(function () { copyBtn.innerHTML = '<i class="bx bx-link-alt"></i> Copy Link'; closeFeedSheet(); }, 800);
-        });
-      }
-    });
-  }
-
-  if (shareBtn) {
-    shareBtn.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!currentPostUrl) return;
-      if (navigator.share) {
-        navigator.share({ title: document.title, url: currentPostUrl }).catch(function () {});
-      } else if (navigator.clipboard) {
-        navigator.clipboard.writeText(currentPostUrl);
-      }
-      closeFeedSheet();
-    });
-  }
-
-  if (cancelBtn) {
-    cancelBtn.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      closeFeedSheet();
-    });
-  }
-
-  // direct inline share button on feed cards (copy link to clipboard)
-  document.addEventListener('click', function (e) {
-    var shareBtnInline = e.target.closest('.js-share-btn');
-    if (shareBtnInline) {
-      e.preventDefault();
-      e.stopPropagation();
-      var url = shareBtnInline.dataset.postUrl;
-      if (!url) return;
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(url).then(function () {
-          shareBtnInline.classList.add('copied');
-          setTimeout(function () { shareBtnInline.classList.remove('copied'); }, 900);
-        }).catch(function () {});
-      }
-      return;
-    }
-  });
-
-  if (overlay) {
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) {
-        closeFeedSheet();
-      }
-    });
-  }
-})();
-</script>
-
+<script src="{{ url_for('static', filename='js/feed-page.js') }}" defer></script>
 
 {% endblock %}
-
-<script>
-(function () {
-  function setPanelState(panel, open) {
-    if (!panel) return;
-    if (open) {
-      panel.classList.add('open');
-      panel.setAttribute('aria-hidden', 'false');
-      panel.style.maxHeight = panel.scrollHeight + 'px';
-      setTimeout(function () { panel.style.maxHeight = ''; }, 350);
-    } else {
-      panel.style.maxHeight = panel.scrollHeight + 'px';
-      requestAnimationFrame(function () {
-        panel.style.maxHeight = '0px';
-        panel.classList.remove('open');
-        panel.setAttribute('aria-hidden', 'true');
-      });
-    }
-  }
-
-  document.addEventListener('click', function (e) {
-    var sbtn = e.target.closest('.js-share-btn');
-    if (sbtn) {
-      e.preventDefault();
-      var postId = sbtn.dataset.postId;
-      var panel = document.querySelector('#post-' + postId + ' .xpost-share-panel');
-      if (panel) {
-        setPanelState(panel, !panel.classList.contains('open'));
-      }
-      return;
-    }
-
-    var copyBtn = e.target.closest('.post-action.copy-link');
-    if (copyBtn) {
-      var url = copyBtn.dataset.postUrl;
-      if (navigator.clipboard && url) {
-        navigator.clipboard.writeText(url);
-      }
-      var panel = copyBtn.closest('.xpost-share-panel');
-      if (panel) setPanelState(panel, false);
-      return;
-    }
-
-    var nativeBtn = e.target.closest('.js-share-native');
-    if (nativeBtn) {
-      var url = nativeBtn.dataset.postUrl;
-      if (navigator.share) {
-        navigator.share({ title: document.title, url: url }).catch(function () {});
-      } else if (navigator.clipboard && url) {
-        navigator.clipboard.writeText(url);
-      }
-      var panel = nativeBtn.closest('.xpost-share-panel');
-      if (panel) setPanelState(panel, false);
-    }
-  });
-})();
-</script>

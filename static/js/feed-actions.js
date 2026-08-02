@@ -1,14 +1,27 @@
 /**
  * AltaJobs — feed-actions.js
- * Handles: Like (AJAX), Follow (AJAX), Comment (inline expand + submit),
- *          Notification bell fetch + badge, See-more toggle.
- * Drop-in replacement — references /api/like/:id and /api/follow/:id
- * which already exist in app.py and return JSON.
+ * Handles all feed post interactions: like, follow, comment drawer,
+ * repost, share, save, post menu (copy link / share / report / delete),
+ * see-more/less, and the notification badge poll.
+ *
+ * Talks to the existing JSON endpoints in app.py:
+ *   POST /api/like/:id
+ *   POST /api/follow/:id
+ *   GET  /api/v1/posts/:id/comments
+ *   POST /api/v1/posts/:id/comments
+ *   POST /api/post/:id/repost
+ *   POST /post/:id/save
+ *   GET  /api/notifications
+ *
+ * This file is the single source of truth for feed interaction JS —
+ * it replaces the previously duplicated handlers that lived inline in
+ * feed.html.
  */
 (function () {
   'use strict';
 
-  /* ─── Utility ─────────────────────────────────────────────────── */
+  /* ─── Fetch helpers ───────────────────────────────────────────── */
+
   function post(url) {
     return fetch(url, {
       method: 'POST',
@@ -17,33 +30,57 @@
     });
   }
 
-  function postJson(url) {
-    return fetch(url, {
+  function postJson(url, body) {
+    var opts = {
       method: 'POST',
       headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-    }).then(function (r) {
+    };
+    if (body !== undefined) opts.body = JSON.stringify(body);
+    return fetch(url, opts).then(function (r) {
       var ct = r.headers.get('content-type') || '';
-      if (ct.indexOf('application/json') === -1) return r.json().catch(function(){ return {} });
+      if (ct.indexOf('application/json') === -1) return {};
       return r.json();
     });
   }
 
-  function showToast(msg, type) {
-    var t = document.createElement('div');
-    t.className = 'aj-toast aj-toast--' + (type || 'info');
-    t.textContent = msg;
-    document.body.appendChild(t);
-    requestAnimationFrame(function () { t.classList.add('aj-toast--show'); });
-    setTimeout(function () {
-      t.classList.remove('aj-toast--show');
-      setTimeout(function () { t.remove(); }, 350);
-    }, 2200);
+  /* ─── Toast (shared with feed.js; safe if feed.js loads first or not at all) ─── */
+
+  function ensureToastContainer() {
+    var el = document.getElementById('toastContainer');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'toastContainer';
+      document.body.appendChild(el);
+    }
+    return el;
   }
 
-  window.showToast = showToast;
+  function showToast(message, type) {
+    var container = ensureToastContainer();
+    var t = document.createElement('div');
+    t.className = 'toast ' + (type === 'error' ? 'error' : 'success');
+    var accent = document.createElement('div');
+    accent.className = 'toast-accent';
+    var content = document.createElement('div');
+    content.style.flex = '1';
+    content.textContent = message;
+    t.appendChild(accent);
+    t.appendChild(content);
+    container.appendChild(t);
+    requestAnimationFrame(function () { t.style.opacity = '1'; t.style.transform = 'translateY(0)'; });
+    setTimeout(function () {
+      t.classList.add('hide');
+      setTimeout(function () { t.remove(); }, 320);
+    }, 2600);
+    return t;
+  }
+
+  if (!window.showToast) window.showToast = showToast;
+  window.show_toast = window.showToast;
 
   /* ─── Like ────────────────────────────────────────────────────── */
+
   document.addEventListener('click', function (e) {
     var btn = e.target.closest('.js-like-btn, [data-action="like"]');
     if (!btn) return;
@@ -51,15 +88,8 @@
     e.stopPropagation();
 
     var postId = btn.dataset.postId;
-    if (!postId) return;
-
-    // prevent duplicate rapid clicks
-    if (btn.dataset.inflight === '1') return;
+    if (!postId || btn.dataset.inflight === '1') return;
     btn.dataset.inflight = '1';
-
-    var wasLiked = btn.classList.contains('liked');
-    var countEl = btn.querySelector('.like-count, .count');
-    var currentCount = parseInt((countEl && countEl.textContent) || '0', 10) || 0;
 
     post('/api/like/' + postId)
       .then(function (r) {
@@ -70,16 +100,15 @@
         if (data.error) throw new Error(data.error);
         btn.classList.toggle('liked', !!data.liked);
         btn.setAttribute('aria-pressed', String(!!data.liked));
+        var countEl = btn.querySelector('.like-count, .count');
         if (countEl) countEl.textContent = data.like_count;
-        // sync heart icon fill
-        var icon = btn.querySelector('[data-lucide]');
-        if (icon) {
-          icon.setAttribute('data-lucide', data.liked ? 'heart' : 'heart');
-          icon.style.fill = data.liked ? 'currentColor' : 'none';
+        if (data.liked) {
+          btn.classList.add('just-liked');
+          setTimeout(function () { btn.classList.remove('just-liked'); }, 420);
         }
       })
       .catch(function () {
-        showToast('Could not update like. Try again.', 'error');
+        window.showToast('Could not update like. Try again.', 'error');
       })
       .finally(function () {
         delete btn.dataset.inflight;
@@ -87,15 +116,14 @@
   });
 
   /* ─── Follow ──────────────────────────────────────────────────── */
+
   document.addEventListener('click', function (e) {
     var btn = e.target.closest('.js-follow-btn, [data-action="follow"]');
     if (!btn) return;
     e.preventDefault();
-    // skip if inside a <form> — let the form handle it (follow_suggestions page)
-    if (btn.closest('form')) return;
+    if (btn.closest('form')) return; // let plain <form> follow buttons submit normally
     e.stopPropagation();
 
-    // Keep the viewport fixed even when the browser focuses a button below the fold.
     var scrollX = window.scrollX;
     var scrollY = window.scrollY;
     btn.blur();
@@ -103,18 +131,14 @@
     requestAnimationFrame(function () { window.scrollTo(scrollX, scrollY); });
 
     var userId = btn.dataset.userId;
-    if (!userId) return;
+    if (!userId || btn.dataset.inflight === '1') return;
+    btn.dataset.inflight = '1';
+    btn.disabled = true;
 
     var labelEl = btn.querySelector('.follow-label') || btn;
     var wasFollowing = btn.classList.contains('following');
     var followLabel = btn.dataset.followLabel || 'Follow';
     var followingLabel = btn.dataset.followingLabel || 'Unfollow';
-
-    // prevent duplicate requests
-    if (btn.dataset.inflight === '1') return;
-    btn.dataset.inflight = '1';
-
-    btn.disabled = true;
 
     post('/api/follow/' + userId)
       .then(function (r) {
@@ -127,27 +151,28 @@
       })
       .then(function (data) {
         if (data.error) throw new Error(data.error);
-        btn.classList.toggle('following', !!data.following);
-        btn.setAttribute('aria-pressed', String(!!data.following));
-        if (labelEl) labelEl.textContent = data.following ? followingLabel : followLabel;
+        var isFollowing = !!data.following;
 
-        // Update follower count on profile page if present
         var followerCountEl = document.querySelector('[data-followers-count]');
         if (followerCountEl && typeof data.followers_count !== 'undefined') {
           followerCountEl.textContent = data.followers_count;
         }
-        // Update all follow buttons for the same user across the page
-        document.querySelectorAll('.js-follow-btn[data-user-id="' + userId + '"], [data-action="follow"][data-user-id="' + userId + '"]').forEach(function (b) {
-          b.classList.toggle('following', !!data.following);
-          b.setAttribute('aria-pressed', String(!!data.following));
+
+        // Sync every follow button for this user across the page (feed can
+        // show the same author multiple times).
+        document.querySelectorAll(
+          '.js-follow-btn[data-user-id="' + userId + '"], [data-action="follow"][data-user-id="' + userId + '"]'
+        ).forEach(function (b) {
+          b.classList.toggle('following', isFollowing);
+          b.setAttribute('aria-pressed', String(isFollowing));
           var lbl = b.querySelector('.follow-label') || b;
-          if (lbl) lbl.textContent = data.following ? followingLabel : followLabel;
+          lbl.textContent = isFollowing ? followingLabel : followLabel;
         });
       })
       .catch(function () {
         btn.classList.toggle('following', wasFollowing);
-        if (labelEl) labelEl.textContent = wasFollowing ? followingLabel : followLabel;
-        showToast('Could not update follow. Try again.', 'error');
+        labelEl.textContent = wasFollowing ? followingLabel : followLabel;
+        window.showToast('Could not update follow. Try again.', 'error');
       })
       .finally(function () {
         btn.disabled = false;
@@ -155,7 +180,116 @@
       });
   });
 
-  /* ─── Comment drawer ─────────────────────────────────────────── */
+  /* ─── Save ────────────────────────────────────────────────────── */
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.js-save-btn');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    var postId = btn.dataset.postId;
+    if (!postId || btn.dataset.inflight === '1') return;
+    btn.dataset.inflight = '1';
+    btn.disabled = true;
+
+    var wasSaved = btn.classList.contains('saved');
+
+    post('/post/' + postId + '/save')
+      .then(function (r) {
+        if (!r.ok) throw new Error('network');
+        btn.classList.toggle('saved', !wasSaved);
+        btn.setAttribute('aria-pressed', String(!wasSaved));
+      })
+      .catch(function () {
+        btn.classList.toggle('saved', wasSaved);
+        btn.setAttribute('aria-pressed', String(wasSaved));
+        window.showToast('Could not update save state.', 'error');
+      })
+      .finally(function () {
+        btn.disabled = false;
+        delete btn.dataset.inflight;
+      });
+  });
+
+  /* ─── Repost ──────────────────────────────────────────────────── */
+  /* The .js-repost-btn click is handled by app.js, which opens the
+     "Send to chat / followers" modal (#repostModal) — a richer flow than
+     a plain instant-increment counter. feed-actions.js intentionally does
+     not bind a competing handler here. */
+
+  /* ─── Share ───────────────────────────────────────────────────── */
+  /* The .js-share-btn click is handled by app.js, which opens the
+     "Copy Link / Send to Follower list" bottom sheet (#shareActionsSheet).
+     feed-actions.js intentionally does not bind a competing handler here. */
+
+  /* ─── Post menu (copy link / share / report / delete) ───────────── */
+
+  document.addEventListener('pointerdown', function (e) {
+    var toggle = e.target.closest('[data-action="toggle-menu"]');
+    if (toggle) toggle.blur();
+  }, true);
+
+  document.addEventListener('click', function (e) {
+    var toggleBtn = e.target.closest('[data-action="toggle-menu"]');
+    if (toggleBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      var dropdown = toggleBtn.closest('[data-dropdown]');
+      if (!dropdown) return;
+      var menu = dropdown.querySelector('[data-dropdown-menu]');
+      if (!menu) return;
+      var isOpen = menu.classList.contains('open');
+      closeAllPostMenus();
+      if (!isOpen) {
+        menu.classList.add('open');
+        menu.setAttribute('aria-hidden', 'false');
+        toggleBtn.setAttribute('aria-expanded', 'true');
+      }
+      return;
+    }
+    if (!e.target.closest('[data-dropdown]')) {
+      closeAllPostMenus();
+    }
+  });
+
+  function closeAllPostMenus() {
+    document.querySelectorAll('.feed-card__menu.open').forEach(function (menu) {
+      menu.classList.remove('open');
+      menu.setAttribute('aria-hidden', 'true');
+    });
+    document.querySelectorAll('[data-action="toggle-menu"]').forEach(function (btn) {
+      btn.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  document.addEventListener('click', function (e) {
+    var copyBtn = e.target.closest('.js-post-copy-link');
+    if (!copyBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var url = copyBtn.dataset.postUrl || '';
+    if (!url || !navigator.clipboard) {
+      window.showToast('Could not copy link', 'error');
+      return;
+    }
+    navigator.clipboard.writeText(url)
+      .then(function () { window.showToast('Link copied', 'success'); })
+      .catch(function () { window.showToast('Could not copy link', 'error'); });
+    closeAllPostMenus();
+  });
+
+  document.addEventListener('click', function (e) {
+    var reportBtn = e.target.closest('[data-action="report-post"]');
+    if (!reportBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (window.openReportDrawer) window.openReportDrawer('post', reportBtn.dataset.postId);
+    closeAllPostMenus();
+  });
+
+  /* ─── Comments drawer ─────────────────────────────────────────── */
+
   var commentsDrawer = document.getElementById('feedCommentsDrawer');
   var commentsBackdrop = document.getElementById('feedCommentsBackdrop');
   var commentsList = document.getElementById('feedCommentsList');
@@ -170,14 +304,14 @@
     commentsDrawer.classList.toggle('open', !!open);
     commentsDrawer.setAttribute('aria-hidden', open ? 'false' : 'true');
     commentsBackdrop.hidden = !open;
-    document.body.style.overflow = open ? 'hidden' : '';
+    document.body.classList.toggle('no-scroll', !!open);
   }
 
   function renderCommentsSkeletons() {
     if (!commentsList) return;
     commentsList.innerHTML = [
-      '<div class="feed-comment-skeleton"><div class="feed-skeleton-avatar"></div><div style="flex:1"><div class="feed-skeleton-line"></div><div class="feed-skeleton-line short"></div></div></div>',
-      '<div class="feed-comment-skeleton"><div class="feed-skeleton-avatar"></div><div style="flex:1"><div class="feed-skeleton-line"></div><div class="feed-skeleton-line short"></div></div></div>'
+      '<div class="feed-comment-skeleton"><div class="feed-skeleton__avatar"></div><div style="flex:1"><div class="feed-skeleton__line"></div><div class="feed-skeleton__line short"></div></div></div>',
+      '<div class="feed-comment-skeleton"><div class="feed-skeleton__avatar"></div><div style="flex:1"><div class="feed-skeleton__line"></div><div class="feed-skeleton__line short"></div></div></div>',
     ].join('');
   }
 
@@ -197,7 +331,9 @@
       var name = comment.full_name || comment.username || 'You';
       var initials = (name || 'Y').split(/\s+/).slice(0, 2).map(function (part) { return part.charAt(0).toUpperCase(); }).join('');
       var when = formatTime(comment.created_at);
-      html += '<div class="feed-comment-item"><div class="feed-comment-avatar">' + escapeHtml(initials || 'Y') + '</div><div class="feed-comment-body"><div class="feed-comment-meta"><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(when || '') + '</span></div><p>' + escapeHtml(comment.content || '') + '</p></div></div>';
+      html += '<div class="feed-comment"><div class="feed-comment__avatar">' + escapeHtml(initials || 'Y') + '</div>' +
+        '<div class="feed-comment__body"><div class="feed-comment__meta"><strong>' + escapeHtml(name) + '</strong><span>' + escapeHtml(when || '') + '</span></div>' +
+        '<p>' + escapeHtml(comment.content || '') + '</p></div></div>';
     });
     commentsList.innerHTML = html;
   }
@@ -209,6 +345,7 @@
     if (commentsSubtitle) commentsSubtitle.textContent = 'Loading comments…';
     renderCommentsSkeletons();
     if (commentsInput) commentsInput.value = '';
+
     fetch('/api/v1/posts/' + postId + '/comments?limit=20', {
       headers: { 'X-Requested-With': 'XMLHttpRequest' },
       credentials: 'same-origin',
@@ -217,7 +354,10 @@
       .then(function (data) {
         if (data && data.comments) {
           renderCommentsList(data.comments);
-          if (commentsSubtitle) commentsSubtitle.textContent = (data.comments.length || 0) + ' comment' + ((data.comments.length === 1) ? '' : 's');
+          if (commentsSubtitle) {
+            var n = data.comments.length || 0;
+            commentsSubtitle.textContent = n + ' comment' + (n === 1 ? '' : 's');
+          }
         } else {
           renderEmptyComments();
           if (commentsSubtitle) commentsSubtitle.textContent = 'No comments yet';
@@ -226,7 +366,7 @@
       .catch(function () {
         renderEmptyComments();
         if (commentsSubtitle) commentsSubtitle.textContent = 'Unable to load comments';
-        showToast('Could not load comments right now.', 'error');
+        window.showToast('Could not load comments right now.', 'error');
       });
   }
 
@@ -259,68 +399,61 @@
     }
   });
 
-  if (commentsSendBtn) {
-    commentsSendBtn.addEventListener('click', function () {
-      if (!activeCommentPostId || !commentsInput || !commentsInput.value.trim()) return;
-      var content = commentsInput.value.trim();
-      commentsInput.value = '';
-      commentsSendBtn.disabled = true;
-      fetch('/api/v1/posts/' + activeCommentPostId + '/comments', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-        body: JSON.stringify({ content: content })
+  function submitComment() {
+    if (!activeCommentPostId || !commentsInput || !commentsInput.value.trim()) return;
+    var content = commentsInput.value.trim();
+    commentsInput.value = '';
+    if (commentsSendBtn) commentsSendBtn.disabled = true;
+
+    fetch('/api/v1/posts/' + activeCommentPostId + '/comments', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({ content: content }),
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data || !data.success) throw new Error('failed');
+        var commentItem = document.createElement('div');
+        commentItem.className = 'feed-comment';
+        commentItem.innerHTML = '<div class="feed-comment__avatar">YO</div>' +
+          '<div class="feed-comment__body"><div class="feed-comment__meta"><strong>You</strong><span>just now</span></div>' +
+          '<p>' + escapeHtml(content) + '</p></div>';
+        if (commentsList) {
+          if (!commentsList.querySelector('.feed-comment')) commentsList.innerHTML = '';
+          commentsList.insertBefore(commentItem, commentsList.firstChild);
+        }
+        var countEl = document.querySelector('.js-comment-toggle[data-post-id="' + activeCommentPostId + '"] .comment-count');
+        if (countEl && data.comment_count !== undefined) countEl.textContent = data.comment_count;
+        if (commentsSubtitle && data.comment_count !== undefined) {
+          commentsSubtitle.textContent = data.comment_count + ' comment' + (data.comment_count === 1 ? '' : 's');
+        }
       })
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-          if (!data || !data.success) throw new Error('failed');
-          var commentItem = document.createElement('div');
-          commentItem.className = 'feed-comment-item';
-          var initials = 'YO';
-          commentItem.innerHTML = '<div class="feed-comment-avatar">' + escapeHtml(initials) + '</div><div class="feed-comment-body"><div class="feed-comment-meta"><strong>You</strong><span>just now</span></div><p>' + escapeHtml(content) + '</p></div>';
-          if (commentsList) {
-            if (!commentsList.querySelector('.feed-comment-item')) {
-              commentsList.innerHTML = '';
-            }
-            commentsList.insertBefore(commentItem, commentsList.firstChild);
-          }
-          var countEl = document.querySelector('.js-comment-toggle[data-post-id="' + activeCommentPostId + '"] .comment-count');
-          if (countEl && data.comment_count !== undefined) {
-            countEl.textContent = data.comment_count;
-          }
-          if (commentsSubtitle) commentsSubtitle.textContent = (data.comment_count || 0) + ' comment' + ((data.comment_count === 1) ? '' : 's');
-        })
-        .catch(function () {
-          showToast('Could not post comment. Try again.', 'error');
-        })
-        .finally(function () {
-          commentsSendBtn.disabled = false;
-        });
-    });
+      .catch(function () {
+        window.showToast('Could not post comment. Try again.', 'error');
+      })
+      .finally(function () {
+        if (commentsSendBtn) commentsSendBtn.disabled = false;
+      });
   }
 
+  if (commentsSendBtn) commentsSendBtn.addEventListener('click', submitComment);
   if (commentsInput) {
     commentsInput.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') {
         e.preventDefault();
-        if (commentsSendBtn) commentsSendBtn.click();
+        submitComment();
       }
     });
   }
 
-  /* ─── See More / See Less ─────────────────────────────────────── */
+  /* ─── See more / see less ─────────────────────────────────────── */
+
   function refreshSeeMoreButtons() {
     document.querySelectorAll('.js-xpost-content').forEach(function (el) {
       var btn = el.nextElementSibling;
       if (!btn || !btn.classList.contains('js-xpost-seemore')) return;
-      if (el.scrollHeight > el.clientHeight + 2) {
-        btn.classList.remove('hidden');
-      } else {
-        btn.classList.add('hidden');
-      }
+      btn.classList.toggle('hidden', el.scrollHeight <= el.clientHeight + 2);
     });
   }
 
@@ -331,114 +464,17 @@
     e.stopPropagation();
     var content = btn.previousElementSibling;
     if (!content) return;
-    var expanded = content.classList.toggle('xpost-clamped');
-    btn.textContent = expanded
-      ? (btn.dataset.seeMore || 'See more')
-      : (btn.dataset.seeLess || 'See less');
-  });
-
-  document.addEventListener('click', function (e) {
-    var btn = e.target.closest('.js-save-btn');
-    if (!btn) return;
-    e.preventDefault();
-    e.stopPropagation();
-    var postId = btn.dataset.postId;
-    if (!postId) return;
-    // guard rapid clicks
-    if (btn.dataset.inflight === '1') return;
-    btn.dataset.inflight = '1';
-    var wasSaved = btn.classList.contains('saved');
-    btn.disabled = true;
-    fetch('/post/' + postId + '/save', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    }).then(function (r) {
-      if (!r.ok) throw new Error('network');
-      btn.classList.toggle('saved', !wasSaved);
-      btn.setAttribute('aria-pressed', String(!wasSaved));
-    }).catch(function () {
-      btn.classList.toggle('saved', wasSaved);
-      btn.setAttribute('aria-pressed', String(wasSaved));
-      showToast('Could not update save state.', 'error');
-    }).finally(function () {
-      btn.disabled = false;
-      delete btn.dataset.inflight;
-    });
-  });
-
-  /* ─── Repost (share) handler (AJAX) ───────────────────────────── */
-  document.addEventListener('click', function (e) {
-    var btn = e.target.closest('.js-repost-btn');
-    if (!btn) return;
-    e.preventDefault();
-    e.stopPropagation();
-    var postId = btn.dataset.postId;
-    if (!postId) return;
-    if (btn.dataset.inflight === '1') return;
-    btn.dataset.inflight = '1';
-    btn.disabled = true;
-    var countEl = btn.querySelector('.count') || document.querySelector('.js-share-count[data-post-id="' + postId + '"]');
-    var current = parseInt((countEl && countEl.textContent) || '0', 10) || 0;
-    postJson('/api/post/' + postId + '/repost')
-      .then(function (data) {
-        if (!data || !data.success) throw new Error('failed');
-        if (countEl && typeof data.share_count !== 'undefined') countEl.textContent = data.share_count;
-        showToast('Reposted', 'info');
-      })
-      .catch(function () {
-        if (countEl) countEl.textContent = current;
-        showToast('Could not repost. Try again.', 'error');
-      })
-      .finally(function () {
-        btn.disabled = false;
-        delete btn.dataset.inflight;
-      });
-  });
-
-  /* ─── Share button: open native share where available, and log via repost API ───────────────── */
-  document.addEventListener('click', function (e) {
-    var btn = e.target.closest('.js-share-btn');
-    if (!btn) return;
-    e.preventDefault();
-    e.stopPropagation();
-    var postId = btn.dataset.postId;
-    if (!postId) return;
-    if (btn.dataset.inflight === '1') return;
-    btn.dataset.inflight = '1';
-    btn.disabled = true;
-    // attempt navigator.share
-    var shareUrl = window.location.origin + '/post/' + postId;
-    var sharePromise = Promise.resolve();
-    if (navigator.share) {
-      sharePromise = navigator.share({ title: document.title, url: shareUrl }).catch(function () {});
-    }
-    sharePromise.then(function () {
-      // log share/repost server-side
-      return postJson('/api/post/' + postId + '/repost');
-    }).then(function (data) {
-      showToast('Thanks for sharing!', 'info');
-      // update counts if returned
-      var cnt = data && data.share_count ? data.share_count : undefined;
-      var countEl = document.querySelector('.js-share-count[data-post-id="' + postId + '"]');
-      if (countEl && typeof cnt !== 'undefined') countEl.textContent = cnt;
-    }).catch(function () {
-      showToast('Could not complete share.', 'error');
-    }).finally(function () {
-      btn.disabled = false;
-      delete btn.dataset.inflight;
-    });
+    var expanded = content.classList.toggle('feed-card__content--clamped');
+    btn.textContent = expanded ? (btn.dataset.seeMore || 'See more') : (btn.dataset.seeLess || 'See less');
   });
 
   window.refreshPostSeeMoreButtons = refreshSeeMoreButtons;
   document.addEventListener('DOMContentLoaded', refreshSeeMoreButtons);
 
-  /* ─── Notifications badge ───────────────────────────────────── */
-  var bellBtn = document.getElementById('headerBellToggle');
+  /* ─── Notifications badge ────────────────────────────────────── */
 
   function loadNotifications() {
-    // ensure we have a reference to the header bell button (might be null if script ran early)
-    var _bellBtn = bellBtn || document.getElementById('headerBellToggle');
+    var bellBtn = document.getElementById('headerBellToggle');
     fetch('/api/notifications', {
       credentials: 'same-origin',
       headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -446,12 +482,12 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var count = data.unread_count || 0;
-        var badge = _bellBtn ? _bellBtn.querySelector('.topbar-badge') : null;
+        var badge = bellBtn ? bellBtn.querySelector('.topbar-badge') : null;
         if (count > 0) {
-          if (!badge && _bellBtn) {
+          if (!badge && bellBtn) {
             badge = document.createElement('span');
             badge.className = 'topbar-badge pulse';
-            _bellBtn.appendChild(badge);
+            bellBtn.appendChild(badge);
           }
           if (badge) badge.textContent = count > 9 ? '9+' : count;
         } else if (badge) {
@@ -461,108 +497,14 @@
       .catch(function () {});
   }
 
-  // Initial badge load + poll every 45s (does not mark as read, just refreshes count)
   document.addEventListener('DOMContentLoaded', function () {
-    // make loader callable from other scripts/tests and run immediately
     window.loadNotifications = loadNotifications;
     loadNotifications();
     setInterval(loadNotifications, 45000);
   });
 
-  /* ─── Dropdown menus (More options) ──────────────────────────── */
-  document.addEventListener('pointerdown', function (e) {
-    var menuButton = e.target.closest('[data-action="toggle-menu"]');
-    if (!menuButton) return;
-    e.preventDefault();
-    menuButton.blur();
-  }, true);
-  document.addEventListener('mousedown', function (e) {
-    var menuButton = e.target.closest('[data-action="toggle-menu"]');
-    if (!menuButton) return;
-    e.preventDefault();
-    menuButton.blur();
-  }, true);
-
-  document.addEventListener('click', function (e) {
-    var toggleBtn = e.target.closest('[data-action="toggle-menu"]');
-    if (toggleBtn) {
-      e.preventDefault();
-      e.stopPropagation();
-      var menuScrollX = window.scrollX;
-      var menuScrollY = window.scrollY;
-      toggleBtn.blur();
-      window.scrollTo(menuScrollX, menuScrollY);
-      requestAnimationFrame(function () { window.scrollTo(menuScrollX, menuScrollY); });
-      setTimeout(function () { window.scrollTo(menuScrollX, menuScrollY); }, 0);
-      setTimeout(function () { window.scrollTo(menuScrollX, menuScrollY); }, 100);
-      var dropdown = toggleBtn.closest('[data-dropdown]');
-      if (!dropdown) return;
-      var menu = dropdown.querySelector('[data-dropdown-menu]');
-      if (!menu) return;
-      var isOpen = menu.classList.contains('open');
-      document.querySelectorAll('.xpost-menu.open').forEach(function (openMenu) {
-        openMenu.classList.remove('open');
-        openMenu.setAttribute('aria-hidden', 'true');
-      });
-      document.querySelectorAll('[data-action="toggle-menu"]').forEach(function (btn) {
-        btn.setAttribute('aria-expanded', 'false');
-      });
-      if (!isOpen) {
-        menu.classList.add('open');
-        menu.setAttribute('aria-hidden', 'false');
-        toggleBtn.setAttribute('aria-expanded', 'true');
-      }
-      return;
-    }
-
-    if (!e.target.closest('[data-dropdown]')) {
-      document.querySelectorAll('.xpost-menu.open').forEach(function (menu) {
-        menu.classList.remove('open');
-        menu.setAttribute('aria-hidden', 'true');
-      });
-      document.querySelectorAll('[data-action="toggle-menu"]').forEach(function (btn) {
-        btn.setAttribute('aria-expanded', 'false');
-      });
-    }
-  });
-
-  document.addEventListener('click', function (e) {
-    var copyBtn = e.target.closest('.js-post-copy-link');
-    if (!copyBtn) return;
-    e.preventDefault();
-    e.stopPropagation();
-    var url = copyBtn.dataset.postUrl || '';
-    if (!url) return;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(function () {
-        showToast('Link copied', 'success');
-      }).catch(function () {
-        showToast('Could not copy link', 'error');
-      });
-    } else {
-      showToast('Could not copy link', 'error');
-    }
-    document.querySelectorAll('.xpost-menu.open').forEach(function (menu) {
-      menu.classList.remove('open');
-      menu.setAttribute('aria-hidden', 'true');
-    });
-  });
-
-  document.addEventListener('click', function (e) {
-    var reportBtn = e.target.closest('[data-action="report-post"]');
-    if (!reportBtn) return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (window.openReportDrawer) {
-      window.openReportDrawer('post', reportBtn.dataset.postId);
-    }
-    document.querySelectorAll('.xpost-menu.open').forEach(function (menu) {
-      menu.classList.remove('open');
-      menu.setAttribute('aria-hidden', 'true');
-    });
-  });
-
   /* ─── Helpers ─────────────────────────────────────────────────── */
+
   function escapeHtml(str) {
     return String(str || '')
       .replace(/&/g, '&amp;')
@@ -580,16 +522,14 @@
       if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
       if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
       return Math.floor(diff / 86400) + 'd ago';
-    } catch (e) { return ''; }
+    } catch (e) {
+      return '';
+    }
   }
 
-  /* ─── Lucide icon refresh helper ─────────────────────────────── */
   window.refreshLucideIcons = function (root) {
     try {
-      if (typeof lucide !== 'undefined') {
-        lucide.createIcons({ root: root || document });
-      }
+      if (typeof lucide !== 'undefined') lucide.createIcons({ root: root || document });
     } catch (e) {}
   };
-
 })();
