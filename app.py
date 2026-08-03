@@ -672,6 +672,24 @@ def init_postgres_db():
             updated_at TEXT DEFAULT NULL,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         );
+
+        CREATE TABLE IF NOT EXISTS jobs (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            location TEXT DEFAULT 'Addis Ababa',
+            category TEXT DEFAULT 'general',
+            employment_type TEXT DEFAULT 'full_time',
+            salary_range TEXT DEFAULT NULL,
+            photo TEXT DEFAULT NULL,
+            status TEXT DEFAULT 'open',
+            view_count INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT DEFAULT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
         CREATE TABLE IF NOT EXISTS interactions (
             id SERIAL PRIMARY KEY,
             post_id INTEGER NOT NULL,
@@ -736,12 +754,15 @@ def init_postgres_db():
 
         CREATE TABLE IF NOT EXISTS job_applications (
             id SERIAL PRIMARY KEY,
-            post_id INTEGER NOT NULL,
+            job_id INTEGER DEFAULT NULL,
+            post_id INTEGER DEFAULT NULL,
             applicant_id INTEGER NOT NULL,
             message TEXT,
             status TEXT DEFAULT 'submitted',
             created_at TEXT NOT NULL,
+            UNIQUE(job_id, applicant_id),
             UNIQUE(post_id, applicant_id),
+            FOREIGN KEY(job_id) REFERENCES jobs(id) ON DELETE CASCADE,
             FOREIGN KEY(post_id) REFERENCES posts(id) ON DELETE CASCADE,
             FOREIGN KEY(applicant_id) REFERENCES users(id) ON DELETE CASCADE
         );
@@ -1087,6 +1108,8 @@ def init_postgres_db():
         cur.execute("CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments (post_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_saved_posts_user_post ON saved_posts (user_id, post_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_job_applications_applicant_post ON job_applications (applicant_id, post_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_job_applications_applicant_job ON job_applications (applicant_id, job_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_job_applications_job_id ON job_applications (job_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_follows_follower_id ON follows (follower_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_follows_followed_id ON follows (followed_id)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_wallet_transactions_status_type_created_at ON wallet_transactions (status, tx_type, created_at)")
@@ -1206,6 +1229,23 @@ def migrate_db():
             share_count INTEGER DEFAULT 0,
             status TEXT DEFAULT 'approved',
             created_at TEXT NOT NULL,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            location TEXT DEFAULT 'Addis Ababa',
+            category TEXT DEFAULT 'general',
+            employment_type TEXT DEFAULT 'full_time',
+            salary_range TEXT DEFAULT NULL,
+            photo TEXT DEFAULT NULL,
+            status TEXT DEFAULT 'open',
+            view_count INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL,
+            updated_at TEXT DEFAULT NULL,
             FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
         );
 
@@ -1499,6 +1539,8 @@ def migrate_db():
         db.execute("CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments (post_id)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_saved_posts_user_post ON saved_posts (user_id, post_id)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_job_applications_applicant_post ON job_applications (applicant_id, post_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_job_applications_applicant_job ON job_applications (applicant_id, job_id)")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_job_applications_job_id ON job_applications (job_id)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_follows_follower_id ON follows (follower_id)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_follows_followed_id ON follows (followed_id)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_wallet_transactions_status_type_created_at ON wallet_transactions (status, tx_type, created_at)")
@@ -4403,6 +4445,104 @@ def feed_load_more(page):
         "has_jobs": len(jobs_data) > 0,
         "page": page,
     })
+
+
+@app.route("/jobs/new", methods=["GET", "POST"])
+@login_required
+def new_job():
+    if request.method == "GET":
+        return render_template("job_new.html")
+
+    title = _sanitize_text(request.form.get("title", "")).strip()
+    description = _sanitize_text(request.form.get("description", "")).strip()
+    location = _sanitize_text(request.form.get("location", "Addis Ababa")).strip() or "Addis Ababa"
+    category = _sanitize_text(request.form.get("category", "general")).strip() or "general"
+    employment_type = _sanitize_text(request.form.get("employment_type", "full_time")).strip() or "full_time"
+    salary_range = _sanitize_text(request.form.get("salary_range", "")).strip() or None
+
+    photo_file = request.files.get("photo")
+    if photo_file and photo_file.filename and not allowed_file(photo_file.filename):
+        flash("Unsupported image format. Please upload PNG, JPG, JPEG, GIF, or WEBP.")
+        return redirect(url_for("new_job"))
+    photo = save_photo(photo_file) if photo_file and photo_file.filename else None
+
+    if not title:
+        flash("Please add a job title.")
+        return redirect(url_for("new_job"))
+
+    db = get_db()
+    user = get_current_user()
+    blocked_word = contains_restricted_word(f"{title} {description}", db)
+    if blocked_word:
+        db.execute(
+            "INSERT INTO reports (reporter_id, target_type, target_id, reason, status, created_at) VALUES (?, 'job', 0, ?, 'pending', ?)",
+            (user["id"], f"Blocked: contains restricted word '{blocked_word}'", datetime.datetime.utcnow().isoformat()),
+        )
+        add_notification(db, user["id"], f"Your job post was blocked because it contains the restricted word '{blocked_word}'.", ntype="warning")
+        db.commit()
+        flash("Your job post was blocked for policy review.")
+        return redirect(url_for("jobs_home"))
+
+    try:
+        created_at = datetime.datetime.utcnow().isoformat()
+        db.execute(
+            """INSERT INTO jobs (user_id, title, description, location, category,
+               employment_type, salary_range, photo, status, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)""",
+            (user["id"], title, description, location, category, employment_type,
+             salary_range, photo, created_at),
+        )
+        db.commit()
+        try:
+            db.execute("UPDATE users SET points = COALESCE(points,0) + ? WHERE id = ?", (10, user["id"]))
+            db.commit()
+        except Exception as points_exc:
+            print(f"Warning: could not award job-post points: {points_exc}")
+        flash("Your job listing is live.")
+    except Exception as exc:
+        db.rollback()
+        print(f"New job post failed: {exc}")
+        flash("Could not publish your job listing right now. Please try again.")
+        return redirect(url_for("new_job"))
+
+    return redirect(url_for("jobs_home"))
+
+
+@app.route("/jobs/<int:job_id>")
+@login_required
+def job_detail(job_id):
+    db = get_db()
+    user = get_current_user()
+
+    job = db.execute(
+        """SELECT jobs.*, users.username, users.full_name, users.avatar,
+                  users.verification_tier, users.verified_until
+           FROM jobs JOIN users ON jobs.user_id = users.id
+           WHERE jobs.id = ?""",
+        (job_id,),
+    ).fetchone()
+    if not job:
+        abort(404)
+
+    try:
+        db.execute("UPDATE jobs SET view_count = view_count + 1 WHERE id = ?", (job_id,))
+        db.commit()
+    except Exception:
+        pass
+
+    applied = db.execute(
+        "SELECT 1 FROM job_applications WHERE job_id = ? AND applicant_id = ?",
+        (job_id, user["id"]),
+    ).fetchone() is not None
+
+    is_owner = job["user_id"] == user["id"]
+
+    return render_template(
+        "job_detail.html",
+        job=job,
+        applied=applied,
+        is_owner=is_owner,
+    )
 
 
 @app.route('/__debug/db')
