@@ -1,0 +1,59 @@
+{# ==========================================================================
+   _job_cards.html — job listing cards
+   Rendered by both jobs_home() (initial page) and jobs_load_more() (AJAX),
+   so this file contains ONLY the card markup — no page chrome.
+   ========================================================================== #}
+{% for item in jobs_data %}
+  {% set job = item.job %}
+  <article class="job-card" data-job-id="{{ job.id }}">
+    <a href="{{ url_for('job_detail', job_id=job.id) }}" class="job-card__link">
+      <div class="job-card__head">
+        <div class="job-card__avatar">
+          {% if job.avatar %}
+            <img src="{{ photo_url(job.avatar) }}" loading="lazy" decoding="async" alt="">
+          {% else %}
+            <span class="job-card__avatar-fallback">{{ (job.full_name or job.username)[0]|upper }}</span>
+          {% endif %}
+        </div>
+        <div class="job-card__identity">
+          <div class="job-card__name-row">
+            <span class="job-card__poster">{{ item.poster_name }}</span>
+            {% if job.verification_tier and job.verification_tier != 'none' %}
+              {{ verification_badge_svg(job.verification_tier) }}
+            {% endif %}
+          </div>
+          <div class="job-card__meta">{{ job.location }} · {{ job.created_at[:10] if job.created_at else '' }}</div>
+        </div>
+        {% if item.is_owner %}
+          <span class="job-card__owner-pill">Yours</span>
+        {% endif %}
+      </div>
+
+      <h3 class="job-card__title">{{ job.title }}</h3>
+
+      {% if job.description %}
+        <p class="job-card__desc">{{ job.description[:140] }}{% if job.description|length > 140 %}…{% endif %}</p>
+      {% endif %}
+
+      <div class="job-card__tags">
+        <span class="job-card__tag">{{ job.employment_type.replace('_', ' ')|title }}</span>
+        {% if job.category and job.category != 'general' %}
+          <span class="job-card__tag">{{ job.category|title }}</span>
+        {% endif %}
+        {% if job.salary_range %}
+          <span class="job-card__tag job-card__tag--salary">{{ job.salary_range }}</span>
+        {% endif %}
+      </div>
+    </a>
+
+    <div class="job-card__footer">
+      {% if item.is_owner %}
+        <a href="{{ url_for('view_applicants', job_id=job.id) }}" class="job-card__apply-btn">View Applicants</a>
+      {% elif item.applied %}
+        <span class="job-card__applied-badge">Applied</span>
+      {% else %}
+        <a href="{{ url_for('job_detail', job_id=job.id) }}" class="job-card__apply-btn">Apply Now</a>
+      {% endif %}
+    </div>
+  </article>
+{% endfor %}

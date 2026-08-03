@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+
+<a href="{{ url_for('jobs_home') }}" class="jobs-back-link">← {{ t.back }}</a>
+
+<div class="card job-detail-card" style="margin-top:12px">
+  <div class="job-detail__head">
+    <a href="{{ url_for('profile', user_id=job['user_id']) }}" class="avatar">
+      {% if job['avatar'] %}
+        <img src="{{ photo_url(job['avatar']) }}">
+      {% else %}
+        {{ job['full_name'][0] if job['full_name'] else job['username'][0] }}
+      {% endif %}
+    </a>
+    <div>
+      <div class="job-detail__poster-row">
+        <a href="{{ url_for('profile', user_id=job['user_id']) }}" class="post-author">
+          {{ job['full_name'] or job['username'] }}
+        </a>
+        {{ verification_badge_svg(job) }}
+      </div>
+      <div class="post-meta">{{ job['created_at'][:16].replace('T',' ') }} · 👁️ {{ job['view_count'] }} views</div>
+    </div>
+  </div>
+
+  <h1 class="job-detail__title">{{ job['title'] }}</h1>
+
+  <div class="job-detail__tags">
+    <span class="job-card__tag">{{ job['employment_type'].replace('_', ' ')|title }}</span>
+    <span class="job-card__tag">{{ job['location'] }}</span>
+    {% if job['salary_range'] %}<span class="job-card__tag job-card__tag--salary">{{ job['salary_range'] }}</span>{% endif %}
+  </div>
+
+  {% if job['description'] %}<p class="post-content">{{ job['description'] }}</p>{% endif %}
+  {% if job['photo'] %}<img class="post-photo" src="{{ photo_url(job['photo']) }}">{% endif %}
+
+  <div class="job-actions">
+    {% if is_owner %}
+      <a href="{{ url_for('view_applicants', job_id=job['id']) }}" class="btn-apply" style="text-decoration:none;display:block">👥 {{ t.applicants }}</a>
+      <form method="POST" action="{{ url_for('close_job', job_id=job['id']) }}" style="margin-top:8px">
+        <button type="submit" class="btn btn-outline btn-small" style="width:100%">Close Listing</button>
+      </form>
+    {% elif applied %}
+      <button class="btn-apply" disabled style="opacity:0.6">{{ t.applied }}</button>
+    {% else %}
+      <form method="POST" action="{{ url_for('apply_to_job', job_id=job['id']) }}" style="flex:1.4">
+        <textarea name="message" placeholder="{{ t.apply_message_placeholder }}" style="margin-bottom:8px"></textarea>
+        <button type="submit" class="btn-apply" style="width:100%">{{ t.apply_now }}</button>
+      </form>
+    {% endif %}
+  </div>
+
+  {% if current_user and current_user['id'] != job['user_id'] %}
+  <div class="report-box" id="gift">
+    <b>🎁 {{ t.send_gift }}</b>
+    <div class="gift-grid">
+      {% for key, g in gift_catalog.items() %}
+      <form method="POST" action="{{ url_for('send_gift') }}">
+        <input type="hidden" name="receiver_id" value="{{ job['user_id'] }}">
+        <input type="hidden" name="job_id" value="{{ job['id'] }}">
+        <input type="hidden" name="gift_key" value="{{ key }}">
+        <button type="submit" class="gift-option" style="width:100%">
+          <span class="{{ g.anim }}">{{ g.emoji }}</span>
+          <span class="gift-price">{{ g.price }} ETB</span>
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="report-box">
+    <details>
+      <summary>🚩 {{ t.report }}</summary>
+      <form method="POST" action="{{ url_for('submit_report') }}">
+        <input type="hidden" name="target_type" value="job">
+        <input type="hidden" name="target_id" value="{{ job['id'] }}">
+        <textarea name="reason" placeholder="{{ t.report_reason }}" required></textarea>
+        <button type="submit" class="btn btn-small btn-outline">{{ t.submit_report }}</button>
+      </form>
+    </details>
+  </div>
+</div>
+
+{% endblock %}

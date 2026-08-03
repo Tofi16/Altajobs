@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="jobs-page jobs-page--narrow">
+  <a href="{{ url_for('jobs_home') }}" class="jobs-back-link">← Back to jobs</a>
+  <h1 class="jobs-header__title">Post a Job</h1>
+
+  <form method="POST" action="{{ url_for('new_job') }}" enctype="multipart/form-data" class="job-form">
+    <label class="job-form__field">
+      <span class="job-form__label">Job Title</span>
+      <input type="text" name="title" required placeholder="e.g. Marketing Coordinator" class="job-form__input">
+    </label>
+
+    <label class="job-form__field">
+      <span class="job-form__label">Description</span>
+      <textarea name="description" rows="6" placeholder="What does this role involve? What are you looking for?" class="job-form__textarea"></textarea>
+    </label>
+
+    <div class="job-form__row">
+      <label class="job-form__field">
+        <span class="job-form__label">Location</span>
+        <input type="text" name="location" value="Addis Ababa" class="job-form__input">
+      </label>
+      <label class="job-form__field">
+        <span class="job-form__label">Category</span>
+        <select name="category" class="job-form__input">
+          <option value="general">Other</option>
+          <option value="tech">Tech</option>
+          <option value="sales">Sales</option>
+          <option value="admin">Admin</option>
+          <option value="labor">Labor</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="job-form__row">
+      <label class="job-form__field">
+        <span class="job-form__label">Employment Type</span>
+        <select name="employment_type" class="job-form__input">
+          <option value="full_time">Full-time</option>
+          <option value="part_time">Part-time</option>
+          <option value="contract">Contract</option>
+          <option value="internship">Internship</option>
+        </select>
+      </label>
+      <label class="job-form__field">
+        <span class="job-form__label">Salary Range (optional)</span>
+        <input type="text" name="salary_range" placeholder="e.g. 8,000 - 12,000 ETB" class="job-form__input">
+      </label>
+    </div>
+
+    <label class="job-form__field">
+      <span class="job-form__label">Photo (optional)</span>
+      <input type="file" name="photo" accept="image/*" class="job-form__input">
+    </label>
+
+    <button type="submit" class="job-form__submit">Publish Job Listing</button>
+  </form>
+</div>
+
+{% endblock %}

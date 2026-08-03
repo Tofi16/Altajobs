@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="jobs-page">
+  <h1 class="jobs-header__title">Jobs You've Applied To</h1>
+
+  {% if not applications %}
+    <div class="jobs-empty-state">
+      <div class="jobs-empty-state__title">You haven't applied to any jobs yet</div>
+      <a href="{{ url_for('jobs_home') }}" class="jobs-header__post-btn" style="margin-top:12px;display:inline-block">Browse Jobs</a>
+    </div>
+  {% endif %}
+
+  <div class="jobs-grid">
+    {% for job in applications %}
+      <article class="job-card">
+        <a href="{{ url_for('job_detail', job_id=job['id']) }}" class="job-card__link">
+          <h3 class="job-card__title">{{ job['title'] }}</h3>
+          <div class="job-card__meta">{{ job['location'] }} · Applied {{ job['applied_at'][:10] }}</div>
+        </a>
+        <div class="job-card__footer">
+          <span class="job-card__applied-badge">{{ job['application_status']|title }}</span>
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}

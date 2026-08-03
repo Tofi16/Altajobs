@@ -1,125 +1,86 @@
-# AltaJobs — አሰሪና ሰራተኛን የሚያገናኝ ድህረ ገጽ
+# AltaJobs — Feed & Marketplace Removal, Jobs-First Rebuild
 
-Flask + SQLite የተሰራ፣ 4 ቋንቋ (አማርኛ / English / Afaan Oromoo / ትግርኛ) የሚደግፍ፣
-Facebook መሰል ፖስት/ላይክ/ኮመንት/ሼር ያለው፣ ደረጃ አሰጣጥ (rating) እና ሪፖርት ማድረጊያ ያለው፣
-ወርሃዊ/አመታዊ ደንበኝነት (subscription) ስርዓት የተካተተበት መተግበሪያ።
+## What this delivery does
+- **Removes entirely**: social feed (posts, likes, comments, saved posts), Marketplace
+  (products, offers, favorites), Alta Token Economy (daily check-in, task-to-earn)
+- **Keeps unchanged**: Wallet, Gifts, Blue/Gold Verification, Channels, Chat/Messages,
+  Business Challenges, Reports, Notifications, Admin (minus product/moderation panels),
+  CV Maker
+- **Adds new**: a `jobs` table and a Jobs-only home page — this becomes the app's
+  landing page after login, replacing the feed
 
-## 🛠 VS Code ላይ እንዴት ማስኬድ እንደሚቻል
+⚠️ **This is a bigger, riskier change than the feed redesign.** Read
+`DEPENDENCY_MAP.md` first — it explains exactly what touches `posts`/`products`
+and why each decision was made (e.g. why gifts now attach to jobs instead of posts).
 
-### 1. Python መጫኑን ያረጋግጡ (Python 3.9+)
-```bash
-python3 --version
+## Files in this delivery
+
+| File | What it is |
+|---|---|
+| `DEPENDENCY_MAP.md` | Read this first. Full map of what depends on posts/products. |
+| `01_schema_changes.py` | New `jobs` table SQL (SQLite + Postgres), plus `job_applications`/`gifts` column rename (`post_id` → `job_id`) |
+| `02_jobs_routes.py` | All new Jobs routes — this is the replacement for feed/marketplace routes |
+| `03_modified_routes.py` | `apply_to_job`, `view_applicants`, `send_gift` — updated to use `job_id` |
+| `04_deletions_and_edits.py` | Exact list of functions to delete, plus small edits to `admin_panel()`/`admin_revenue()`/`profile()` |
+| `05_base_html_nav_diff.py` | Nav bar changes for `base.html` |
+| `templates/*.html` | New templates: `jobs_home.html`, `_job_cards.html`, `job_new.html`, `job_detail.html`, `job_applicants.html`, `my_jobs.html`, `applied_jobs.html` |
+| `templates/jobs.css` | Styling for all new jobs pages |
+| `templates/jobs-page.js` | Filter pills + "Load more" pagination |
+
+## Deploy order (follow exactly — order matters)
+
+1. **Backup first.** You already know this drill from the feed redesign —
+   `git checkout -b backup-before-jobs-rebuild && git push origin backup-before-jobs-rebuild`
+
+2. **Schema changes** (`01_schema_changes.py`):
+   - Add the new `jobs` table to both `init_postgres_db()` and `migrate_db()`
+   - Add the `job_applications`/`gifts` column migration blocks
+   - Remove the old `posts`/`products` CREATE TABLE blocks from both functions
+
+3. **Delete functions** (`04_deletions_and_edits.py` — `FUNCTIONS_TO_DELETE` list).
+   Delete every function listed, in `app.py`.
+
+4. **Add new routes** (`02_jobs_routes.py`) — paste in as a block, ideally where
+   the old feed routes used to be.
+
+5. **Replace modified routes** (`03_modified_routes.py`) — this REPLACES the
+   existing `apply_to_job()`, `view_applicants()`, `send_gift()` (don't just
+   add — delete the old versions of these three first).
+
+6. **Small edits** (`04_deletions_and_edits.py` — `ADMIN_PANEL_DIFF`,
+   `ADMIN_REVENUE_DIFF`, `REDIRECT_DIFF`, `PROFILE_DIFF` sections).
+
+7. **Constants**: remove `FEED_PAGE_SIZE`, `MARKETPLACE_PAGE_SIZE`,
+   `CHECKIN_REWARDS`, `TASK_REWARDS`, `DAILY_TASK_CAP` from the top of `app.py`.
+
+8. **Templates**: copy everything in `templates/` into your `templates/` folder.
+   Copy `jobs.css` to `static/css/`, `jobs-page.js` to `static/js/`. Then delete
+   the old templates listed at the bottom of `05_base_html_nav_diff.py`.
+
+9. **base.html nav**: apply the diff in `05_base_html_nav_diff.py`. **Then
+   search your FULL templates folder** (not just what I've seen) for any
+   remaining `url_for('feed')` / `url_for('marketplace')` / `url_for('tokens_page')`
+   — the search command is at the bottom of that file.
+
+10. **Test locally before pushing**:
+    - Fresh login → should land on Jobs home, not a 404
+    - Post a job → appears in the list
+    - Apply to a job → applicant shows up on `view_applicants`
+    - Send a gift from a job detail page → wallet balances update correctly
+    - Wallet, Verification purchase, Channels, Chat — all still work untouched
+    - Admin panel loads without errors (no more `products` references)
+
+11. Push, let Render deploy, smoke-test on the live URL.
+
+## Known gap — you'll need to decide this
+The old `posts` table also fed **profile pages** (a "Posts" tab showing what a
+user shared). That's removed per your decision. If you want a "Jobs Posted"
+section on public profiles later, `my_jobs()`'s query pattern is the template
+to reuse — just say the word and I'll wire it into `profile.html`.
+
+## If something breaks after deploy
 ```
-
-### 2. ፕሮጀክቱን ይክፈቱ
-VS Code ውስጥ ይህን ፎልደር (altajobs) ይክፈቱ (`File > Open Folder`)
-
-### 3. Virtual environment ይፍጠሩ (አማራጭ ግን ይመከራል)
-```bash
-python3 -m venv venv
-source venv/bin/activate       # Windows: venv\Scripts\activate
+git checkout main
+git reset --hard backup-before-jobs-rebuild
+git push origin main --force
 ```
-
-### 4. Dependencies ይጫኑ
-```bash
-pip install -r requirements.txt
-```
-
-### 5. መተግበሪያውን ያስኬዱ
-```bash
-python3 app.py
-```
-ከዚያ ብራውዘር ላይ ይህን ይክፈቱ፦ **http://localhost:5000**
-
-የ SQLite ዳታቤዝ ፋይል (`altajobs.db`) ራሱ በራሱ ይፈጠራል፤ ምንም ተጨማሪ ማዋቀር አያስፈልግም።
-
----
-
-## 📂 የፕሮጀክት አወቃቀር
-```
-altajobs/
-├── app.py                 ← ዋናው Flask አፕ (routes, logic, DB)
-├── translations.py        ← 4ቱ ቋንቋዎች መዝገበ ቃላት
-├── requirements.txt
-├── altajobs.db            ← (ራሱ በራሱ ይፈጠራል)
-├── static/
-│   ├── css/style.css      ← ንድፍ (mobile-friendly, አረንጓዴ ገጽታ)
-│   └── uploads/           ← የተለጠፉ ፎቶዎች የሚቀመጡበት
-└── templates/
-    ├── base.html          ← የጋራ ገጽ (navbar, ቋንቋ መቀየሪያ)
-    ├── login.html / register.html
-    ├── feed.html          ← ዋና ዜና ማስፈንጠሪያ (Facebook-style)
-    ├── post_detail.html   ← ነጠላ ፖስት + ኮመንቶች
-    ├── profile.html       ← መገለጫ (ችሎታ/ልምድ/ደረጃ አሰጣጥ)
-    ├── edit_profile.html
-    ├── subscribe.html     ← የክፍያ እቅዶች
-    └── admin.html         ← የአስተዳዳሪ ገጽ
-```
-
-## ✅ ያሉት ተግባራት
-
-- **ምዝገባ/መግቢያ** — ሰራተኛ ወይም አሰሪ ሆኖ መመዝገብ ይቻላል
-- **ፖስት ማድረግ** — ጽሑፍ + ፎቶ፣ 3 አይነት (አጠቃላይ / የስራ ማስታወቂያ / ችሎታ-ልምድ)
-- **Like / Comment / Share / Save** — Facebook መሰል ግንኙነት + የተቀመጡ ስራዎች (Saved Jobs)
-- **Dashboard Grid** — Saved Jobs (ይሰራል)፣ Groups / Events / Reels (በቅርቡ ይመጣል)
-- **መገለጫ (Profile)** — ችሎታ፣ የስራ ልምድ፣ ስለ እኔ፣ ፎቶ
-- **ደረጃ አሰጣጥ (Rating)** — አሰሪ ሰራተኛውን ከሰራ በኋላ በኮከብ (1-5) ይመዝናል
-- **ሪፖርት ማድረጊያ + ማጽደቅ/ማገድ** — Admin ገጽ ላይ ሪፖርት ማየት፣ መፍታት፣ ተጠቃሚ ማገድ/እግድ ማንሳት
-- **ደንበኝነት/ክፍያ** — 1 ወር ነጻ፣ ከዚያ 1,500 ብር/ወር ወይም 7,000 ብር/አመት
-- **ዋሌት (Wallet)** — deposit/withdraw በቴሌብር `0960602675`፣ admin ማጽደቅ
-- **Blue Tick (300 ብር/ወር) እና VIP (800 ብር/ወር)** — ከዋሌት ተቀናሽ፣ ✔️/👑 ምልክት
-- **Animated Gifts** 🌹❤️⭐👑💎 — 30% ለመድረኩ (ለ admin) ተቆርጦ ቀሪው ለተቀባዩ
-- **4 ቋንቋ** — አማርኛ/English/Afaan Oromoo/ትግርኛ
-- **Premium Dark Theme** — Deep Slate (#1E293B) + Royal Blue (#1D9BF0)
-- **ሞባይል ተስማሚ ንድፍ**
-
-## 🏆 Monthly Business Challenge (NEW)
-
-A judged (not random) monthly pitch competition:
-
-- **Viral Gate** — users must follow 5 profiles + share their referral link with 3 friends before the entry payment button unlocks (`/challenge/invite`)
-- **5 Entry Tiers** — 50 / 100 / 200 / 500 / 1000 ETB, paid from wallet, non-refundable, pooled per tier per month
-- **Judged winner selection** — NOT a random draw. AI scores every pitch (`score_pitch_ai()`), admin adds a manual score, the entry with the highest combined score wins. A small engagement bonus (extra follows/referrals) can only nudge ties, never override pitch quality.
-- **Platform fee** — 10% of the pool; the remaining 90% is the prize
-- **Trust Protocol** — winner has 72 hours to submit guarantor ID info; admin approves → 50% released to wallet; winner then uploads proof-of-work photo; admin approves → remaining 50% released
-- **Admin dashboard** — `/admin/challenges`: score pitches, select winners, approve guarantors, approve proof, mark forfeited if the winner misses the deadline
-
-**AI scoring** — set `ANTHROPIC_API_KEY` as an environment variable to use real AI scoring via Claude. Without it, a simple heuristic (pitch length + business keywords) is used instead so the feature still works out of the box.
-
-⚠️ Note: this was deliberately built as a **judged competition**, not a random-draw lottery. A random draw + paid entry + platform cut is legally a lottery in most jurisdictions (including Ethiopia, where it would fall under National Lottery Administration licensing) — the AI + admin scoring is what keeps this a skill-based contest instead.
-
-## ☁️ Cloud Storage (Supabase) — አማራጭ
-
-ፎቶዎች/avatar በነባሪ (default) በአካባቢያዊ ዲስክ (`static/uploads/`) ይቀመጣሉ — ምንም ተጨማሪ ማዋቀር ሳያስፈልግ ስራ ላይ ይውላል።
-
-ፎቶዎችን ወደ ደመና (Supabase Storage) ማዛወር ከፈለጉ፦
-
-1. [supabase.com](https://supabase.com) ላይ ነጻ ፕሮጀክት ይፍጠሩ
-2. Storage ውስጥ `altajobs-uploads` የሚባል **public bucket** ይፍጠሩ
-3. `pip install supabase --break-system-packages`
-4. እነዚህን environment variable ያዘጋጁ (ወይም `.env` ፋይል ይጠቀሙ)፦
-   ```bash
-   export SUPABASE_URL="https://xxxx.supabase.co"
-   export SUPABASE_KEY="your-service-role-or-anon-key"
-   export SUPABASE_BUCKET="altajobs-uploads"   # አማራጭ፣ ነባሪው ይህ ነው
-   ```
-5. `python app.py` — ካስኬዱ በኋላ Terminal ላይ "✅ Supabase Storage connected" ብሎ ማየት አለብዎት
-
-⚠️ ይህ ፎቶ/avatar ብቻ ነው የሚነካው። ዋናው ዳታቤዝ (ተጠቃሚ፣ ፖስት፣ ዋሌት ወዘተ) አሁንም SQLite ላይ ነው። ወደ ሙሉ Postgres/Supabase ዳታቤዝ ለመቀየር ትልቅ ፕሮጀክት ስለሆነ ለብቻው ማቀድ ይመከራል — ካስፈለገዎት በተለየ ደረጃ (phase) ልንሰራው እንችላለን።
-
-
-
-## 👤 የመጀመሪያውን Admin እንዴት ማዘጋጀት ይቻላል
-መጀመሪያ በተለመደው መንገድ ይመዝገቡ፣ ከዚያ በ terminal/DB browser (ለምሳሌ "DB Browser for SQLite") ውስጥ፦
-```sql
-UPDATE users SET is_admin = 1 WHERE username = 'የእርስዎ_ስም';
-```
-ይህን ካደረጉ በኋላ ዳግም ይግቡ፤ "Admin Panel" የሚለው ሊንክ በላይኛው ናቭ ባር ላይ ይታያል።
-
-## ⚠️ ወደ production ከመሄድዎ በፊት
-- `app.config["SECRET_KEY"]`ን በዘፈቀደ (random) ጠንካራ ቁልፍ ይቀይሩ
-- ትክክለኛ የክፍያ API (ለምሳሌ Telebirr merchant API) ቢኖርዎት ወደ ራስ-ሰር ማረጋገጫ መቀየር ይመከራል
-- HTTPS እና እውነተኛ ዶሜይን ማዋቀር ያስፈልጋል
-- `debug=True`ን ወደ `False` ይቀይሩ
-
-Enjoy! 🚀

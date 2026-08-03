@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="jobs-page">
+
+  <div class="jobs-header">
+    <div>
+      <h1 class="jobs-header__title">Find your next opportunity</h1>
+      <p class="jobs-header__subtitle">Browse open positions across Ethiopia</p>
+    </div>
+    <a href="{{ url_for('new_job') }}" class="jobs-header__post-btn">+ Post a Job</a>
+  </div>
+
+  <form method="GET" action="{{ url_for('jobs_home') }}" class="jobs-search">
+    <input type="text" name="q" value="{{ query_text }}" placeholder="Search job title, company, or location..." class="jobs-search__input">
+    <button type="submit" class="jobs-search__btn">Search</button>
+  </form>
+
+  <div class="jobs-filters" id="jobsFilters">
+    <button type="button" class="jobs-filter {{ 'active' if active_category == 'all' }}" data-category="all">All</button>
+    <button type="button" class="jobs-filter {{ 'active' if active_category == 'tech' }}" data-category="tech">Tech</button>
+    <button type="button" class="jobs-filter {{ 'active' if active_category == 'sales' }}" data-category="sales">Sales</button>
+    <button type="button" class="jobs-filter {{ 'active' if active_category == 'admin' }}" data-category="admin">Admin</button>
+    <button type="button" class="jobs-filter {{ 'active' if active_category == 'labor' }}" data-category="labor">Labor</button>
+    <button type="button" class="jobs-filter {{ 'active' if active_category == 'general' }}" data-category="general">Other</button>
+  </div>
+
+  {% if not jobs_data %}
+    <div class="jobs-empty-state">
+      <div class="jobs-empty-state__title">No open jobs right now</div>
+      <div class="jobs-empty-state__hint">Check back soon, or post one yourself.</div>
+    </div>
+  {% endif %}
+
+  <div id="jobsContainer" class="jobs-grid">
+    {% include "_job_cards.html" %}
+  </div>
+
+  <div id="jobsLoadMoreWrap" class="jobs-pagination" data-page="{{ page }}" data-has-next="{{ '1' if has_next else '0' }}" data-category="{{ active_category }}" data-query="{{ query_text }}">
+    {% if has_next %}
+      <button type="button" id="jobsLoadMoreBtn" class="jobs-pagination__btn">Load more jobs</button>
+    {% endif %}
+  </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/jobs-page.js') }}" defer></script>
+
+{% endblock %}
