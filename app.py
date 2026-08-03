@@ -185,6 +185,7 @@ MONTHLY_PRICE = 1500
 YEARLY_PRICE = 7000
 FEED_PAGE_SIZE = 10  # posts fetched per page/scroll batch on the main feed
 MARKETPLACE_PAGE_SIZE = 12  # products fetched per page on the marketplace
+JOBS_PAGE_SIZE = 12  # jobs fetched per page on the jobs home page
 
 # --- Wallet / Verification / Gifts settings -------------------------------
 TELEBIRR_WALLET_NUMBER = "0960602675"     # ገንዘብ የሚላክበት ቴሌብር ቁጥር
@@ -4274,7 +4275,80 @@ def _build_single_post_payload(db, user, p):
     }
 
 
-@app.route("/")
+def _normalize_job_category(category_value):
+    if category_value is None:
+        return None
+    normalized = category_value.strip().lower()
+    if normalized in ("all", "any", ""):
+        return None
+    return normalized
+
+
+def _load_jobs_page(db, user, page, page_size=JOBS_PAGE_SIZE, category_filter=None, query_text=None):
+    offset = (page - 1) * page_size
+    where_parts = ["status = 'open'"]
+    params = []
+
+    if category_filter:
+        where_parts.append("category = ?")
+        params.append(category_filter)
+
+    if query_text:
+        where_parts.append("(LOWER(title) LIKE ? OR LOWER(description) LIKE ? OR LOWER(location) LIKE ?)")
+        like_term = f"%{query_text.lower()}%"
+        params.extend([like_term, like_term, like_term])
+
+    where_clause = "WHERE " + " AND ".join(where_parts)
+
+    try:
+        rows = db.execute(
+            f"""SELECT jobs.*, users.username, users.full_name, users.avatar,
+                       users.verification_tier, users.verified_until
+                FROM jobs
+                JOIN users ON jobs.user_id = users.id
+                {where_clause}
+                ORDER BY jobs.created_at DESC
+                LIMIT ? OFFSET ?""",
+            tuple(params + [page_size, offset]),
+        ).fetchall()
+    except Exception as exc:
+        print(f"Warning: could not load jobs page: {exc}")
+        rows = []
+
+    job_ids = [r["id"] for r in rows]
+    applied_ids = set()
+    if user and job_ids:
+        try:
+            placeholders = ", ".join("?" for _ in job_ids)
+            applied_ids = {
+                r["job_id"]
+                for r in db.execute(
+                    f"SELECT job_id FROM job_applications WHERE applicant_id = ? AND job_id IN ({placeholders})",
+                    tuple([user["id"]] + job_ids),
+                ).fetchall()
+            }
+        except Exception:
+            applied_ids = set()
+
+    jobs_data = []
+    for r in rows:
+        row = dict(r)
+        row.setdefault("full_name", row.get("username") or "Unknown")
+        row.setdefault("avatar", None)
+        row.setdefault("verification_tier", "none")
+        jobs_data.append({
+            "job": row,
+            "poster_name": row.get("full_name") or row.get("username") or "Unknown",
+            "applied": row.get("id") in applied_ids,
+            "is_owner": bool(user and row.get("user_id") == user.get("id")),
+        })
+
+    has_next = len(rows) == page_size
+    return jobs_data, has_next
+
+
+@app.route("/", endpoint="jobs_home")
+@app.route("/feed")
 @login_required
 def feed():
     db = get_db()
@@ -4287,81 +4361,47 @@ def feed():
     except Exception:
         page = 1
 
-    active_filter = request.args.get("type", "") or request.args.get("category", "all")
-    feed_filter = _normalize_feed_category(active_filter)
-    post_type_filter = feed_filter
-    active_filter = feed_filter or "all"
+    category_filter = _normalize_job_category(request.args.get("category", "all"))
+    query_text = (request.args.get("q") or "").strip()
 
     try:
-        posts_data, has_next = _load_feed_page(db, user, page, FEED_PAGE_SIZE, post_type_filter=post_type_filter)
+        jobs_data, has_next = _load_jobs_page(db, user, page, JOBS_PAGE_SIZE, category_filter, query_text)
     except Exception as exc:
-        print(f"Warning: feed page load failed: {exc}")
-        flash("There was a problem loading your feed. Please try again in a moment.")
-        posts_data, has_next = [], False
-
-    has_posts = len(posts_data) > 0
-
-    db_warning_message = None
-    if not has_posts:
-        try:
-            # try to get a quick posts count to help diagnose empty-feed issues
-            posts_count = 0
-            try:
-                posts_count = db.execute("SELECT COUNT(*) as c FROM posts").fetchone()["c"]
-            except Exception:
-                # fallback for DBs where posts table may be missing
-                try:
-                    posts_count = db.execute("SELECT COUNT(*) FROM posts").fetchone()[0]
-                except Exception:
-                    posts_count = 0
-
-            app.logger.info(f"Feed loaded with 0 posts for user={getattr(user,'id',None)}; resolved DATABASE={DATABASE}; is_sqlite={db.is_sqlite}; posts_count={posts_count}")
-            if posts_count == 0:
-                db_warning_message = f"No posts found in database ({os.path.basename(DATABASE)}). If you expect posts, verify the app's DATABASE setting and that the DB contains posts."
-        except Exception:
-            # swallow any diagnostics errors
-            pass
+        print(f"Warning: jobs home load failed: {exc}")
+        flash("There was a problem loading jobs. Please try again in a moment.")
+        jobs_data, has_next = [], False
 
     return render_template(
-        "feed.html",
-        posts_data=posts_data,
-        has_posts=has_posts,
+        "jobs_home.html",
+        jobs_data=jobs_data,
+        has_jobs=len(jobs_data) > 0,
         page=page,
-        page_size=FEED_PAGE_SIZE,
+        page_size=JOBS_PAGE_SIZE,
         has_next=has_next,
-        active_filter=active_filter,
+        active_category=category_filter or "all",
+        query_text=query_text,
         days_left=trial_days_left(user) if user else 0,
         show_trial_banner=bool(user and not _get_row_value(user, "paid_until")),
-        db_warning_message=db_warning_message,
     )
 
 
 @app.route("/feed/page/<int:page>")
 @login_required
 def feed_load_more(page):
-    """Returns a rendered HTML fragment of the next batch of posts, plus
-    pagination metadata, for the feed's "Load More" / infinite-scroll JS.
-    Reuses the exact same partial template as the initial page load so the
-    markup (translations, badges, follow state, CSRF-protected forms, etc.)
-    never drifts from the server-rendered version.
-    """
     if page < 1:
         page = 1
     db = get_db()
     user = get_current_user()
-    active_filter = request.args.get("type", "") or request.args.get("category", "all")
-    feed_filter = _normalize_feed_category(active_filter)
-    post_type_filter = feed_filter
-    active_filter = feed_filter or "all"
-    posts_data, has_next = _load_feed_page(db, user, page, FEED_PAGE_SIZE, post_type_filter=post_type_filter)
-    html = render_template("_feed_posts.html", posts_data=posts_data)
+    category_filter = _normalize_job_category(request.args.get("category", "all"))
+    query_text = (request.args.get("q") or "").strip()
+    jobs_data, has_next = _load_jobs_page(db, user, page, JOBS_PAGE_SIZE, category_filter, query_text)
+    html = render_template("_job_cards.html", jobs_data=jobs_data)
     return jsonify({
         "success": True,
         "html": html,
         "has_next": has_next,
-        "has_posts": len(posts_data) > 0,
+        "has_jobs": len(jobs_data) > 0,
         "page": page,
-        "type": active_filter,
     })
 
 
@@ -4408,7 +4448,7 @@ def debug_db():
 @app.route("/home.html")
 @login_required
 def home_html():
-    return feed()
+    return redirect(url_for("jobs_home"))
 
 
 @app.route("/api/feed")
@@ -4845,7 +4885,7 @@ def api_v1_delete_post(post_id):
 @app.route("/home")
 @login_required
 def home():
-    return redirect(url_for("feed"))
+    return redirect(url_for("jobs_home"))
 
 
 @app.route("/post/new", methods=["POST"])
